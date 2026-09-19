@@ -1,5 +1,5 @@
 /* ============================================================
-   TLOU INSTITUTE CAREER PATHWAY — APPLICATION STATE (Supabase build)
+   IROLI CAREER PATHWAY — APPLICATION STATE (Supabase build)
    ============================================================ */
 
 let ME = { id:null, name:'', email:'', avatarUrl:'' };

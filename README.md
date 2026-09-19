@@ -1,4 +1,4 @@
-# Tlou Institute Career Pathway — Supabase build
+# Iroli Career Pathway — Supabase build
 
 A South African career-guidance web app for Grades 9–12, running on
 Supabase (Postgres + Auth) instead of Firebase or Claude's in-artifact
@@ -90,7 +90,7 @@ You've already created the repo — from inside this project folder:
 ```bash
 git init                      # skip if the repo already has history
 git add .
-git commit -m "Tlou Institute Career Pathway — Supabase build"
+git commit -m "Iroli Career Pathway — Supabase build"
 git branch -M main
 git remote add origin https://github.com/<your-org>/<your-repo>.git
 git push -u origin main

@@ -18,7 +18,7 @@ function viewAuthGate(){
     return `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
       <div class="card" style="max-width:460px;">
-        <div class="brand-mark" style="margin-bottom:14px;">T</div>
+        <div class="brand-mark" style="margin-bottom:14px;">I</div>
         <h2>Supabase isn\u2019t configured yet</h2>
         <p class="page-sub">Open <code>js/supabase-config.js</code> and replace the placeholder values with your Supabase project\u2019s URL and anon key (Project Settings → API). Then run <code>supabase/schema.sql</code> in the SQL editor. See README.md Phase 1.</p>
       </div>
@@ -28,8 +28,8 @@ function viewAuthGate(){
   <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
     <div class="card" style="max-width:420px;width:100%;">
       <div style="text-align:center;margin-bottom:18px;">
-        <div class="brand-mark" style="margin:0 auto 12px;width:52px;height:52px;font-size:22px;">T</div>
-        <h1 style="font-size:22px;">Tlou Institute Career Pathway</h1>
+        <div class="brand-mark" style="margin:0 auto 12px;width:52px;height:52px;font-size:22px;">I</div>
+        <h1 style="font-size:22px;">Iroli Career Pathway</h1>
         <p class="page-sub" style="margin:0 auto;">${AUTH_MODE==='signup' ? 'Create your account' : AUTH_MODE==='reset' ? 'Reset your password' : 'Sign in to continue'}</p>
       </div>
       ${AUTH_ERROR ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('warn','ic')}<div>${esc(AUTH_ERROR)}</div></div>` : ''}

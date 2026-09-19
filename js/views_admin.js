@@ -18,7 +18,7 @@ function viewAdminHome(){
   const s = cohortStats();
   const maxFac = Math.max(1,...Object.values(s.facCount));
   return `
-  ${pageHeadHTML('Institute overview', 'A snapshot of every learner using this Tlou Institute Career Pathway workspace.')}
+  ${pageHeadHTML('Institute overview', 'A snapshot of every learner using this Iroli Career Pathway workspace.')}
   <div class="grid grid-4" style="margin-bottom:26px;">
     <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${s.total}</div><div class="l">Total learners</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--grass)"></div><div><div class="n">${s.active}</div><div class="l">Active licences</div></div></div>
@@ -81,7 +81,7 @@ function viewAdminClasses(){
       </div>
     </div>`;
   }).join('') : `<div class="empty-state">${icon('users')}<p>No classes yet — create your first class above.</p></div>`}
-  <div style="margin-top:10px;">${disclaimerHTML('Licence seats are tracked here for planning; Tlou Institute Career Pathway does not process payments in-app. Activate a learner\u2019s seat from the Cohort tab once payment/invoicing has been arranged with your Tlou Institute account manager.')}</div>
+  <div style="margin-top:10px;">${disclaimerHTML('Licence seats are tracked here for planning; Iroli Career Pathway does not process payments in-app. Activate a learner\u2019s seat from the Cohort tab once payment/invoicing has been arranged with your Iroli account manager.')}</div>
   `;
 }
 

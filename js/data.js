@@ -1,5 +1,5 @@
 /* ============================================================
-   TLOU INSTITUTE CAREER PATHWAY — DATA MODULE
+   IROLI CAREER PATHWAY — DATA MODULE
    Original data model & seed content. Not derived from any
    third-party product's proprietary text or design.
    ============================================================ */

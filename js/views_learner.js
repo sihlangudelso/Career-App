@@ -6,8 +6,8 @@ function viewOnboarding(isEdit){
   return `
   <div style="max-width:640px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:26px;">
-      <div class="brand-mark" style="margin:0 auto 14px;width:52px;height:52px;font-size:22px;">T</div>
-      <h1>${isEdit?'Update your profile':'Welcome to Tlou Institute Career Pathway'}</h1>
+      <div class="brand-mark" style="margin:0 auto 14px;width:52px;height:52px;font-size:22px;">I</div>
+      <h1>${isEdit?'Update your profile':'Welcome to Iroli Career Pathway'}</h1>
       <p class="page-sub" style="margin:0 auto;">A few quick details so we can personalise your subject guidance, career matches and APS planning.</p>
     </div>
     <div class="card">
@@ -24,7 +24,7 @@ function viewOnboarding(isEdit){
       </div>
       <div class="form-row">
         <label>School name</label>
-        <input type="text" id="ob_school" placeholder="e.g. Tlou Institute High School" value="${esc(l.school||'')}"/>
+        <input type="text" id="ob_school" placeholder="e.g. Iroli High School" value="${esc(l.school||'')}"/>
       </div>
       ${grade>9 ? `
       <div class="form-row">
@@ -490,7 +490,7 @@ function viewClass(){
         <div class="page-sub" style="margin-bottom:14px;">Class code: <span class="class-code">${esc(cls.code)}</span></div>
         <button class="btn btn-ghost btn-sm" onclick="App.leaveClass()">Leave class</button>
       ` : `
-        <p class="page-sub">Ask your teacher or Tlou Institute admin for your class code.</p>
+        <p class="page-sub">Ask your teacher or Iroli admin for your class code.</p>
         <div class="form-row"><input type="text" id="joinCode" placeholder="e.g. 7F3KQ" style="text-transform:uppercase;"/></div>
         <button class="btn btn-primary" onclick="App.joinClass()">Join class</button>
       `}
@@ -498,7 +498,7 @@ function viewClass(){
     <div class="card">
       <h3>Licence status</h3>
       <span class="badge ${l.licenseStatus==='active'?'badge-strong':'badge-good'}">${l.licenseStatus==='active'?'Active licence':'Trial access'}</span>
-      <p class="page-sub" style="margin-top:12px;">Full Tlou Institute Career Pathway access is provided through your school or institute\u2019s licence. If your access shows as trial, ask your school\u2019s admin to activate your licence.</p>
+      <p class="page-sub" style="margin-top:12px;">Full Iroli Career Pathway access is provided through your school or institute\u2019s licence. If your access shows as trial, ask your school\u2019s admin to activate your licence.</p>
     </div>
   </div>`;
 }
