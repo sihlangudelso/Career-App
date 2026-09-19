@@ -370,6 +370,8 @@ function viewCareerDetail(id){
     </div>
   </div>
 
+  ${courseLinksSectionHTML(career.id)}
+
   <div class="card" style="margin-bottom:18px;">
     <h3>Application requirements</h3>
     <p>${esc(career.applicationNotes)}</p>
