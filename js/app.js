@@ -16,6 +16,7 @@ let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
 let AUTH_READY = false;
 let learnerChannel = null;
+let JUST_CONFIRMED_EMAIL = false;
 
 function esc(s){ const d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
 function avg(arr){ if(!arr.length) return 50; return arr.reduce((a,b)=>a+b,0)/arr.length; }
@@ -37,6 +38,11 @@ function boot(){
     renderAuthGateOnly();
     return;
   }
+  // Supabase's email-confirmation link redirects back here with the new
+  // session in the URL hash (e.g. #access_token=...&type=signup). Read
+  // that marker before the client consumes/strips the hash, so we can
+  // greet a just-verified learner instead of silently signing them in.
+  JUST_CONFIRMED_EMAIL = /type=signup/.test(window.location.hash);
   sb.auth.onAuthStateChange((_event, session)=>{ handleSession(session); });
   sb.auth.getSession().then(({data})=> handleSession(data.session));
 }
@@ -57,6 +63,10 @@ async function handleSession(session){
     email: user.email,
     avatarUrl: (user.user_metadata && user.user_metadata.avatar_url) || '',
   };
+  if(JUST_CONFIRMED_EMAIL){
+    JUST_CONFIRMED_EMAIL = false;
+    toast('Email verified! Welcome to Iroli Career Pathway.');
+  }
   const profile = await ensureProfile(user);
   IS_ADMIN = profile.role === 'admin';
   renderShell();
