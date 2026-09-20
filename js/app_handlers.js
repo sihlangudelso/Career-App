@@ -93,6 +93,14 @@ const App = {
     if(isExploring){ LEARNER.grade = null; LEARNER.school = null; LEARNER.mathType = null; LEARNER.subjects = []; }
     render();
   },
+  async startExploring(route){
+    ensureLearnerObj();
+    if(LEARNER.exploringOnly !== false){
+      LEARNER.exploringOnly = true;
+      await saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: LEARNER.licenseStatus||'trial' });
+    }
+    navigate(route);
+  },
   async saveOnboarding(){
     const l = ensureLearnerObj();
     if(l.exploringOnly){
