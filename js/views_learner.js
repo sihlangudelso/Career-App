@@ -183,7 +183,7 @@ function viewGuidance(){
   </div>`;
 }
 function confSlider(key,label,val){
-  return `<div class="slider-row"><div class="sl-top"><span>${label}</span><span>${val}/5</span></div>
+  return `<div class="slider-row"><div class="sl-top"><span>${label}</span><span id="val_${key}">${val}/5</span></div>
     <input type="range" min="1" max="5" value="${val}" oninput="App.guideConf('${key}',this.value)"/></div>`;
 }
 function buildGuidanceResult(d){
@@ -313,7 +313,7 @@ function careerRowHTML(career, score, l){
     </div>
     <div class="right">
       ${label?`<span class="badge ${label.c}">${score}% · ${label.t}</span>`:''}
-      <button class="btn btn-ghost btn-sm" title="Save" onclick="App.toggleFav('${career.id}',event)">${icon(isFav?'heart':'heart')}</button>
+      <button class="btn btn-ghost btn-sm" title="${isFav?'Remove from favourites':'Save'}" onclick="App.toggleFav('${career.id}',event)">${icon('heart', isFav?'ic fav-on':'ic')}</button>
       <button class="btn btn-primary btn-sm" onclick="navigate('career','${career.id}')">View</button>
     </div>
   </div>`;
