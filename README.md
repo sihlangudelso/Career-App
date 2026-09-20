@@ -186,6 +186,13 @@ this phase as your privacy checkpoint under South Africa's **POPIA**
   refine the matching weights in `scoreCareer()` (`js/app.js`).
 - If the cohort table grows large, move the CSV export to a Postgres
   view or an Edge Function so it isn't computed entirely in the browser.
+- **Beyond Grade 9–12 (planned, not started):** the product direction is
+  to serve adults and working professionals too, not just school
+  learners — e.g. career changers or people re-skilling. Current
+  onboarding (`grade`, `school`, subject choices) and admin model
+  (school-issued class/licence codes) are learner-specific and will
+  need a second path that doesn't assume a school context before this
+  can happen.
 
 ---
 
