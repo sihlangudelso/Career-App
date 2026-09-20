@@ -80,7 +80,7 @@ function bottomNavHTML(){
 function pageHeadHTML(title, sub){
   return `
   <div class="page-head">
-    <div><h1>${title}</h1>${sub?`<div class="page-sub">${sub}</div>`:''}</div>
+    <div><h1>${esc(title)}</h1>${sub?`<div class="page-sub">${sub}</div>`:''}</div>
     ${avatarChipHTML()}
   </div>`;
 }
