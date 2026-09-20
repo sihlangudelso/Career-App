@@ -301,16 +301,23 @@ function viewMatches(){
 function viewExplore(){
   const l = ensureLearnerObj();
   const fac = ROUTE_PARAM && typeof ROUTE_PARAM==='object' ? ROUTE_PARAM.fac : (ROUTE_PARAM||'all');
-  let list = CAREERS.slice();
-  if(fac && fac!=='all') list = list.filter(c=>c.faculty===fac);
   return `
   ${pageHeadHTML('Explore careers', 'Browse every seeded career — no assessment needed.')}
   <div class="filter-bar">
     <button class="chip-select ${fac==='all'?'on':''}" onclick="navigate('explore','all')">All faculties</button>
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('explore','${f.id}')">${f.name}</button>`).join('')}
+    <input type="text" id="exploreSearch" placeholder="Search careers by name…" value="${esc(EXPLORE_SEARCH)}" oninput="App.filterExplore(this.value)"/>
   </div>
-  ${list.map(c=>careerRowHTML(c,null,l)).join('')}
+  <div id="exploreResults">${exploreResultsHTML(fac, l)}</div>
   `;
+}
+function exploreResultsHTML(fac, l){
+  let list = CAREERS.slice();
+  if(fac && fac!=='all') list = list.filter(c=>c.faculty===fac);
+  const q = EXPLORE_SEARCH.trim().toLowerCase();
+  if(q) list = list.filter(c=>c.name.toLowerCase().includes(q) || c.blurb.toLowerCase().includes(q));
+  if(!list.length) return `<div class="empty-state">${icon('search')}<p>No careers match “${esc(EXPLORE_SEARCH)}”.</p></div>`;
+  return list.map(c=>careerRowHTML(c,null,l)).join('');
 }
 
 function viewCareerDetail(id){

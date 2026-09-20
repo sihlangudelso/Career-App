@@ -1,4 +1,10 @@
 const App = {
+  // ---- explore ----
+  filterExplore(value){
+    EXPLORE_SEARCH = value;
+    const fac = ROUTE_PARAM && typeof ROUTE_PARAM==='object' ? ROUTE_PARAM.fac : (ROUTE_PARAM||'all');
+    document.getElementById('exploreResults').innerHTML = exploreResultsHTML(fac, ensureLearnerObj());
+  },
   // ---- auth ----
   setAuthMode(m){ AUTH_MODE = m; AUTH_ERROR=''; render(); },
   async authSignIn(){

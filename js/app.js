@@ -8,6 +8,7 @@ let PREVIEW_MODE = false;
 let LEARNER = null;
 let ROUTE = 'home';
 let ROUTE_PARAM = null;
+let EXPLORE_SEARCH = '';
 let CLASSES = [];
 let COHORT = [];
 let ASSESSMENT_DRAFT = null;
