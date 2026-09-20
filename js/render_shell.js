@@ -16,7 +16,11 @@ const ADMIN_NAV = [
   { r:'admin-careers', label:'Career Library', ic:'book' },
 ];
 
-function currentNav(){ return IS_ADMIN && !PREVIEW_MODE ? ADMIN_NAV : LEARNER_NAV; }
+function currentNav(){
+  if(IS_ADMIN && !PREVIEW_MODE) return ADMIN_NAV;
+  if(LEARNER && LEARNER.exploringOnly) return LEARNER_NAV.filter(n=>n.r!=='guidance');
+  return LEARNER_NAV;
+}
 
 function navigate(route, param){
   ROUTE = route; ROUTE_PARAM = param || null;
@@ -118,7 +122,7 @@ function render(){
 
   // learner (or preview) flow
   const l = ensureLearnerObj();
-  const needsOnboarding = !l.grade || !l.school;
+  const needsOnboarding = !l.exploringOnly && (!l.grade || !l.school);
   if(needsOnboarding && ROUTE!=='onboarding'){ ROUTE='onboarding'; }
 
   if(ROUTE==='onboarding') app.innerHTML = viewOnboarding();

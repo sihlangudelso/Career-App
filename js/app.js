@@ -209,8 +209,8 @@ function computeAPSFromMarks(marks){
 /* ---------------- progress ---------------- */
 function progressState(l){
   const steps = [
-    { key:'profile', done: !!(l && l.grade && l.school) },
-    { key:'subjects', done: !!(l && ((l.grade===9 && l.subjectGuidance) || (l.grade>9 && l.subjects && l.subjects.length))) },
+    { key:'profile', done: !!(l && (l.exploringOnly || (l.grade && l.school))) },
+    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && l.subjectGuidance) || (l.grade>9 && l.subjects && l.subjects.length))) },
     { key:'assessment', done: !!(l && l.assessmentCompletedAt) },
     { key:'explore', done: !!(l && l.viewedMatches) },
   ];

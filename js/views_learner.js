@@ -3,13 +3,41 @@ function viewOnboarding(isEdit){
   const grade = l.grade || '';
   const mathType = l.mathType || '';
   const subjects = l.subjects || [];
+  const pathChosen = l.exploringOnly === true || l.exploringOnly === false;
   return `
   <div style="max-width:640px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:26px;">
       <div class="brand-mark" style="margin:0 auto 14px;width:52px;height:52px;font-size:22px;">I</div>
       <h1>${isEdit?'Update your profile':'Welcome to Iroli Career Pathway'}</h1>
-      <p class="page-sub" style="margin:0 auto;">A few quick details so we can personalise your subject guidance, career matches and APS planning.</p>
+      <p class="page-sub" style="margin:0 auto;">Here’s what’s here — whether or not you’re currently at school.</p>
     </div>
+
+    <div class="grid grid-2" style="margin-bottom:22px;gap:12px;">
+      <div class="card" style="padding:16px;">${icon('spark','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Interest Assessment</h3><p class="page-sub" style="margin:0;">24 quick questions to find your interest profile.</p></div>
+      <div class="card" style="padding:16px;">${icon('target','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Matching</h3><p class="page-sub" style="margin:0;">See which careers fit you best, ranked by fit.</p></div>
+      <div class="card" style="padding:16px;">${icon('search','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Explore Careers</h3><p class="page-sub" style="margin:0;">Browse every career, with real degree requirements.</p></div>
+      <div class="card" style="padding:16px;">${icon('calc','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">APS Calculator</h3><p class="page-sub" style="margin:0;">Estimate your university admission score from your marks.</p></div>
+    </div>
+
+    ${!pathChosen ? `
+    <div class="card">
+      <h3 style="margin-bottom:4px;">Are you currently a Grade 9–12 learner at school?</h3>
+      <p class="page-sub" style="margin-bottom:14px;">This just tailors subject guidance and your school’s class view — everything above works either way.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="App.chooseOnboardingPath(false)">Yes, I’m a school learner</button>
+        <button class="btn btn-ghost" onclick="App.chooseOnboardingPath(true)">No — I’m just exploring</button>
+      </div>
+    </div>
+    ` : l.exploringOnly ? `
+    <div class="card">
+      <h3>You’re all set</h3>
+      <p class="page-sub" style="margin-bottom:14px;">No school details needed — jump straight into the assessment or start exploring careers. You can add a school later from your dashboard if that changes.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(false)">Actually, I’m a school learner</button>
+        <button class="btn btn-primary" onclick="App.saveOnboarding()">${icon('check')} Continue</button>
+      </div>
+    </div>
+    ` : `
     <div class="card">
       <div class="form-row">
         <label>Your name</label>
@@ -44,10 +72,12 @@ function viewOnboarding(isEdit){
       </div>` : `
       <div class="disclaimer">${icon('warn','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. Use the <b>Subject Choice Guidance</b> tool on your dashboard after saving your profile — no need to pick subjects here yet.</div></div>
       `}
-      <div style="margin-top:18px;display:flex;gap:10px;">
+      <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(true)">Actually, I’m just exploring</button>
         <button class="btn btn-primary" onclick="App.saveOnboarding()">${icon('check')} Save & continue</button>
       </div>
     </div>
+    `}
   </div>`;
 }
 
@@ -80,7 +110,7 @@ function viewHome(){
     </div>
   </div>
   <div class="grid grid-4" style="margin-bottom:26px;">
-    <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">Grade ${l.grade||'—'}</div><div class="l">${esc(l.school||'No school set')}</div></div></div>
+    <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${l.exploringOnly?'Exploring':'Grade '+(l.grade||'—')}</div><div class="l">${l.exploringOnly?'Not currently in school':esc(l.school||'No school set')}</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--teal)"></div><div><div class="n">${l.mathType==='Mathematics'?'Maths':(l.mathType==='MathLit'?'Maths Lit':'—')}</div><div class="l">Mathematics track</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--amber)"></div><div><div class="n">${(l.favourites||[]).length}</div><div class="l">Saved careers</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:${l.licenseStatus==='active'?'var(--grass)':'var(--coral)'}"></div><div><div class="n">${l.licenseStatus==='active'?'Active':'Trial'}</div><div class="l">Licence status</div></div></div>
@@ -88,7 +118,7 @@ function viewHome(){
 
   <div class="section-title"><h2>Quick actions</h2></div>
   <div class="grid grid-3">
-    <button class="tile" style="border-top-color:var(--amber)" onclick="navigate('guidance')">${icon('compass','tico')}<h3>Subject Choice Guidance</h3><p>Grade 9 tool: find the right subject combination for your goals.</p></button>
+    ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--amber)" onclick="navigate('guidance')">${icon('compass','tico')}<h3>Subject Choice Guidance</h3><p>Grade 9 tool: find the right subject combination for your goals.</p></button>` : ''}
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake assessment':'Take your assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="navigate('matches')">${icon('target','tico')}<h3>Career Matches</h3><p>See careers ranked by fit with your profile.</p></button>
     <button class="tile" style="border-top-color:var(--sky)" onclick="navigate('explore')">${icon('search','tico')}<h3>Explore Careers</h3><p>Browse all seeded careers across every faculty.</p></button>

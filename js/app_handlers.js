@@ -87,13 +87,25 @@ const App = {
   // ---- onboarding ----
   setGrade(g){ ensureLearnerObj(); LEARNER.grade = g; if(g===9){ LEARNER.mathType=null; LEARNER.subjects=[]; } render(); },
   setMathType(t){ ensureLearnerObj(); LEARNER.mathType = t; render(); },
+  chooseOnboardingPath(isExploring){
+    ensureLearnerObj();
+    LEARNER.exploringOnly = isExploring;
+    if(isExploring){ LEARNER.grade = null; LEARNER.school = null; LEARNER.mathType = null; LEARNER.subjects = []; }
+    render();
+  },
   async saveOnboarding(){
     const l = ensureLearnerObj();
+    if(l.exploringOnly){
+      await saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
+      toast('Profile saved.');
+      navigate('home');
+      return;
+    }
     if(!l.grade){ toast('Please select your grade.'); return; }
     const school = (document.getElementById('ob_school')||{}).value || '';
     if(!school.trim()){ toast('Please add your school name.'); return; }
     const subjects = l.grade>9 ? Array.from(document.querySelectorAll('.subject-check:checked')).map(el=>el.value) : [];
-    await saveLearner({ grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, licenseStatus: l.licenseStatus||'trial' });
+    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, licenseStatus: l.licenseStatus||'trial' });
     toast('Profile saved.');
     navigate('home');
   },
