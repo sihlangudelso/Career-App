@@ -58,7 +58,7 @@ function viewAuthGate(){
       </div>
       <button class="btn btn-ghost" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authGoogle()">Continue with Google</button>
 
-      <p style="font-size:11.5px;color:var(--muted);margin-top:18px;text-align:center;">By continuing you agree this tool provides career guidance only — always verify admission requirements with the institution directly. See the Privacy note in README.md.</p>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:18px;text-align:center;">By continuing you agree this tool provides career guidance only — always verify admission requirements with the institution directly. See our <a href="privacy.html" target="_blank" rel="noopener">Privacy Notice</a>.</p>
     </div>
   </div>`;
 }

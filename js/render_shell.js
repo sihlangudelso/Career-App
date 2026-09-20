@@ -53,6 +53,7 @@ function sidebarHTML(){
       ${IS_ADMIN ? `<button class="nav-item" onclick="App.togglePreview()">${icon(PREVIEW_MODE?'switch':'spark')}<span>${PREVIEW_MODE?'Exit preview':'Preview learner view'}</span></button>` : ''}
       <div class="role-pill" style="margin-top:8px;">${icon('shield','ic')} ${roleLabel}</div>
       <button class="nav-item" style="margin-top:6px;" onclick="App.signOut()">${icon('logout')}<span>Sign out</span></button>
+      <a href="privacy.html" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:11px;color:rgba(255,255,255,.6);margin-top:12px;">Privacy Notice</a>
     </div>
   `;
 }
