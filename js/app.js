@@ -17,6 +17,7 @@ let APS_DRAFT = null;
 let AUTH_READY = false;
 let learnerChannel = null;
 let JUST_CONFIRMED_EMAIL = false;
+let AUTH_RECOVERY_MODE = false;
 
 function esc(s){ const d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
 function avg(arr){ if(!arr.length) return 50; return arr.reduce((a,b)=>a+b,0)/arr.length; }
@@ -43,6 +44,11 @@ function boot(){
   // that marker before the client consumes/strips the hash, so we can
   // greet a just-verified learner instead of silently signing them in.
   JUST_CONFIRMED_EMAIL = /type=signup/.test(window.location.hash);
+  // A password-reset link also signs the person in via the URL hash (same
+  // mechanism as email confirmation) -- intercept it so they land on a
+  // "set a new password" screen instead of silently back in the app with
+  // their old password unchanged.
+  AUTH_RECOVERY_MODE = /type=recovery/.test(window.location.hash);
   sb.auth.onAuthStateChange((_event, session)=>{ handleSession(session); });
   sb.auth.getSession().then(({data})=> handleSession(data.session));
 }
@@ -55,6 +61,11 @@ async function handleSession(session){
     ME = { id:null, name:'', email:'', avatarUrl:'' };
     IS_ADMIN = false; LEARNER = null;
     renderAuthGateOnly();
+    return;
+  }
+  if(AUTH_RECOVERY_MODE){
+    ME = { id:user.id, name:'', email:user.email, avatarUrl:'' };
+    renderRecoveryOnly();
     return;
   }
   ME = {
@@ -79,6 +90,11 @@ async function handleSession(session){
 function renderAuthGateOnly(){
   document.getElementById('root').innerHTML = `<div id="app-auth"></div>`;
   document.getElementById('app-auth').innerHTML = viewAuthGate();
+}
+
+function renderRecoveryOnly(){
+  document.getElementById('root').innerHTML = `<div id="app-auth"></div>`;
+  document.getElementById('app-auth').innerHTML = viewSetNewPassword();
 }
 
 async function ensureProfile(user){

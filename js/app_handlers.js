@@ -6,29 +6,44 @@ const App = {
     document.getElementById('exploreResults').innerHTML = exploreResultsHTML(fac, ensureLearnerObj());
   },
   // ---- auth ----
-  setAuthMode(m){ AUTH_MODE = m; AUTH_ERROR=''; render(); },
+  setAuthMode(m){ AUTH_MODE = m; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render(); },
+  authSubmitOnEnter(){
+    if(AUTH_MODE==='signin') App.authSignIn();
+    else if(AUTH_MODE==='signup') App.authSignUp();
+    else if(AUTH_MODE==='reset') App.authReset();
+  },
   async authSignIn(){
-    const email = (document.getElementById('auth_email')||{}).value||'';
+    const email = (document.getElementById('auth_email')||{}).value.trim()||'';
     const pass = (document.getElementById('auth_pass')||{}).value||'';
     if(!email || !pass){ AUTH_ERROR='Please enter your email and password.'; render(); return; }
-    AUTH_BUSY = true; AUTH_ERROR=''; render();
+    AUTH_BUSY = true; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render();
     const { error } = await sb.auth.signInWithPassword({ email, password: pass });
     if(error) AUTH_ERROR = friendlyAuthError(error);
     AUTH_BUSY = false; render();
   },
   async authSignUp(){
     const name = (document.getElementById('auth_name')||{}).value||'';
-    const email = (document.getElementById('auth_email')||{}).value||'';
+    const email = (document.getElementById('auth_email')||{}).value.trim()||'';
     const pass = (document.getElementById('auth_pass')||{}).value||'';
     if(!name.trim()){ AUTH_ERROR='Please enter your name.'; render(); return; }
-    if(!email || !pass){ AUTH_ERROR='Please enter your email and password.'; render(); return; }
-    AUTH_BUSY = true; AUTH_ERROR=''; render();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ AUTH_ERROR='Please enter a valid email address.'; render(); return; }
+    if(pass.length < 6){ AUTH_ERROR='Please use at least 6 characters for your password.'; render(); return; }
+    AUTH_BUSY = true; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render();
     const { data, error } = await sb.auth.signUp({
       email, password: pass,
       options: { data: { display_name: name.trim() } },
     });
     if(error){ AUTH_ERROR = friendlyAuthError(error); AUTH_BUSY=false; render(); return; }
     AUTH_BUSY = false;
+    if(data.user && data.user.identities && data.user.identities.length === 0){
+      // Supabase returns no error for a duplicate email, to avoid leaking
+      // which addresses are registered -- an empty identities array is its
+      // documented signal that this email already has a confirmed account.
+      AUTH_ERROR = 'An account already exists with that email.';
+      AUTH_SHOW_RESET = true;
+      render();
+      return;
+    }
     if(!data.session){
       // Email confirmation is required (the default) — no session yet.
       toast('Check your email to confirm your account, then sign in.');
@@ -38,10 +53,10 @@ const App = {
     }
   },
   async authReset(){
-    const email = (document.getElementById('auth_email')||{}).value||'';
-    if(!email){ AUTH_ERROR='Enter your email first.'; render(); return; }
+    const email = (document.getElementById('auth_email')||{}).value.trim()||'';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ AUTH_ERROR='Please enter a valid email address.'; render(); return; }
     AUTH_BUSY = true; AUTH_ERROR=''; render();
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
     AUTH_BUSY = false;
     if(error){ AUTH_ERROR = friendlyAuthError(error); render(); return; }
     toast('Password reset email sent.');
@@ -49,9 +64,23 @@ const App = {
   },
   async authGoogle(){
     AUTH_BUSY = true; AUTH_ERROR=''; render();
-    const { error } = await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin } });
+    const { error } = await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin + window.location.pathname } });
     if(error){ AUTH_ERROR = friendlyAuthError(error); AUTH_BUSY=false; render(); }
     // On success the browser navigates away to Google and back — no further code runs here.
+  },
+  async authUpdatePassword(){
+    const pass = (document.getElementById('newpass1')||{}).value||'';
+    const pass2 = (document.getElementById('newpass2')||{}).value||'';
+    if(pass.length < 6){ AUTH_ERROR='Please use at least 6 characters.'; render(); return; }
+    if(pass !== pass2){ AUTH_ERROR='Those passwords don’t match.'; render(); return; }
+    AUTH_BUSY = true; AUTH_ERROR=''; render();
+    const { error } = await sb.auth.updateUser({ password: pass });
+    AUTH_BUSY = false;
+    if(error){ AUTH_ERROR = friendlyAuthError(error); render(); return; }
+    AUTH_RECOVERY_MODE = false;
+    toast('Password updated — you’re signed in.');
+    const { data } = await sb.auth.getSession();
+    await handleSession(data.session);
   },
   async signOut(){ await sb.auth.signOut(); },
 

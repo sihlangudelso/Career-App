@@ -1,6 +1,7 @@
 let AUTH_MODE = 'signin'; // 'signin' | 'signup' | 'reset'
 let AUTH_ERROR = '';
 let AUTH_BUSY = false;
+let AUTH_SHOW_RESET = false;
 
 function friendlyAuthError(err){
   const msg = (err && err.message) || '';
@@ -32,12 +33,12 @@ function viewAuthGate(){
         <h1 style="font-size:22px;">Iroli Career Pathway</h1>
         <p class="page-sub" style="margin:0 auto;">${AUTH_MODE==='signup' ? 'Create your account' : AUTH_MODE==='reset' ? 'Reset your password' : 'Sign in to continue'}</p>
       </div>
-      ${AUTH_ERROR ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('warn','ic')}<div>${esc(AUTH_ERROR)}</div></div>` : ''}
+      ${AUTH_ERROR ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('warn','ic')}<div>${esc(AUTH_ERROR)}${AUTH_SHOW_RESET ? ` <a href="#" onclick="App.setAuthMode('reset');return false;">Reset your password</a>` : ''}</div></div>` : ''}
       ${AUTH_MODE==='signup' ? `
-        <div class="form-row"><label>Your name</label><input type="text" id="auth_name" placeholder="Thabo Mokoena"/></div>
+        <div class="form-row"><label>Your name</label><input type="text" id="auth_name" placeholder="Thabo Mokoena" onkeydown="if(event.key==='Enter')App.authSubmitOnEnter()"/></div>
       ` : ''}
-      <div class="form-row"><label>Email</label><input type="text" id="auth_email" placeholder="you@example.com"/></div>
-      ${AUTH_MODE!=='reset' ? `<div class="form-row"><label>Password</label><input type="password" id="auth_pass" placeholder="At least 6 characters"/></div>` : ''}
+      <div class="form-row"><label>Email</label><input type="text" id="auth_email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')App.authSubmitOnEnter()"/></div>
+      ${AUTH_MODE!=='reset' ? `<div class="form-row"><label>Password</label><input type="password" id="auth_pass" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')App.authSubmitOnEnter()"/></div>` : ''}
 
       ${AUTH_MODE==='signin' ? `
         <button class="btn btn-primary" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authSignIn()">${AUTH_BUSY?'Signing in…':'Sign in'}</button>
@@ -59,6 +60,23 @@ function viewAuthGate(){
       <button class="btn btn-ghost" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authGoogle()">Continue with Google</button>
 
       <p style="font-size:11.5px;color:var(--muted);margin-top:18px;text-align:center;">By continuing you agree this tool provides career guidance only — always verify admission requirements with the institution directly. See our <a href="privacy.html" target="_blank" rel="noopener">Privacy Notice</a>.</p>
+    </div>
+  </div>`;
+}
+
+function viewSetNewPassword(){
+  return `
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="card" style="max-width:420px;width:100%;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div class="brand-mark" style="margin:0 auto 12px;width:52px;height:52px;font-size:22px;">I</div>
+        <h1 style="font-size:22px;">Set a new password</h1>
+        <p class="page-sub" style="margin:0 auto;">Choose a new password for ${esc(ME.email||'your account')}.</p>
+      </div>
+      ${AUTH_ERROR ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('warn','ic')}<div>${esc(AUTH_ERROR)}</div></div>` : ''}
+      <div class="form-row"><label>New password</label><input type="password" id="newpass1" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')App.authUpdatePassword()"/></div>
+      <div class="form-row"><label>Confirm new password</label><input type="password" id="newpass2" placeholder="Re-enter your new password" onkeydown="if(event.key==='Enter')App.authUpdatePassword()"/></div>
+      <button class="btn btn-primary" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authUpdatePassword()">${AUTH_BUSY?'Updating…':'Update password'}</button>
     </div>
   </div>`;
 }

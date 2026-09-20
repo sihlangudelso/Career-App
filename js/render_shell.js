@@ -95,6 +95,7 @@ function disclaimerHTML(text){
 }
 
 function render(){
+  if(AUTH_RECOVERY_MODE){ renderRecoveryOnly(); return; }
   if(!ME.id){ renderAuthGateOnly(); return; }
   // refresh nav highlight without full teardown
   document.getElementById('sidebarEl').innerHTML = sidebarHTML();
