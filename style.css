@@ -1,6 +1,6 @@
 :root{
   --bg:#F4F6FB; --surface:#FFFFFF; --ink:#171A23; --muted:#5B6272; --line:#E4E8F1;
-  --indigo:#3B2E7A; --indigo-ink:#2A2159; --amber:#F7A600; --teal:#00A896; --coral:#E8446B;
+  --indigo:#38BDF8; --indigo-ink:#0C4A6E; --amber:#F7A600; --teal:#00A896; --coral:#E8446B;
   --grass:#1FA25A; --sky:#2F8FFF; --olive:#5B8A00; --plum:#C8305A;
   --radius-sm:10px; --radius-md:16px; --radius-lg:26px;
   --shadow-soft:0 1px 2px rgba(23,26,35,.04), 0 8px 24px -12px rgba(23,26,35,.10);
@@ -33,7 +33,7 @@ button{font-family:var(--font-body); cursor:pointer;}
 
 /* ---------- Sidebar ---------- */
 .sidebar{
-  width:236px; flex-shrink:0; background:linear-gradient(155deg, #38BDF8, #14172A); color:#fff;
+  width:236px; flex-shrink:0; background:linear-gradient(155deg, var(--indigo), #14172A); color:#fff;
   display:flex; flex-direction:column; padding:22px 14px; gap:4px;
   position:sticky; top:0; height:100vh; overflow-y:auto;
 }
@@ -46,12 +46,12 @@ button{font-family:var(--font-body); cursor:pointer;}
 }
 .brand-text{line-height:1.15;}
 .brand-text b{display:block;font-family:var(--font-head);font-size:15.5px;color:#fff;}
-.brand-text span{font-size:11px;color:#C9C2EF;}
+.brand-text span{font-size:11px;color:#BFE4FB;}
 .nav-group{margin-top:14px;}
-.nav-label{font-size:11px;color:#9C93D4;padding:0 10px;margin-bottom:6px;}
+.nav-label{font-size:11px;color:#6FA9D0;padding:0 10px;margin-bottom:6px;}
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
-  color:#E7E3FA;font-size:13.8px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;
+  color:#DFF1FC;font-size:13.8px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;
 }
 .nav-item:hover{background:rgba(255,255,255,.08);}
 .nav-item.active{background:#fff;color:var(--indigo-ink);font-weight:700;}
@@ -118,7 +118,7 @@ svg.ic{width:16px;height:16px;flex-shrink:0;vertical-align:-2px;}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;}
 .badge-strong{background:#E4F7EC;color:#116635;}
 .badge-good{background:#FFF3D9;color:#8A5B00;}
-.badge-explore{background:#EFEBFB;color:var(--indigo-ink);}
+.badge-explore{background:#E0F2FE;color:var(--indigo-ink);}
 .badge-low{background:#F1F2F6;color:var(--muted);}
 .badge-faculty{color:#fff;}
 
@@ -211,7 +211,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   .app-shell{flex-direction:column;}
   .sidebar{display:none;}
   .topbar{
-    display:flex;justify-content:space-between;align-items:center;background:linear-gradient(155deg, #38BDF8, #14172A);color:#fff;
+    display:flex;justify-content:space-between;align-items:center;background:linear-gradient(155deg, var(--indigo), #14172A);color:#fff;
     padding:14px 16px;position:sticky;top:0;z-index:40;
   }
   .topbar .brand{padding:0;}

@@ -325,7 +325,7 @@ function viewMatches(){
   if(fac!=='all') matches = matches.filter(m=>m.career.faculty===fac);
   return `
   ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Ranked by fit with your interests, strengths and subjects.':'Complete the assessment for personalised ranking — showing subject-based fit for now.')}
-  <div class="detail-hero" style="background:linear-gradient(135deg, var(--teal), #14172A);">
+  <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths and subjects. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
   ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('warn','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
@@ -341,7 +341,7 @@ function viewExplore(){
   const fac = ROUTE_PARAM && typeof ROUTE_PARAM==='object' ? ROUTE_PARAM.fac : (ROUTE_PARAM||'all');
   return `
   ${pageHeadHTML('Explore careers', 'Browse every seeded career — no assessment needed.')}
-  <div class="detail-hero" style="background:linear-gradient(135deg, var(--sky), #14172A);">
+  <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">Browse all ${CAREERS.length} careers across ${FACULTIES.length} faculties, search by name, or filter to one faculty — no assessment required. Many careers also show real degree programmes and entry requirements pulled from actual South African institutions.</p>
   </div>
   <div class="filter-bar">
@@ -460,7 +460,7 @@ function viewAPS(){
   const result = l.apsLast && l.apsLast.aps!=null ? l.apsLast : null;
   return `
   ${pageHeadHTML('APS Calculator', 'Estimate your Admission Point Score from the National Senior Certificate 7-point scale.')}
-  <div class="detail-hero" style="background:linear-gradient(135deg, var(--coral), #14172A);">
+  <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">Enter your subject marks below to estimate your APS out of 42, using the common "best 6 subjects, excluding Life Orientation" method most South African universities start from. Every university has its own exact rules, so always confirm on their official calculator too.</p>
   </div>
   <div class="card" style="margin-bottom:18px;">
