@@ -1,6 +1,6 @@
 :root{
   --bg:#F4F6FB; --surface:#FFFFFF; --ink:#171A23; --muted:#5B6272; --line:#E4E8F1;
-  --indigo:#38BDF8; --indigo-ink:#0C4A6E; --amber:#F7A600; --teal:#00A896; --coral:#E8446B;
+  --indigo:#0369A1; --indigo-ink:#0C4A6E; --amber:#F7A600; --teal:#00A896; --coral:#E8446B;
   --grass:#1FA25A; --sky:#2F8FFF; --olive:#5B8A00; --plum:#C8305A;
   --radius-sm:10px; --radius-md:16px; --radius-lg:26px;
   --shadow-soft:0 1px 2px rgba(23,26,35,.04), 0 8px 24px -12px rgba(23,26,35,.10);

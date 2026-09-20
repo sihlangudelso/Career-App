@@ -12,12 +12,14 @@ function viewOnboarding(isEdit){
       <p class="page-sub" style="margin:0 auto;">Here’s what’s here — whether or not you’re currently at school.</p>
     </div>
 
+    ${l.exploringOnly !== false ? `
     <div class="grid grid-2" style="margin-bottom:22px;gap:12px;">
       <button class="tile" style="border-top-color:var(--indigo);padding:16px;" onclick="App.startExploring('assessment')">${icon('spark','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Interest Assessment</h3><p class="page-sub" style="margin:0;">24 quick questions to find your interest profile.</p></button>
       <button class="tile" style="border-top-color:var(--teal);padding:16px;" onclick="App.startExploring('matches')">${icon('target','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Matching</h3><p class="page-sub" style="margin:0;">See which careers fit you best, ranked by fit.</p></button>
       <button class="tile" style="border-top-color:var(--sky);padding:16px;" onclick="App.startExploring('explore')">${icon('search','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Explore Careers</h3><p class="page-sub" style="margin:0;">Browse every career, with real degree requirements.</p></button>
       <button class="tile" style="border-top-color:var(--coral);padding:16px;" onclick="App.startExploring('aps')">${icon('calc','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">APS Calculator</h3><p class="page-sub" style="margin:0;">Estimate your university admission score from your marks.</p></button>
     </div>
+    ` : ''}
 
     ${!pathChosen ? `
     <div class="card">

@@ -5,7 +5,7 @@
    ============================================================ */
 
 const FACULTIES = [
-  { id: 'engineering',   name: 'Engineering',                 color: '#3B2E7A', tag: 'ENG' },
+  { id: 'engineering',   name: 'Engineering',                 color: '#6D28D9', tag: 'ENG' },
   { id: 'ict',           name: 'ICT & Computer Science',      color: '#2F8FFF', tag: 'ICT' },
   { id: 'health',        name: 'Health Sciences',             color: '#1FA25A', tag: 'HLT' },
   { id: 'natsci',        name: 'Natural Sciences',            color: '#00A896', tag: 'SCI' },

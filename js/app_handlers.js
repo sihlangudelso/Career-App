@@ -83,6 +83,11 @@ const App = {
     await handleSession(data.session);
   },
   async signOut(){ await sb.auth.signOut(); },
+  async cancelRecovery(){
+    AUTH_RECOVERY_MODE = false;
+    AUTH_ERROR = '';
+    await sb.auth.signOut();
+  },
 
   // ---- onboarding ----
   setGrade(g){ ensureLearnerObj(); LEARNER.grade = g; if(g===9){ LEARNER.mathType=null; LEARNER.subjects=[]; } render(); },
@@ -93,11 +98,14 @@ const App = {
     if(isExploring){ LEARNER.grade = null; LEARNER.school = null; LEARNER.mathType = null; LEARNER.subjects = []; }
     render();
   },
-  async startExploring(route){
+  startExploring(route){
     ensureLearnerObj();
     if(LEARNER.exploringOnly !== false){
       LEARNER.exploringOnly = true;
-      await saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: LEARNER.licenseStatus||'trial' });
+      // Fire-and-forget: the in-memory state above is already enough for
+      // this session's own gating/nav checks, so a second rapid click on a
+      // different tile doesn't race this save to decide which route "wins".
+      saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: LEARNER.licenseStatus||'trial' });
     }
     navigate(route);
   },

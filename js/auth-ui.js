@@ -77,6 +77,7 @@ function viewSetNewPassword(){
       <div class="form-row"><label>New password</label><input type="password" id="newpass1" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')App.authUpdatePassword()"/></div>
       <div class="form-row"><label>Confirm new password</label><input type="password" id="newpass2" placeholder="Re-enter your new password" onkeydown="if(event.key==='Enter')App.authUpdatePassword()"/></div>
       <button class="btn btn-primary" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authUpdatePassword()">${AUTH_BUSY?'Updating…':'Update password'}</button>
+      <div style="text-align:center;margin-top:14px;font-size:12.5px;"><a href="#" onclick="App.cancelRecovery();return false;">Cancel and sign in instead</a></div>
     </div>
   </div>`;
 }
