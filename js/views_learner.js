@@ -7,7 +7,7 @@ function viewOnboarding(isEdit){
   return `
   <div style="max-width:640px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:26px;">
-      <div class="brand-mark" style="margin:0 auto 14px;width:52px;height:52px;font-size:22px;">I</div>
+      <img class="brand-mark-img" src="assets/logo-mark.png" alt="Iroli"/>
       <h1>${isEdit?'Update your profile':'Welcome to Iroli Career Pathway'}</h1>
       <p class="page-sub" style="margin:0 auto;">Here’s what’s here — whether or not you’re currently at school.</p>
     </div>

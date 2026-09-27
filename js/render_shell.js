@@ -44,8 +44,8 @@ function sidebarHTML(){
   const roleLabel = IS_ADMIN && !PREVIEW_MODE ? 'Institute Admin' : (PREVIEW_MODE ? 'Preview (Learner view)' : 'Learner');
   return `
     <div class="brand">
-      <div class="brand-mark">I</div>
-      <div class="brand-text"><b>Iroli</b><span>Career Pathway</span></div>
+      <img class="brand-logo" src="assets/logo-wordmark.png" alt="Iroli"/>
+      <div class="brand-sub">Career Pathway</div>
     </div>
     <div class="nav-group">
       ${nav.map(n=>`
@@ -64,7 +64,7 @@ function sidebarHTML(){
 
 function topbarHTML(){
   return `
-    <div class="brand"><div class="brand-mark">I</div><div class="brand-text"><b>Iroli</b><span>Career Pathway</span></div></div>
+    <div class="brand"><img class="brand-logo" src="assets/logo-wordmark.png" alt="Iroli"/><div class="brand-sub">Career Pathway</div></div>
     <button class="nav-item" style="width:auto;padding:8px;" onclick="App.openMobileMenu()">${icon('menu')}</button>
   `;
 }
