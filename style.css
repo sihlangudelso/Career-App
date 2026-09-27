@@ -36,7 +36,7 @@ button{font-family:var(--font-body); cursor:pointer;}
 
 /* ---------- Sidebar ---------- */
 .sidebar{
-  width:236px; flex-shrink:0; background:linear-gradient(155deg, var(--indigo), #14172A); color:#fff;
+  width:236px; flex-shrink:0; background:var(--indigo-ink); color:#fff;
   display:flex; flex-direction:column; padding:22px 14px; gap:4px;
   position:sticky; top:0; height:100vh; overflow-y:auto;
 }
@@ -208,7 +208,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   .app-shell{flex-direction:column;}
   .sidebar{display:none;}
   .topbar{
-    display:flex;justify-content:space-between;align-items:center;background:linear-gradient(155deg, var(--indigo), #14172A);color:#fff;
+    display:flex;justify-content:space-between;align-items:center;background:var(--indigo-ink);color:#fff;
     padding:14px 16px;position:sticky;top:0;z-index:40;
   }
   .topbar .brand{padding:0;}
