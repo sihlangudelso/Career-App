@@ -21,6 +21,7 @@ function icon(name, cls){
     menu: `<path d="M4 7h16M4 12h16M4 17h16" ${S}/>`,
     close: `<path d="M6 6l12 12M18 6L6 18" ${S}/>`,
     warn: `<path d="M12 3l10 18H2L12 3z" ${S}/><path d="M12 10v4M12 17h.01" ${S}/>`,
+    info: `<circle cx="12" cy="12" r="9" ${S}/><path d="M12 11v5.5M12 7.5h.01" ${S}/>`,
     chevron: `<path d="M9 6l6 6-6 6" ${S}/>`,
     building: `<rect x="4" y="9" width="7" height="12" ${S}/><rect x="13" y="4" width="7" height="17" ${S}/><path d="M6.5 12h2M6.5 15h2M6.5 18h2M15.5 7h2M15.5 10h2M15.5 13h2M15.5 16h2" ${S}/>`,
     leaf: `<path d="M4 20c0-9 6-15 16-15-1 10-7 16-16 15z" ${S}/><path d="M6 18c4-4 7-7 12-12" ${S}/>`,

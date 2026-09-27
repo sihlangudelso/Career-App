@@ -5,14 +5,14 @@
    ============================================================ */
 
 const FACULTIES = [
-  { id: 'engineering',   name: 'Engineering',                 color: '#6D28D9', tag: 'ENG' },
-  { id: 'ict',           name: 'ICT & Computer Science',      color: '#2F8FFF', tag: 'ICT' },
-  { id: 'health',        name: 'Health Sciences',             color: '#1FA25A', tag: 'HLT' },
-  { id: 'natsci',        name: 'Natural Sciences',            color: '#00A896', tag: 'SCI' },
-  { id: 'built',         name: 'Built Environment',           color: '#C7860B', tag: 'BLT' },
-  { id: 'agri',          name: 'Agriculture',                 color: '#5B8A00', tag: 'AGR' },
-  { id: 'finance',       name: 'Finance, Actuarial & Quant',  color: '#C8305A', tag: 'FIN' },
-  { id: 'humanities',    name: 'Humanities & Social Sciences',color: '#E8446B', tag: 'HUM' },
+  { id: 'engineering',   name: 'Engineering',                 color: '#3E4FD6', tag: 'ENG' },
+  { id: 'ict',           name: 'ICT & Computer Science',      color: '#5570FF', tag: 'ICT' },
+  { id: 'health',        name: 'Health Sciences',             color: '#7A5CF0', tag: 'HLT' },
+  { id: 'natsci',        name: 'Natural Sciences',            color: '#9B6FE3', tag: 'SCI' },
+  { id: 'built',         name: 'Built Environment',           color: '#B866D6', tag: 'BLT' },
+  { id: 'agri',          name: 'Agriculture',                 color: '#C94FB8', tag: 'AGR' },
+  { id: 'finance',       name: 'Finance, Actuarial & Quant',  color: '#E0569E', tag: 'FIN' },
+  { id: 'humanities',    name: 'Humanities & Social Sciences',color: '#F0508C', tag: 'HUM' },
 ];
 
 function facultyById(id){ return FACULTIES.find(f=>f.id===id) || FACULTIES[0]; }

@@ -72,7 +72,7 @@ function viewOnboarding(isEdit){
           `).join('')}
         </div>
       </div>` : `
-      <div class="disclaimer">${icon('warn','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. Use the <b>Subject Choice Guidance</b> tool on your dashboard after saving your profile — no need to pick subjects here yet.</div></div>
+      <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. Use the <b>Subject Choice Guidance</b> tool on your dashboard after saving your profile — no need to pick subjects here yet.</div></div>
       `}
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(true)">Actually, I’m just exploring</button>
@@ -91,7 +91,7 @@ function viewHome(){
   const cls = CLASSES.find(c=>c.id===l.classId);
   return `
   ${pageHeadHTML('Your dashboard', `Welcome back, ${esc(ME.name)||'there'}. Here\u2019s where your career pathway stands.`)}
-  ${PREVIEW_MODE?`<div class="disclaimer" style="margin-bottom:18px;">${icon('warn','ic')}<div>You\u2019re previewing the learner experience as an admin. Nothing here is saved to shared learner data.</div></div>`:''}
+  ${PREVIEW_MODE?`<div class="disclaimer" style="margin-bottom:18px;">${icon('info','ic')}<div>You\u2019re previewing the learner experience as an admin. Nothing here is saved to shared learner data.</div></div>`:''}
   <div class="card" style="margin-bottom:20px;">
     <div class="progress-ring-wrap">
       <svg width="100" height="100" viewBox="0 0 100 100">
@@ -161,7 +161,7 @@ function viewGuidance(){
   if(d.step===3 || (l.subjectGuidance && d.step===1 && d.justViewing)) return guidanceResultsHTML(l.subjectGuidance || buildGuidanceResult(d));
   return `
   ${pageHeadHTML('Subject Choice Guidance', 'Built for Grade 9 learners choosing subjects for Grade 10 — 2 quick steps.')}
-  ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('warn','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
+  ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
   <div class="card">
     ${d.step===1 ? `
       <h3>Step 1 — What excites you most?</h3>
@@ -330,7 +330,7 @@ function viewMatches(){
   <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths and subjects. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
-  ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('warn','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
+  ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
   <div class="filter-bar">
     <button class="chip-select ${fac==='all'?'on':''}" onclick="navigate('matches','all')">All faculties</button>
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('matches','${f.id}')">${f.name}</button>`).join('')}
