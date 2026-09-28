@@ -132,6 +132,8 @@ function render(){
   else if(ROUTE==='matches') { l.viewedMatches = true; app.innerHTML = viewMatches(); }
   else if(ROUTE==='explore') app.innerHTML = viewExplore();
   else if(ROUTE==='career') app.innerHTML = viewCareerDetail(ROUTE_PARAM);
+  else if(ROUTE==='clusters') app.innerHTML = viewClusters();
+  else if(ROUTE==='cluster') app.innerHTML = viewClusterDetail(ROUTE_PARAM);
   else if(ROUTE==='aps') app.innerHTML = viewAPS();
   else if(ROUTE==='favourites') app.innerHTML = viewFavourites();
   else if(ROUTE==='compare') app.innerHTML = viewCompare();

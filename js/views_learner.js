@@ -461,12 +461,57 @@ function viewExplore(){
   <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">Browse all ${CAREERS.length} careers across ${FACULTIES.length} faculties, search by name, or filter to one faculty — no assessment required. Many careers also show real degree programmes and entry requirements pulled from actual South African institutions.</p>
   </div>
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:14px;" onclick="navigate('clusters')">${icon('layers')} Not sure where to start? Browse by career cluster instead</button>
   <div class="filter-bar">
     <button class="chip-select ${fac==='all'?'on':''}" onclick="navigate('explore','all')">All faculties</button>
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('explore','${f.id}')">${f.name}</button>`).join('')}
     <input type="text" id="exploreSearch" placeholder="Search careers by name…" value="${esc(EXPLORE_SEARCH)}" oninput="App.filterExplore(this.value)"/>
   </div>
   <div id="exploreResults">${exploreResultsHTML(fac, l)}</div>
+  `;
+}
+function viewClusters(){
+  return `
+  ${pageHeadHTML('Explore career clusters', 'Twenty broad fields of work — a different way to browse than by faculty, useful if you don’t know where to start.')}
+  <div class="grid grid-3">
+    ${CLUSTERS.map(cl=>`
+      <button class="tile" style="border-top-color:var(--indigo);" onclick="navigate('cluster','${cl.id}')">
+        <h3 style="font-size:15px;">${esc(cl.name)}</h3>
+        <p style="font-size:12.5px;">${esc(cl.overview)}</p>
+      </button>`).join('')}
+  </div>
+  `;
+}
+function viewClusterDetail(id){
+  const cl = clusterById(id);
+  const l = ensureLearnerObj();
+  if(!cl) return `${pageHeadHTML('Cluster not found')}<div class="empty-state">${icon('search')}<p>That cluster couldn’t be found.</p></div>`;
+  const careers = cl.exampleCareerIds.map(cid=>CAREERS.find(c=>c.id===cid)).filter(Boolean);
+  return `
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="navigate('clusters')">${icon('chevron')} Back</button>
+  ${pageHeadHTML(cl.name, cl.overview)}
+  <div class="grid grid-2" style="margin-bottom:18px;">
+    <div class="card">
+      <h3>Common interests</h3>
+      <div class="pill-list">${cl.commonInterests.map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</div>
+    </div>
+    <div class="card">
+      <h3>Useful school subjects</h3>
+      <div class="pill-list">${cl.usefulSubjects.map(x=>`<span class="pill rec">${esc(x)}</span>`).join('')}</div>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-bottom:18px;">
+    <div class="card">
+      <h3>Typical study routes</h3>
+      <ul>${cl.studyRoutes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    </div>
+    <div class="card">
+      <h3>Qualification options</h3>
+      <ul>${cl.qualificationOptions.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    </div>
+  </div>
+  <div class="section-title"><h2>Example careers</h2></div>
+  ${careers.map(c=>careerRowHTML(c,null,l)).join('')}
   `;
 }
 function exploreResultsHTML(fac, l){
