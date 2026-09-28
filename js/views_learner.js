@@ -438,9 +438,17 @@ function assessmentResultsHTML(l){
   const topDims = [...dims].sort((a,b)=>b.val-a.val).slice(0,2);
   const topMatches = computeMatches(l).slice(0,3);
   return `
-  ${pageHeadHTML('Your type is '+esc(top2), 'Here’s what that means, and a first look at where it points you.')}
+  <div class="page-head" style="align-items:center;">
+    <div>
+      <div style="font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Your interest type</div>
+      <h1 style="font-size:44px;margin:0 0 6px;color:var(--indigo);">${esc(top2)}</h1>
+      <div class="page-sub">Here’s what that means, and a first look at where it points you.</div>
+    </div>
+    ${avatarChipHTML()}
+  </div>
   <div class="card" style="margin-bottom:18px;">
-    <h3>What ${esc(top2)} means</h3>
+    <h3>What does ${esc(top2)} mean?</h3>
+    <p>${topDims.length===2 ? `People with this type tend to enjoy work that lets them ${esc(topDims[0].blend)}, and also ${esc(topDims[1].blend)}.` : ''}</p>
     ${topDims.map(d=>`<p style="margin-bottom:10px;"><b>${esc(d.name)}</b> — ${esc(d.desc)}</p>`).join('')}
     <p class="page-sub" style="margin-bottom:0;">This comes from your two strongest RIASEC dimensions below — a starting point for exploring careers, not a fixed label.</p>
   </div>

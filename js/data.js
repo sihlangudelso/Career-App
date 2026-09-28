@@ -175,12 +175,12 @@ function clusterById(id){ return CLUSTERS.find(c=>c.id===id); }
 
 // RIASEC-style interest dimensions used for the assessment
 const RIASEC = [
-  { id:'R', name:'Practical & Hands-on', desc:'Working with tools, machines, the outdoors or your hands.' },
-  { id:'I', name:'Investigative & Analytical', desc:'Solving problems, researching, working with data and ideas.' },
-  { id:'A', name:'Creative & Expressive', desc:'Designing, creating, imagining new things.' },
-  { id:'S', name:'People-focused', desc:'Helping, teaching, caring for or supporting others.' },
-  { id:'E', name:'Enterprising & Persuasive', desc:'Leading, selling, starting things, taking initiative.' },
-  { id:'C', name:'Organised & Precise', desc:'Working with structure, numbers, records and detail.' },
+  { id:'R', name:'Practical & Hands-on', desc:'Working with tools, machines, the outdoors or your hands.', blend:'work hands-on with tools, machines or the outdoors' },
+  { id:'I', name:'Investigative & Analytical', desc:'Solving problems, researching, working with data and ideas.', blend:'dig into problems, research and ideas' },
+  { id:'A', name:'Creative & Expressive', desc:'Designing, creating, imagining new things.', blend:'design, create or imagine new things' },
+  { id:'S', name:'People-focused', desc:'Helping, teaching, caring for or supporting others.', blend:'help, teach or support other people' },
+  { id:'E', name:'Enterprising & Persuasive', desc:'Leading, selling, starting things, taking initiative.', blend:'lead, persuade or start new things' },
+  { id:'C', name:'Organised & Precise', desc:'Working with structure, numbers, records and detail.', blend:'bring structure, detail and organisation to your work' },
 ];
 
 // Append-only: these are positionally persisted in a learner's saved
