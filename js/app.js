@@ -15,6 +15,7 @@ let COHORT = [];
 let ASSESSMENT_DRAFT = null;
 let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
+let GRADE9_DRAFT = null;
 let AUTH_READY = false;
 let learnerChannel = null;
 let JUST_CONFIRMED_EMAIL = false;

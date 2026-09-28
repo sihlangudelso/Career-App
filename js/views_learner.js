@@ -95,7 +95,7 @@ function viewOnboarding(isEdit){
         ${markRowHTML('First Additional Language','First Additional Language', marks['First Additional Language'])}
         ${markRowHTML('Life Orientation','Life Orientation', marks['Life Orientation'])}
       </div>` : `
-      <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. Use the <b>Subject Choice Guidance</b> tool on your dashboard after saving your profile — no need to pick subjects here yet.</div></div>
+      <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. After saving your profile, use your dashboard to enter your <b>Grade 9 Report Results</b> and try the <b>Subject Choice Guidance</b> tool — no need to pick subjects here yet.</div></div>
       `}
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(true)">Actually, I’m just exploring</button>
@@ -146,6 +146,7 @@ function viewHome(){
 
   <div class="section-title"><h2>Quick actions</h2></div>
   <div class="grid grid-3">
+    ${!l.exploringOnly && l.grade===9 ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('grade9-report')">${icon('chart','tico')}<h3>${l.grade9Report?'Update your Grade 9 report':'Enter your Grade 9 report results'}</h3><p>Add your latest marks and a few work-style questions to sharpen your profile.</p></button>` : ''}
     ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--amber)" onclick="navigate('guidance')">${icon('compass','tico')}<h3>Subject Choice Guidance</h3><p>Grade 9 tool: find the right subject combination for your goals.</p></button>` : ''}
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake assessment':'Take your assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="navigate('matches')">${icon('target','tico')}<h3>Career Matches</h3><p>See careers ranked by fit with your profile.</p></button>
@@ -166,7 +167,7 @@ function viewHome(){
 function gradeTipHTML(l){
   if(l.exploringOnly) return '';
   const g = l.grade;
-  if(g===9) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 9 — this is exploration time.</b> Nothing is locked in yet. Try the <a href="#" onclick="navigate('guidance');return false;">Subject Choice Guidance</a> tool and the assessment to see what excites you before choosing Grade 10 subjects.</div></div>`;
+  if(g===9) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 9 — this is exploration time.</b> Nothing is locked in yet. ${l.grade9Report?'':`Enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> and `}try the <a href="#" onclick="navigate('guidance');return false;">Subject Choice Guidance</a> tool and the assessment to see what excites you before choosing Grade 10 subjects.</div></div>`;
   if(g===10 || g===11) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade ${g} — your subjects and marks now shape your matches.</b> Keep your <a href="#" onclick="navigate('profile');return false;">profile</a> updated as you get new results, so your career matches stay accurate.</div></div>`;
   if(g===12) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 12 — check real eligibility, not just fit.</b> Use the <a href="#" onclick="navigate('aps');return false;">APS Calculator</a> alongside your matches — a high match score reflects fit with your profile, not a guarantee of admission.</div></div>`;
   return '';
@@ -195,6 +196,97 @@ function academicProfileHTML(l){
 }
 function labelStep(label, done){
   return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:${done?'var(--grass)':'var(--muted)'};font-weight:600;">${icon('check','ic')} ${label}</div>`;
+}
+
+/* ---------------- Grade 9 Report Results + Work Style ---------------- */
+function ensureGrade9Draft(){
+  const l = ensureLearnerObj();
+  if(!GRADE9_DRAFT){
+    const g = l.grade9Report;
+    const marks = {};
+    (g && g.subjects ? Object.keys(g.subjects) : []).forEach(k=>{ marks[k] = g.subjects[k].pct; });
+    const ws = {};
+    WORK_STYLE_QUESTIONS.forEach(q=>{
+      const saved = l.workStyle && l.workStyle[q.key];
+      ws[q.key] = saved!=null ? Math.round(saved/25)+1 : 3; // 0-100 saved -> 1-5 slider
+    });
+    GRADE9_DRAFT = {
+      step: 1,
+      term: (g && g.term) || 'Term 4 / Final',
+      socialSciencesSplit: !!(g && g.socialSciencesSplit),
+      marks,
+      creativeArtsFocus: (g && g.creativeArtsFocus) || [],
+      workStyle: ws,
+    };
+  }
+  return GRADE9_DRAFT;
+}
+function grade9MarkInputHTML(d, subjectLabel){
+  const v = d.marks[subjectLabel];
+  return `<input type="number" class="grade9-mark" min="0" max="100" placeholder="%" style="width:64px;" value="${v!=null?v:''}" onchange="App.grade9SetMark('${esc(subjectLabel)}', this.value)"/>`;
+}
+function viewGrade9Report(){
+  const d = ensureGrade9Draft();
+  const l = ensureLearnerObj();
+  if(d.step===1) return grade9ReportStepHTML(d, l);
+  return grade9WorkStyleStepHTML(d, l);
+}
+function grade9ReportStepHTML(d, l){
+  return `
+  ${pageHeadHTML('Grade 9 Report Results', 'Step 1 of 2 — enter your latest marks. This helps build a fuller picture alongside your interests — skip anything you don’t have to hand yet.')}
+  <div class="card">
+    <div class="form-row">
+      <label>Report period</label>
+      <select onchange="App.grade9SetTerm(this.value)">
+        ${['Term 1','Term 2','Term 3','Term 4 / Final'].map(t=>`<option value="${esc(t)}" ${d.term===t?'selected':''}>${esc(t)}</option>`).join('')}
+      </select>
+    </div>
+    ${GRADE9_SUBJECTS.map(s=>{
+      if(s.id==='social-sciences'){
+        return `<div class="form-row">
+          <label>${esc(s.label)}</label>
+          <div class="filter-bar" style="margin-bottom:8px;">
+            <button class="chip-select ${!d.socialSciencesSplit?'on':''}" onclick="App.grade9SetSocialSplit(false)">One combined mark</button>
+            <button class="chip-select ${d.socialSciencesSplit?'on':''}" onclick="App.grade9SetSocialSplit(true)">Geography & History separately</button>
+          </div>
+          ${d.socialSciencesSplit
+            ? s.splitInto.map(sub=>`<div class="mark-row"><span>${esc(sub)}</span>${grade9MarkInputHTML(d,sub)}</div>`).join('')
+            : `<div class="mark-row"><span>${esc(s.label)}</span>${grade9MarkInputHTML(d,s.label)}</div>`}
+        </div>`;
+      }
+      if(s.id==='creative-arts'){
+        return `<div class="form-row">
+          <label>${esc(s.label)}</label>
+          <div class="mark-row"><span>Overall mark</span>${grade9MarkInputHTML(d,s.label)}</div>
+          <div class="hint" style="margin:8px 0 6px;">Which focus areas did this include? (optional, pick up to 2)</div>
+          <div class="filter-bar">
+            ${s.focusOptions.map(a=>`<button class="chip-select ${d.creativeArtsFocus.includes(a)?'on':''}" onclick="App.grade9ToggleCreativeFocus('${esc(a)}')">${esc(a)}</button>`).join('')}
+          </div>
+        </div>`;
+      }
+      return `<div class="form-row"><div class="mark-row"><span>${esc(s.label)}</span>${grade9MarkInputHTML(d,s.label)}</div></div>`;
+    }).join('')}
+    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('home')">Finish later</button>
+      <button class="btn btn-primary" onclick="App.grade9Step(2)">Next: How you like to work</button>
+    </div>
+  </div>`;
+}
+function grade9WorkStyleStepHTML(d, l){
+  return `
+  ${pageHeadHTML('Grade 9 Report Results', 'Step 2 of 2 — a few quick questions about how you like to work — there are no right answers.')}
+  <div class="card">
+    ${WORK_STYLE_QUESTIONS.map(q=>`
+      <div class="slider-row">
+        <div class="sl-top"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>
+        <input type="range" min="1" max="5" value="${d.workStyle[q.key]}" oninput="App.grade9SetWorkStyle('${q.key}', this.value)"/>
+      </div>
+    `).join('')}
+    <div style="margin-top:8px;display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="App.grade9Step(1)">Back</button>
+      <button class="btn btn-primary" onclick="App.grade9Submit()">${icon('check')} Save my results</button>
+    </div>
+  </div>`;
 }
 
 /* ---------------- Grade 9 subject guidance ---------------- */

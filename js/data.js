@@ -390,6 +390,19 @@ function markBandLabel(pct){
   return row.label;
 }
 
+// Work-style preferences: a genuinely separate short survey from RIASEC
+// (interest) and STRENGTH_KEYS (self-rated aptitude) -- this measures HOW
+// someone prefers to work (team vs solo, structured vs flexible, ...),
+// not what they're interested in or good at. Each is a 1-5 slider between
+// two poles, converted to 0-100 the same way riasec/strengths already are.
+const WORK_STYLE_QUESTIONS = [
+  { key:'teamVsSolo', left:'Working alone or independently', right:'Working as part of a team' },
+  { key:'structureVsFlexible', left:'Following a clear plan or routine', right:'Adapting as things change' },
+  { key:'leadVsSupport', left:'Supporting someone else’s plan', right:'Leading and directing a project' },
+  { key:'detailVsBigPicture', left:'Getting details exactly right', right:'Focusing on the big picture' },
+  { key:'routineVsVariety', left:'A predictable, steady routine', right:'Variety and frequent change' },
+];
+
 // Well-known SA public universities & TVET reference lists (general — always verify)
 const UNIVERSITIES = [
   'University of Cape Town (UCT)', 'University of the Witwatersrand (Wits)',

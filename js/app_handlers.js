@@ -156,6 +156,34 @@ const App = {
   guideRetake(){ GUIDE_DRAFT = null; ensureGuideDraft().step = 1; render(); },
   guideViewSaved(){ const d = ensureGuideDraft(); d.step = 3; render(); },
 
+  // ---- Grade 9 report results + work style ----
+  grade9SetTerm(v){ ensureGrade9Draft().term = v; },
+  grade9SetSocialSplit(v){ const d=ensureGrade9Draft(); d.socialSciencesSplit = v; render(); },
+  grade9SetMark(subject, val){ ensureGrade9Draft().marks[subject] = val; },
+  grade9ToggleCreativeFocus(area){
+    const d = ensureGrade9Draft();
+    if(d.creativeArtsFocus.includes(area)) d.creativeArtsFocus = d.creativeArtsFocus.filter(a=>a!==area);
+    else if(d.creativeArtsFocus.length<2) d.creativeArtsFocus = [...d.creativeArtsFocus, area];
+    else { toast('Pick up to 2 focus areas.'); return; }
+    render();
+  },
+  grade9Step(n){ ensureGrade9Draft().step = n; render(); },
+  grade9SetWorkStyle(key, val){ ensureGrade9Draft().workStyle[key] = Number(val); },
+  async grade9Submit(){
+    const d = ensureGrade9Draft();
+    const subjects = {};
+    Object.keys(d.marks).forEach(k=>{ if(d.marks[k]!=null && d.marks[k]!=='') subjects[k] = { pct: Number(d.marks[k]) }; });
+    const workStyle = {};
+    WORK_STYLE_QUESTIONS.forEach(q=>{ workStyle[q.key] = clamp((d.workStyle[q.key]-1)/4*100, 0, 100); });
+    await saveLearner({
+      grade9Report: { term: d.term, grade: 9, subjects, socialSciencesSplit: d.socialSciencesSplit, creativeArtsFocus: d.creativeArtsFocus },
+      workStyle,
+    });
+    GRADE9_DRAFT = null;
+    toast('Grade 9 report results saved.');
+    navigate('home');
+  },
+
   // ---- assessment ----
   assessGoto(step,dir){
     const d = ensureAssessDraft();
