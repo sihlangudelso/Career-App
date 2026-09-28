@@ -288,6 +288,108 @@ function subjectDomain(name){
   return name;
 }
 
+/* ============================================================
+   GRADE 9 (CAPS SENIOR PHASE) SUBJECT MODEL
+   Deliberately a separate keyspace from SA_SUBJECTS (the FET-phase,
+   Grade 10-12 list): a Grade 9 learning area like "Natural Sciences" or
+   "Economic and Management Sciences" covers several FET subjects at
+   once (Physical+Life Sciences; Accounting+Business Studies+Economics),
+   so it can never be "the same subject, earlier grade" -- see
+   GRADE9_TO_FET below for how the two are actually connected.
+   ============================================================ */
+const GRADE9_SUBJECTS = [
+  { id:'home-language', label:'Home Language' },
+  { id:'first-additional-language', label:'First Additional Language' },
+  { id:'mathematics', label:'Mathematics' },
+  { id:'natural-sciences', label:'Natural Sciences' },
+  // Many schools report this as one combined mark; some split it --
+  // support both rather than forcing one model.
+  { id:'social-sciences', label:'Social Sciences', splitInto:['Geography','History'] },
+  { id:'ems', label:'Economic and Management Sciences' },
+  { id:'technology', label:'Technology' },
+  // Real report cards issue ONE Creative Arts mark (from 2-of-4 chosen
+  // focus areas), never four independent marks -- so this stays a single
+  // subject with an optional focus tag for domain-routing flavour only.
+  { id:'creative-arts', label:'Creative Arts', focusOptions:['Visual Arts','Dramatic Arts','Music','Dance'] },
+  { id:'life-orientation', label:'Life Orientation' },
+];
+function grade9SubjectLabels(learner){
+  // Expands a learner's chosen Social Sciences mode into the actual
+  // label(s) used as keys in grade9Report.subjects.
+  const useSplit = learner && learner.grade9Report && learner.grade9Report.socialSciencesSplit;
+  return GRADE9_SUBJECTS.flatMap(s => s.id==='social-sciences' && useSplit ? s.splitInto : [s.label]);
+}
+
+// How a Grade 9 learning area's result can stand in for a missing FET
+// subjectMarks entry (used only to fill a gap -- see academicPerformanceFit
+// in app.js, which always prefers a real, current subjectMarks entry over
+// this when both exist for the same FET subject).
+const GRADE9_TO_FET = {
+  'Mathematics': ['Mathematics'],
+  'Natural Sciences': ['Physical Sciences', 'Life Sciences'],
+  'Social Sciences': ['Geography', 'History'],
+  'Geography': ['Geography'],
+  'History': ['History'],
+  'Economic and Management Sciences': ['Accounting', 'Business Studies', 'Economics'],
+  'Technology': ['Information Technology', 'Computer Applications Technology', 'Engineering Graphics and Design'],
+  'Home Language': ['Home Language'],
+  'First Additional Language': ['First Additional Language'],
+  'Life Orientation': ['Life Orientation'],
+};
+
+/* ============================================================
+   ACADEMIC STRENGTH DOMAINS
+   Groups the existing SUBJECT_DOMAINS (per-subject friendly labels,
+   display-only) into 8 broader domains that a learner's marks AND
+   interests can both score against -- the single source of truth for
+   "what kind of learner is this", used by both the Grade 9 profile and
+   the existing dashboard academic-profile card (see buildAcademicProfile
+   in app.js) so the two can never disagree.
+   ============================================================ */
+const STRENGTH_DOMAINS = [
+  { id:'quantitative', name:'Quantitative and Analytical',
+    grade9:['Mathematics'], fet:['Mathematics','Mathematical Literacy','Technical Mathematics'], riasec:['I','C'],
+    pathways:['Finance','Economics','Data','Engineering','Computing','Accounting','Quantitative careers'] },
+  { id:'scientific', name:'Scientific and Investigative',
+    grade9:['Natural Sciences','Mathematics'], fet:['Physical Sciences','Life Sciences','Technical Sciences','Agricultural Sciences'], riasec:['I','R'],
+    pathways:['Health','Science','Agriculture','Environmental careers','Engineering','Research'] },
+  { id:'business', name:'Business and Commercial',
+    grade9:['Economic and Management Sciences','Mathematics'], fet:['Accounting','Business Studies','Economics','Consumer Studies','Tourism'], riasec:['E','C'],
+    pathways:['Accounting','Business','Economics','Entrepreneurship','Marketing','Management','Finance'] },
+  { id:'humanities', name:'Humanities and Social Understanding',
+    grade9:['Social Sciences'], fet:['Geography','History','Religion Studies'], riasec:['S','I'],
+    pathways:['Law','Politics','Public administration','Sociology','Geography','Urban planning','Heritage','International relations','Community development'] },
+  { id:'communication', name:'Communication and Language',
+    grade9:['Home Language','First Additional Language','Social Sciences'], fet:['Home Language','First Additional Language'], riasec:['A','S'],
+    pathways:['Journalism','Law','Teaching','Communication','Public relations','Writing','Translation','Languages','Media'] },
+  { id:'creative', name:'Creative and Expressive',
+    grade9:['Creative Arts'], fet:['Visual Arts','Design','Dramatic Arts','Dance Studies','Music'], riasec:['A'],
+    pathways:['Design','Visual Arts','Fashion','Film','Acting','Music','Advertising','Content creation','Animation','Media'] },
+  { id:'practical', name:'Practical and Technical',
+    grade9:['Technology','Natural Sciences'], fet:['Information Technology','Computer Applications Technology','Engineering Graphics and Design','Civil Technology','Electrical Technology','Mechanical Technology','Agricultural Management Practices','Agricultural Technology','Hospitality Studies'], riasec:['R'],
+    pathways:['Engineering','Technical trades','Design','Construction','Manufacturing','Electronics','Mechanics','Artisan careers'] },
+  { id:'people', name:'People and Social Support',
+    grade9:['Life Orientation'], fet:['Life Orientation'], riasec:['S'],
+    pathways:['Teaching','Psychology','Social work','Human resources','Community development','Counselling','Health support careers'] },
+];
+function strengthDomainById(id){ return STRENGTH_DOMAINS.find(d=>d.id===id); }
+
+// Describes a percentage as CURRENT PERFORMANCE, never as a judgement of
+// ability -- always pair with the subject/domain name, e.g. "Mathematics
+// is currently ${markBandLabel(64)}".
+const MARK_BANDS = [
+  { min:80, label:'an exceptional current strength' },
+  { min:70, label:'a strong area' },
+  { min:60, label:'a good area' },
+  { min:50, label:'a developing area' },
+  { min:40, label:'an area that may need additional strengthening' },
+  { min:0,  label:'an area where significant improvement could help' },
+];
+function markBandLabel(pct){
+  const row = MARK_BANDS.find(b=>pct>=b.min) || MARK_BANDS[MARK_BANDS.length-1];
+  return row.label;
+}
+
 // Well-known SA public universities & TVET reference lists (general — always verify)
 const UNIVERSITIES = [
   'University of Cape Town (UCT)', 'University of the Witwatersrand (Wits)',

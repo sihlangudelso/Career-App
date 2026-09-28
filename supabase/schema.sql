@@ -39,6 +39,8 @@ create table if not exists public.learners (
   "licenseStatus" text not null default 'trial' check ("licenseStatus" in ('trial','active')),
   "apsLast" jsonb,
   "subjectMarks" jsonb,
+  "grade9Report" jsonb,
+  "workStyle" jsonb,
   "displayName" text,
   email text,
   "createdAt" timestamptz not null default now(),

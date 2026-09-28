@@ -255,7 +255,36 @@ const MATCH_CATEGORIES = {
   possible: { label:'Possible pathway',           badge:'badge-explore' },
   low:      { label:'Less aligned',               badge:'badge-low' },
 };
-const W_INTEREST=30, W_STRENGTH=20, W_SUBJECT=20, W_ACADEMIC=30;
+// Centralised, named weighting -- not scattered magic numbers. Two
+// unrelated tables: careerFit drives evaluateCareer's per-career 0-100
+// score; grade9Type drives computeStrengthDomains' primary/secondary
+// learner-profile domains. Deliberately namespaced with different key
+// names (not a shared "workStyle" key reused at two different
+// percentages) so the two never get confused with each other.
+//
+// careerFit currently only wires up 4 of its eventual factors, at
+// today's original 30/20/20/30 proportions renamed into this shape --
+// workStyle/statedPreference are added in a later phase together with a
+// deliberate re-balance toward interest 30 / aptitude 20 / academic 20 /
+// subjectAlignment 15 / workStyle 10 / statedPreference 5. Not yet active.
+const MATCH_WEIGHTS = {
+  careerFit: { interest:30, aptitude:20, academic:30, subjectAlignment:20 },
+};
+
+// Generic weighted blend: factors[key] may be null/undefined to mean "no
+// data for this factor yet" -- it's omitted and the remaining weights are
+// renormalised to still sum to 100%, the same graceful-degradation
+// approach academicPerformanceFit already uses, generalised so adding
+// more optional factors doesn't require a new hand-written branch every
+// time. Falls back to a neutral 50 only when every factor is missing.
+function blend(weights, factors){
+  let sumW=0, sumWV=0;
+  Object.keys(weights).forEach(k=>{
+    const v = factors[k];
+    if(v!=null){ sumW += weights[k]; sumWV += weights[k]*v; }
+  });
+  return sumW>0 ? sumWV/sumW : 50;
+}
 
 // Single source of truth for a learner/career pairing: computes every
 // component factor once, the blended score, and (once an assessment
@@ -276,12 +305,8 @@ function evaluateCareer(learner, career){
   let score;
   if(!hasAssessment){
     score = 0.6*subjectFit + 0.4*50; // least-informed state, unchanged from before
-  } else if(academicFitRaw==null){
-    // No relevant marks entered yet -- renormalise interest:strength:subject
-    // (30:20:20) to sum to 100 rather than defaulting academic fit to 50.
-    score = (W_INTEREST*interestFit + W_STRENGTH*strengthFit + W_SUBJECT*subjectFit) / (W_INTEREST+W_STRENGTH+W_SUBJECT);
   } else {
-    score = (W_INTEREST*interestFit + W_STRENGTH*strengthFit + W_SUBJECT*subjectFit + W_ACADEMIC*academicFitRaw) / (W_INTEREST+W_STRENGTH+W_SUBJECT+W_ACADEMIC);
+    score = blend(MATCH_WEIGHTS.careerFit, { interest:interestFit, aptitude:strengthFit, subjectAlignment:subjectFit, academic:academicFitRaw });
   }
   score = Math.round(clamp(score,0,100));
 
