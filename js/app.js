@@ -197,17 +197,34 @@ function subjectScore(learner, subjectName){
 
 // A learner's actual entered percentage for a named subject, or null if
 // they haven't entered one (never fabricated -- see academicPerformanceFit).
+// FET subject -> its possible Grade 9 antecedent name(s), derived from
+// GRADE9_TO_FET (js/data.js) rather than a second hand-authored map, so
+// the two directions of the same fact can't drift apart.
+const FET_TO_GRADE9 = {};
+Object.entries(GRADE9_TO_FET).forEach(([g9subject, fetSubjects])=>{
+  fetSubjects.forEach(fet=>{ (FET_TO_GRADE9[fet] = FET_TO_GRADE9[fet]||[]).push(g9subject); });
+});
+// Only ever used to fill a gap -- see subjectMarkPct, which always checks
+// the learner's real, current subjectMarks first.
+function grade9AntecedentPct(learner, fetSubject){
+  const g9 = (learner.grade9Report && learner.grade9Report.subjects) || {};
+  const candidates = FET_TO_GRADE9[fetSubject] || [];
+  for(const c of candidates){ if(g9[c] && g9[c].pct!=null) return g9[c].pct; }
+  return null;
+}
 function subjectMarkPct(learner, subjectName){
   const marks = learner.subjectMarks || {};
   if(subjectName === 'Mathematics' || subjectName === 'Mathematical Literacy'){
     const key = learner.mathType === 'MathLit' ? 'Mathematical Literacy' : 'Mathematics';
     if(subjectName !== key) return null; // no mark to report for the track they didn't take
-    return marks[key] && marks[key].pct != null ? marks[key].pct : null;
+    if(marks[key] && marks[key].pct != null) return marks[key].pct;
+    return grade9AntecedentPct(learner, subjectName);
   }
   let key = subjectName;
   if(subjectName.includes('Home Language')) key = 'Home Language';
   else if(subjectName.includes('Additional Language')) key = 'First Additional Language';
-  return marks[key] && marks[key].pct != null ? marks[key].pct : null;
+  if(marks[key] && marks[key].pct != null) return marks[key].pct;
+  return grade9AntecedentPct(learner, subjectName);
 }
 
 const TIER_WEIGHT = { required:1, recommended:0.4, related:0.08 };
@@ -258,18 +275,14 @@ const MATCH_CATEGORIES = {
 };
 // Centralised, named weighting -- not scattered magic numbers. Two
 // unrelated tables: careerFit drives evaluateCareer's per-career 0-100
-// score; grade9Type drives computeStrengthDomains' primary/secondary
-// learner-profile domains. Deliberately namespaced with different key
-// names (not a shared "workStyle" key reused at two different
-// percentages) so the two never get confused with each other.
-//
-// careerFit currently only wires up 4 of its eventual factors, at
-// today's original 30/20/20/30 proportions renamed into this shape --
-// workStyle/statedPreference are added in a later phase together with a
-// deliberate re-balance toward interest 30 / aptitude 20 / academic 20 /
-// subjectAlignment 15 / workStyle 10 / statedPreference 5. Not yet active.
+// score; grade9Type-flavoured blending lives directly in
+// computeStrengthDomains (marks+interest, 50/50) since that function
+// only ever has 2 possible factors, not 6 -- blend() is reserved for
+// careerFit where the factor count actually varies. Deliberately
+// namespaced key names (not a shared "workStyle" key reused at a
+// different percentage elsewhere) so the two concepts never get confused.
 const MATCH_WEIGHTS = {
-  careerFit: { interest:30, aptitude:20, academic:30, subjectAlignment:20 },
+  careerFit: { interest:30, aptitude:20, academic:20, subjectAlignment:15, workStyle:10, statedPreference:5 },
 };
 
 // Generic weighted blend: factors[key] may be null/undefined to mean "no
@@ -292,6 +305,39 @@ function blend(weights, factors){
 // exists) which of the four match categories it falls into. Everything
 // else (scoreCareer, computeMatches, the career-detail explanation) reads
 // from this instead of recomputing the same factors separately.
+// A career's work-style profile isn't hand-authored (re-tagging 77+
+// careers for one new factor doesn't scale) -- it's derived from fields
+// that already exist: its RIASEC letters and its pathway shape. A
+// reasonable proxy, not a precise measurement.
+function careerWorkStyleProfile(career){
+  const has = d => career.riasec.includes(d);
+  const structured = career.pathways.some(p=>p.type==='Apprenticeship'||p.type==='TVET') || !!career.institutions.tvet;
+  return {
+    teamVsSolo: has('S')||has('E') ? 70 : 40,
+    structureVsFlexible: structured ? 30 : (has('A')||has('E') ? 65 : 50),
+    leadVsSupport: has('E') ? 70 : (has('S') ? 45 : 50),
+    detailVsBigPicture: has('C') ? 30 : (has('A')||has('E') ? 65 : 50),
+    routineVsVariety: has('E')||has('A') ? 65 : (structured ? 35 : 50),
+  };
+}
+// How closely a learner's stated work-style preferences match a career's
+// derived profile, 0-100 (100 = identical). Null (omit from the blend)
+// until the learner has completed the work-style mini-survey.
+function workStyleFit(learner, career){
+  if(!learner.workStyle) return null;
+  const cw = careerWorkStyleProfile(career);
+  return avg(WORK_STYLE_QUESTIONS.map(q => 100 - Math.abs((learner.workStyle[q.key]!=null?learner.workStyle[q.key]:50) - cw[q.key])));
+}
+// A small, real signal: has the learner already favourited this career?
+// Null (omit) until they've favourited anything at all -- once they have,
+// every career gets a determinate value (100 if favourited, a neutral 50
+// otherwise) so this factor only ever helps a career, never penalises one
+// just for not having been browsed yet.
+function statedPreferenceFit(learner, career){
+  if(!learner.favourites || !learner.favourites.length) return null;
+  return learner.favourites.includes(career.id) ? 100 : 50;
+}
+
 function evaluateCareer(learner, career){
   const riasec = learner.riasec || {};
   const strengths = learner.strengths || {};
@@ -302,12 +348,17 @@ function evaluateCareer(learner, career){
   const subjectFitRaw = subjectAlignmentFit(learner, career);
   const subjectFit = subjectFitRaw==null ? 50 : subjectFitRaw;
   const academicFitRaw = hasAssessment ? academicPerformanceFit(learner, career) : null;
+  const workStyleFitRaw = hasAssessment ? workStyleFit(learner, career) : null;
+  const statedPreferenceFitRaw = hasAssessment ? statedPreferenceFit(learner, career) : null;
 
   let score;
   if(!hasAssessment){
     score = 0.6*subjectFit + 0.4*50; // least-informed state, unchanged from before
   } else {
-    score = blend(MATCH_WEIGHTS.careerFit, { interest:interestFit, aptitude:strengthFit, subjectAlignment:subjectFit, academic:academicFitRaw });
+    score = blend(MATCH_WEIGHTS.careerFit, {
+      interest:interestFit, aptitude:strengthFit, subjectAlignment:subjectFit, academic:academicFitRaw,
+      workStyle:workStyleFitRaw, statedPreference:statedPreferenceFitRaw,
+    });
   }
   score = Math.round(clamp(score,0,100));
 
@@ -320,7 +371,7 @@ function evaluateCareer(learner, career){
     else if(score>=40) category = 'possible';
     else category = 'low';
   }
-  return { score, category, interestFit, strengthFit, subjectFit, academicFit:academicFitRaw };
+  return { score, category, interestFit, strengthFit, subjectFit, academicFit:academicFitRaw, workStyleFit:workStyleFitRaw, statedPreferenceFit:statedPreferenceFitRaw };
 }
 function scoreCareer(learner, career){ return evaluateCareer(learner, career).score; }
 function matchLabel(score){
