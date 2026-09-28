@@ -224,7 +224,7 @@ function subjectMarkPct(learner, subjectName){
   if(subjectName.includes('Home Language')) key = 'Home Language';
   else if(subjectName.includes('Additional Language')) key = 'First Additional Language';
   if(marks[key] && marks[key].pct != null) return marks[key].pct;
-  return grade9AntecedentPct(learner, subjectName);
+  return grade9AntecedentPct(learner, key);
 }
 
 const TIER_WEIGHT = { required:1, recommended:0.4, related:0.08 };

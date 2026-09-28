@@ -364,7 +364,27 @@ function ensureGuideDraft(){
   const l = ensureLearnerObj();
   if(!GUIDE_DRAFT){
     const g = l.subjectGuidance;
-    GUIDE_DRAFT = { step:1, tags: g?g.tags:[], conf: g?g.conf:{maths:3,science:3,language:3,practical:3} };
+    // Only trust a saved conf if it's already keyed by the current
+    // STRENGTH_DOMAINS ids -- an older saved result (from before this
+    // step was regrouped around domains) has different keys entirely, and
+    // reusing it as-is would leave every new slider undefined.
+    const savedConfMatchesCurrentShape = g && g.conf && STRENGTH_DOMAINS.every(dm=>g.conf[dm.id]!=null);
+    let conf;
+    if(savedConfMatchesCurrentShape) conf = g.conf;
+    else {
+      // Pre-filled from whatever real evidence already exists (report
+      // marks and/or assessment interests via computeStrengthDomains),
+      // rather than a flat neutral default for everyone -- still fully
+      // adjustable, since self-rated confidence can honestly differ from
+      // a raw mark or interest score.
+      const domains = computeStrengthDomains(l);
+      conf = {};
+      STRENGTH_DOMAINS.forEach(dm=>{
+        const found = domains.find(x=>x.domain.id===dm.id);
+        conf[dm.id] = found && found.hasEvidence ? Math.max(1, Math.min(5, Math.round(found.score/25)+1)) : 3;
+      });
+    }
+    GUIDE_DRAFT = { step:1, tags: g?g.tags:[], conf };
   }
   return GUIDE_DRAFT;
 }
@@ -385,11 +405,8 @@ function viewGuidance(){
       <div style="margin-top:20px;"><button class="btn btn-primary" ${d.tags.length?'':'disabled'} onclick="App.guideStep(2)">Next</button></div>
     ` : `
       <h3>Step 2 — Rate your confidence</h3>
-      <p class="page-sub">Be honest — this just helps guide the suggestion.</p>
-      ${confSlider('maths','Mathematics & numbers',d.conf.maths)}
-      ${confSlider('science','Science & experiments',d.conf.science)}
-      ${confSlider('language','Languages & writing',d.conf.language)}
-      ${confSlider('practical','Hands-on & practical tasks',d.conf.practical)}
+      <p class="page-sub">Be honest — this just helps guide the suggestion. Pre-filled from your report results and assessment where we already have evidence.</p>
+      ${STRENGTH_DOMAINS.map(dm=>confSlider(dm.id, dm.name, d.conf[dm.id])).join('')}
       <div style="margin-top:10px;display:flex;gap:10px;">
         <button class="btn btn-ghost" onclick="App.guideStep(1)">Back</button>
         <button class="btn btn-primary" onclick="App.guideSubmit()">See my recommendation</button>
@@ -406,6 +423,7 @@ function confSlider(key,label,val){
 // tally which subjects are actually required/recommended, so "why" can
 // name real careers instead of a generic sentence.
 function buildGuidanceResult(d){
+  const l = ensureLearnerObj();
   const tags = d.tags; // cluster ids
   const selectedClusters = tags.map(function(id){ return clusterById(id); }).filter(Boolean);
   const subjectInfo = {}; // subject -> { required:Set<careerName>, recommended:Set<careerName> }
@@ -429,34 +447,66 @@ function buildGuidanceResult(d){
     const arr=[...set];
     return arr.length>max ? (arr.slice(0,max).join(', ')+' and '+(arr.length-max)+' other career'+(arr.length-max>1?'s':'')) : arr.join(', ');
   }
+  // Cites the learner's own report/marks evidence for a subject alongside
+  // the interest evidence above it -- never marks alone (that's built
+  // into subjectMarkPct itself: a current FET mark first, a Grade 9
+  // report antecedent only as a fallback).
+  function reportCitation(subject){
+    const pct = subjectMarkPct(l, subject);
+    return pct!=null ? (' Your results show '+subject+' at '+pct+'% — '+markBandLabel(pct)+'.') : '';
+  }
 
   const math = subjectInfo['Mathematics'];
   if(math && math.required.size){
     rec.push('Mathematics');
-    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.');
-  } else if((math && math.recommended.size) || d.conf.maths>=4){
+    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.'+reportCitation('Mathematics'));
+  } else if((math && math.recommended.size) || d.conf.quantitative>=4){
     rec.push('Mathematics');
-    reasoning.push(math ? ('Mathematics isn’t strictly required for your selected interests, but it’s recommended for '+nameList(math.recommended)+' and generally keeps more doors open.') : 'Mathematics isn’t required by your selected interests specifically, but it keeps the widest range of future options open.');
+    reasoning.push((math ? ('Mathematics isn’t strictly required for your selected interests, but it’s recommended for '+nameList(math.recommended)+' and generally keeps more doors open.') : 'Mathematics isn’t required by your selected interests specifically, but it keeps the widest range of future options open.')+reportCitation('Mathematics'));
   } else {
     rec.push('Mathematics or Mathematical Literacy — discuss with your teacher');
-    reasoning.push('None of your selected interests strictly need Mathematics, so Mathematical Literacy is a reasonable option — but talk this through with your subject counsellor, since switching back later is hard if your interests change.');
+    reasoning.push('None of your selected interests strictly need Mathematics, so Mathematical Literacy is a reasonable option — but talk this through with your subject counsellor, since switching back later is hard if your interests change.'+reportCitation('Mathematics'));
   }
 
   Object.keys(subjectInfo).filter(function(s){ return s!=='Mathematics'; }).forEach(function(s){
     const info = subjectInfo[s];
-    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'); }
-    else if(info.recommended.size>=2){ rec.push(s); reasoning.push(s+' is recommended for '+nameList(info.recommended)+'.'); }
+    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'+reportCitation(s)); }
+    else if(info.recommended.size>=2){ rec.push(s); reasoning.push(s+' is recommended for '+nameList(info.recommended)+'.'+reportCitation(s)); }
   });
 
   selectedClusters.forEach(function(cl){
     if(cl.usefulSubjects.length && !cl.usefulSubjects.some(function(s){ return rec.includes(s); })){
       rec.push(cl.usefulSubjects[0]);
-      reasoning.push(cl.usefulSubjects[0]+' is a useful foundation subject for '+cl.name+'.');
+      reasoning.push(cl.usefulSubjects[0]+' is a useful foundation subject for '+cl.name+'.'+reportCitation(cl.usefulSubjects[0]));
     }
   });
   if(!selectedClusters.length) reasoning.push('Pick at least one field you’re curious about to get a grounded recommendation.');
 
-  return { tags: tags, conf:d.conf, recommendedSubjects:[...new Set(rec)], reasoning: reasoning, completedAt: todayISO() };
+  // "Keeps options open": marks must support, not override, interest --
+  // a strong current subject that isn't backed by any selected-interest
+  // evidence above is still surfaced, just framed as optional rather than
+  // a top-billed pick (never hidden just because it wasn't "chosen").
+  // A Grade 9 subject already cited above via its FET antecedent (e.g.
+  // "History" recommended, sourced from a "Social Sciences" report mark)
+  // shouldn't also show up here under its raw Grade 9 name -- same
+  // evidence, would just read as a repeat.
+  function alreadyCited(subject){
+    if(rec.includes(subject)) return true;
+    // Home Language/First Additional Language are stored generically at
+    // Grade 9 level but cited elsewhere under a specific language (e.g.
+    // "English Home Language") -- same mark, so treat either as a match.
+    if((subject==='Home Language' || subject==='First Additional Language') && rec.some(function(r){ return r.includes(subject); })) return true;
+    return (GRADE9_TO_FET[subject]||[]).some(function(fet){ return rec.includes(fet); });
+  }
+  const profile = buildAcademicProfile(l);
+  const keepsOpen = [];
+  if(profile){
+    profile.strongest.filter(function(e){ return e.pct>=60 && !alreadyCited(e.subject); }).forEach(function(e){
+      keepsOpen.push(e.subject+' is currently '+markBandLabel(e.pct)+' for you ('+e.pct+'%) and could keep additional pathways open, even though it wasn’t flagged by your selected interests above.');
+    });
+  }
+
+  return { tags: tags, conf:d.conf, recommendedSubjects:[...new Set(rec)], reasoning: reasoning, keepsOpen: keepsOpen, completedAt: todayISO() };
 }
 function guidanceResultsHTML(res){
   const selectedClusters = (res.tags||[]).map(function(id){ return clusterById(id); }).filter(Boolean);
@@ -471,6 +521,11 @@ function guidanceResultsHTML(res){
     <ul>${res.reasoning.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>
     ${disclaimerHTML('This is guidance to support a conversation with your school’s Life Orientation teacher or subject counsellor — final subject choice depends on your school’s offering and timetable.')}
   </div>
+  ${res.keepsOpen && res.keepsOpen.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Also worth knowing</h3>
+    <ul>${res.keepsOpen.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>
+  </div>` : ''}
   ${selectedClusters.length? `
   <div class="card" style="margin-bottom:18px;">
     <h3>Your selected fields</h3>
