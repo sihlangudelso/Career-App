@@ -197,6 +197,24 @@ function hollandCode(riasec){
   return Object.entries(riasec).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]).join('');
 }
 
+// Turns raw entered marks into "strongest subjects / areas of strength /
+// subjects to strengthen" — display only for now (not yet fed into
+// scoreCareer). Frames marks as current readiness, never as a judgement of
+// ability: no subject is ever hidden here, "to strengthen" is just the
+// lowest-scoring entries below 50%.
+function buildAcademicProfile(learner){
+  const marks = learner.subjectMarks || {};
+  const entries = Object.entries(marks)
+    .filter(([,v]) => v && v.pct!=null && v.pct!=='')
+    .map(([subject,v]) => ({ subject, pct: Number(v.pct) }));
+  if(!entries.length) return null;
+  entries.sort((a,b)=>b.pct-a.pct);
+  const strongest = entries.slice(0,3);
+  const toStrengthen = entries.filter(e=>e.pct<50).sort((a,b)=>a.pct-b.pct).slice(0,3);
+  const areasOfStrength = [...new Set(strongest.map(e=>subjectDomain(e.subject)))];
+  return { entries, strongest, toStrengthen, areasOfStrength };
+}
+
 /* ---------------- APS ---------------- */
 function computeAPSFromMarks(marks){
   const rows = Object.entries(marks).filter(([s,p])=> p!=null && p!=='').map(([s,p])=>({subject:s, pct:Number(p), level:nscLevel(Number(p))}));

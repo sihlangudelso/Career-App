@@ -66,22 +66,64 @@ const RIASEC_QUESTIONS = [
   { dim:'C', text:'I double-check my work carefully before handing it in.' },
 ];
 
-// South African NSC subject list (used for subject-selection UI)
+// South African NSC subject list (used for subject-selection UI), covering
+// all 11 official languages' Home Language offering plus the full CAPS
+// elective range — not just the STEM/commerce subset. Grouped below by
+// SUBJECT_GROUPS so career-choice guidance can talk about "which group of
+// subjects" a career draws on, not just individual subject names.
 const SA_SUBJECTS = [
   'English Home Language', 'English First Additional Language',
   'Afrikaans Home Language', 'Afrikaans First Additional Language',
-  'isiZulu Home Language', 'isiXhosa Home Language', 'Sesotho Home Language',
-  'Setswana Home Language', 'Life Orientation',
-  'Physical Sciences', 'Life Sciences', 'Accounting', 'Business Studies',
-  'Economics', 'Geography', 'History', 'Information Technology',
-  'Computer Applications Technology', 'Agricultural Sciences',
-  'Engineering Graphics and Design', 'Consumer Studies', 'Tourism',
-  'Visual Arts', 'Dramatic Arts', 'Music', 'Mathematics', 'Mathematical Literacy',
+  'isiZulu Home Language', 'isiXhosa Home Language', 'isiNdebele Home Language',
+  'Sesotho Home Language', 'Sesotho sa Leboa Home Language', 'Setswana Home Language',
+  'siSwati Home Language', 'Tshivenda Home Language', 'Xitsonga Home Language',
+  'Life Orientation', 'Mathematics', 'Mathematical Literacy',
+  'Physical Sciences', 'Life Sciences', 'Technical Sciences',
+  'Accounting', 'Business Studies', 'Economics',
+  'Geography', 'History', 'Religion Studies',
+  'Information Technology', 'Computer Applications Technology', 'Engineering Graphics and Design',
+  'Civil Technology', 'Electrical Technology', 'Mechanical Technology', 'Technical Mathematics',
+  'Agricultural Sciences', 'Agricultural Management Practices', 'Agricultural Technology',
+  'Tourism', 'Consumer Studies', 'Hospitality Studies',
+  'Visual Arts', 'Design', 'Dramatic Arts', 'Dance Studies', 'Music',
 ];
 
-const CORE_ELECTIVES = SA_SUBJECTS.filter(s => ![
-  'Mathematics','Mathematical Literacy','Life Orientation'
-].includes(s) && !s.includes('Home Language') && !s.includes('First Additional'));
+// Elective subjects grouped for the onboarding subject picker and Grade 9
+// guidance — deliberately excludes languages, Life Orientation and Maths/
+// Maths Lit, which are handled as their own onboarding fields.
+const SUBJECT_GROUPS = [
+  { group:'Sciences', subjects:['Physical Sciences','Life Sciences','Technical Sciences'] },
+  { group:'Commerce', subjects:['Accounting','Business Studies','Economics'] },
+  { group:'Humanities & Social Sciences', subjects:['Geography','History','Religion Studies'] },
+  { group:'Technology & Computing', subjects:['Information Technology','Computer Applications Technology','Engineering Graphics and Design'] },
+  { group:'Technical', subjects:['Civil Technology','Electrical Technology','Mechanical Technology','Technical Mathematics'] },
+  { group:'Agriculture', subjects:['Agricultural Sciences','Agricultural Management Practices','Agricultural Technology'] },
+  { group:'Services & Tourism', subjects:['Tourism','Consumer Studies','Hospitality Studies'] },
+  { group:'Arts & Design', subjects:['Visual Arts','Design','Dramatic Arts','Dance Studies','Music'] },
+];
+const CORE_ELECTIVES = SUBJECT_GROUPS.flatMap(g => g.subjects);
+
+// Friendly "area of strength" labels for the academic profile summary —
+// display-only, not used for scoring. Falls back to matching "Home
+// Language"/"First Additional Language" generically, then the subject's
+// own name, so it never breaks on a subject missing from this map.
+const SUBJECT_DOMAINS = {
+  'Mathematics':'Quantitative reasoning', 'Mathematical Literacy':'Applied numeracy',
+  'Life Orientation':'Personal and social wellbeing',
+  'Physical Sciences':'Physical sciences', 'Life Sciences':'Biological sciences', 'Technical Sciences':'Applied sciences',
+  'Accounting':'Financial reasoning', 'Business Studies':'Business and commerce', 'Economics':'Economic analysis',
+  'Geography':'Environmental and human studies', 'History':'Historical and social analysis', 'Religion Studies':'Ethics and social studies',
+  'Information Technology':'Computing and programming', 'Computer Applications Technology':'Digital literacy', 'Engineering Graphics and Design':'Technical design',
+  'Civil Technology':'Construction and civil trades', 'Electrical Technology':'Electrical trades', 'Mechanical Technology':'Mechanical trades', 'Technical Mathematics':'Applied quantitative reasoning',
+  'Agricultural Sciences':'Agricultural science', 'Agricultural Management Practices':'Agribusiness', 'Agricultural Technology':'Agricultural engineering',
+  'Tourism':'Tourism and travel', 'Consumer Studies':'Consumer science', 'Hospitality Studies':'Hospitality and food service',
+  'Visual Arts':'Visual arts', 'Design':'Design', 'Dramatic Arts':'Performing arts', 'Dance Studies':'Performing arts', 'Music':'Music',
+};
+function subjectDomain(name){
+  if(SUBJECT_DOMAINS[name]) return SUBJECT_DOMAINS[name];
+  if(name.includes('Home Language') || name.includes('Additional Language')) return 'Communication';
+  return name;
+}
 
 // Well-known SA public universities & TVET reference lists (general — always verify)
 const UNIVERSITIES = [

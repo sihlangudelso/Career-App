@@ -1,8 +1,14 @@
+function markRowHTML(subjectKey, label, saved){
+  const pct = saved && saved.pct;
+  return `<div class="mark-row"><span>${esc(label)}</span><input type="number" class="subject-mark" data-subject="${esc(subjectKey)}" min="0" max="100" placeholder="%" value="${pct!=null?pct:''}"/></div>`;
+}
+
 function viewOnboarding(isEdit){
   const l = ensureLearnerObj();
   const grade = l.grade || '';
   const mathType = l.mathType || '';
   const subjects = l.subjects || [];
+  const marks = l.subjectMarks || {};
   const pathChosen = l.exploringOnly === true || l.exploringOnly === false;
   return `
   <div style="max-width:640px;margin:0 auto;">
@@ -66,11 +72,28 @@ function viewOnboarding(isEdit){
       </div>
       <div class="form-row">
         <label>Your other NSC subjects (besides Home Language, First Additional Language, Life Orientation & Maths)</label>
-        <div class="check-grid">
-          ${CORE_ELECTIVES.map(s=>`
-            <label class="check-item"><input type="checkbox" class="subject-check" value="${esc(s)}" ${subjects.includes(s)?'checked':''}/> ${s}</label>
-          `).join('')}
-        </div>
+        ${SUBJECT_GROUPS.map(g=>`
+          <div style="margin:12px 0 6px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;">${g.group}</div>
+          <div class="check-grid">
+            ${g.subjects.map(s=>{
+              const checked = subjects.includes(s);
+              const pct = marks[s] && marks[s].pct;
+              return `<label class="check-item">
+                <input type="checkbox" class="subject-check" value="${esc(s)}" ${checked?'checked':''} onchange="this.closest('.check-item').querySelector('.subject-mark').disabled=!this.checked"/>
+                <span style="flex:1;">${esc(s)}</span>
+                <input type="number" class="subject-mark" data-subject="${esc(s)}" min="0" max="100" placeholder="%" style="width:56px;margin-left:auto;" ${checked?'':'disabled'} value="${pct!=null?pct:''}"/>
+              </label>`;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="form-row">
+        <label>Your latest report marks (optional)</label>
+        <div class="hint" style="margin-bottom:8px;">This helps us match you more accurately — skip anything you don’t have to hand yet.</div>
+        ${markRowHTML(mathType==='MathLit'?'Mathematical Literacy':'Mathematics', mathType==='MathLit'?'Mathematical Literacy':'Mathematics', marks[mathType==='MathLit'?'Mathematical Literacy':'Mathematics'])}
+        ${markRowHTML('Home Language','Home Language', marks['Home Language'])}
+        ${markRowHTML('First Additional Language','First Additional Language', marks['First Additional Language'])}
+        ${markRowHTML('Life Orientation','Life Orientation', marks['Life Orientation'])}
       </div>` : `
       <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. Use the <b>Subject Choice Guidance</b> tool on your dashboard after saving your profile — no need to pick subjects here yet.</div></div>
       `}
@@ -118,6 +141,8 @@ function viewHome(){
     <div class="stat-pill"><div class="dot" style="background:${l.licenseStatus==='active'?'var(--grass)':'var(--coral)'}"></div><div><div class="n">${l.licenseStatus==='active'?'Active':'Trial'}</div><div class="l">Licence status</div></div></div>
   </div>
 
+  ${academicProfileHTML(l)}
+
   <div class="section-title"><h2>Quick actions</h2></div>
   <div class="grid grid-3">
     ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--amber)" onclick="navigate('guidance')">${icon('compass','tico')}<h3>Subject Choice Guidance</h3><p>Grade 9 tool: find the right subject combination for your goals.</p></button>` : ''}
@@ -133,6 +158,28 @@ function viewHome(){
 
   ${cls ? `<div class="section-title"><h2>Your class</h2></div><div class="card"><b>${esc(cls.name)}</b><div class="page-sub">Class code: <span class="class-code">${esc(cls.code)}</span></div></div>` : ''}
   `;
+}
+function academicProfileHTML(l){
+  const p = buildAcademicProfile(l);
+  if(!p) return '';
+  return `
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Your academic profile</h3>
+    <p class="page-sub">Based on your latest entered marks — this reflects where you are right now, not what you’re capable of.</p>
+    <div class="grid grid-2" style="margin-top:10px;">
+      <div>
+        <h4 style="margin-bottom:8px;">Strongest subjects</h4>
+        ${p.strongest.map((e,i)=>`<div class="kv"><b>${i+1}. ${esc(e.subject)}</b><span>${e.pct}%</span></div>`).join('')}
+        ${p.areasOfStrength.length? `<div class="pill-list" style="margin-top:10px;">${p.areasOfStrength.map(a=>`<span class="pill rec">${esc(a)}</span>`).join('')}</div>` : ''}
+      </div>
+      <div>
+        <h4 style="margin-bottom:8px;">${p.toStrengthen.length? 'Subjects to strengthen' : 'Keep it up'}</h4>
+        ${p.toStrengthen.length
+          ? p.toStrengthen.map(e=>`<div class="kv"><b>${esc(e.subject)}</b><span>${e.pct}%</span></div>`).join('')
+          : `<p class="page-sub">No subjects currently below 50% — nice work.</p>`}
+      </div>
+    </div>
+  </div>`;
 }
 function labelStep(label, done){
   return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:${done?'var(--grass)':'var(--muted)'};font-weight:600;">${icon('check','ic')} ${label}</div>`;

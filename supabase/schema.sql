@@ -38,6 +38,7 @@ create table if not exists public.learners (
   "classId" uuid references public.classes(id) on delete set null,
   "licenseStatus" text not null default 'trial' check ("licenseStatus" in ('trial','active')),
   "apsLast" jsonb,
+  "subjectMarks" jsonb,
   "displayName" text,
   email text,
   "createdAt" timestamptz not null default now(),

@@ -153,6 +153,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 @media(max-width:640px){.check-grid{grid-template-columns:1fr;}}
 .check-item{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px;}
 .check-item input{width:auto;}
+.mark-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.mark-row:last-child{border-bottom:none;}
+.mark-row input{width:64px;text-align:right;padding:6px 8px;}
 .chip-select{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;background:var(--surface);}
 .chip-select.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 

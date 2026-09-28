@@ -121,7 +121,13 @@ const App = {
     const school = (document.getElementById('ob_school')||{}).value || '';
     if(!school.trim()){ toast('Please add your school name.'); return; }
     const subjects = l.grade>9 ? Array.from(document.querySelectorAll('.subject-check:checked')).map(el=>el.value) : [];
-    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, licenseStatus: l.licenseStatus||'trial' });
+    const subjectMarks = {};
+    if(l.grade>9){
+      document.querySelectorAll('.subject-mark:not(:disabled)').forEach(el=>{
+        if(el.value!=='') subjectMarks[el.dataset.subject] = { pct: Number(el.value), term: todayISO() };
+      });
+    }
+    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, subjectMarks: l.grade>9?subjectMarks:null, licenseStatus: l.licenseStatus||'trial' });
     toast('Profile saved.');
     navigate('home');
   },
