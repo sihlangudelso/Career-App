@@ -148,9 +148,34 @@ const App = {
   guideViewSaved(){ const d = ensureGuideDraft(); d.step = 3; render(); },
 
   // ---- assessment ----
-  assessAnswer(idx,val){ ensureAssessDraft().answers[idx]=val; render(); },
-  assessPage(n){ const d=ensureAssessDraft(); d.retaking=true; d.page=n; render(); },
-  assessStrength(i,val){ const d=ensureAssessDraft(); d.strengths[i]=Number(val); const s=document.getElementById('val_str_'+i); if(s) s.textContent=val+'/5'; },
+  assessGoto(step,dir){
+    const d = ensureAssessDraft();
+    d.retaking = true;
+    d.dir = dir || 'fwd';
+    d.step = Math.max(0, step);
+    render();
+  },
+  assessBack(){ const d=ensureAssessDraft(); App.assessGoto(d.step-1,'back'); },
+  assessNext(){
+    const d = ensureAssessDraft();
+    const step = d.step;
+    if(step<RIASEC_QUESTIONS.length && assessStyleFor(step)==='slider' && !d.answers[step]) d.answers[step]=3;
+    App.assessGoto(step+1,'fwd');
+  },
+  assessChoose(step,val){
+    const d = ensureAssessDraft();
+    if(step<RIASEC_QUESTIONS.length) d.answers[step]=val; else d.strengths[step-RIASEC_QUESTIONS.length]=val;
+    App.assessGoto(step+1,'fwd');
+  },
+  assessSlide(step,val){
+    const d = ensureAssessDraft();
+    const isRiasec = step<RIASEC_QUESTIONS.length;
+    if(isRiasec) d.answers[step]=Number(val); else d.strengths[step-RIASEC_QUESTIONS.length]=Number(val);
+    const labels = isRiasec ? RIASEC_SCALE : STRENGTH_SCALE;
+    const elLabel = document.getElementById('qval_'+step);
+    if(elLabel) elLabel.textContent = labels[Number(val)-1];
+  },
+  assessSlideCommit(step,val){ App.assessChoose(step, Number(val)); },
   async assessSubmit(){
     const d = ensureAssessDraft();
     const riasec = {};
@@ -166,7 +191,7 @@ const App = {
     render();
     toast('Assessment complete!');
   },
-  assessRetake(){ ASSESSMENT_DRAFT=null; const d=ensureAssessDraft(); d.retaking=true; d.page=0; render(); },
+  assessRetake(){ ASSESSMENT_DRAFT=null; const d=ensureAssessDraft(); d.retaking=true; d.step=0; render(); },
 
   // ---- favourites / compare ----
   async toggleFav(id, ev){

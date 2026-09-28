@@ -222,11 +222,41 @@ function guidanceResultsHTML(res){
 }
 
 /* ---------------- Assessment ---------------- */
+const ASSESS_STYLES = ['likert','dots','slider','emoji'];
+function assessStyleFor(step){ return ASSESS_STYLES[step % ASSESS_STYLES.length]; }
+const RIASEC_SCALE = ['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'];
+const STRENGTH_SCALE = ['Not a strength','A little','Somewhat','Strong','A real strength'];
+const RIASEC_EMOJI = ['😠','🙁','😐','🙂','😄'];
+const STRENGTH_EMOJI = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
+
+function assessWidgetHTML(step, kind, value){
+  const style = assessStyleFor(step);
+  const labels = kind==='strength' ? STRENGTH_SCALE : RIASEC_SCALE;
+  if(style==='dots'){
+    return `<div class="scale-dots">
+      <div class="scale-dots-row">${[1,2,3,4,5].map(n=>`<button class="dot-btn ${value===n?'on':''}" onclick="App.assessChoose(${step},${n})">${n}</button>`).join('')}</div>
+      <div class="scale-dots-caps"><span>${labels[0]}</span><span>${labels[4]}</span></div>
+    </div>`;
+  }
+  if(style==='slider'){
+    const v = value || 3;
+    return `<div class="slider-row">
+      <input type="range" min="1" max="5" value="${v}" oninput="App.assessSlide(${step},this.value)" onchange="App.assessSlideCommit(${step},this.value)"/>
+      <div class="sl-top" style="justify-content:center;"><span id="qval_${step}">${esc(labels[v-1])}</span></div>
+    </div>`;
+  }
+  if(style==='emoji'){
+    const emo = kind==='strength' ? STRENGTH_EMOJI : RIASEC_EMOJI;
+    return `<div class="emoji-scale">${emo.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})" title="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
+  }
+  return `<div class="likert">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})">${lb}</button>`).join('')}</div>`;
+}
+
 function ensureAssessDraft(){
   const l = ensureLearnerObj();
   if(!ASSESSMENT_DRAFT){
     ASSESSMENT_DRAFT = {
-      page:0,
+      step:0, dir:'fwd',
       answers: l.riasecRaw ? [...l.riasecRaw] : Array(RIASEC_QUESTIONS.length).fill(0),
       strengths: l.strengthsRaw ? [...l.strengthsRaw] : Array(STRENGTH_KEYS.length).fill(3),
     };
@@ -236,41 +266,60 @@ function ensureAssessDraft(){
 function viewAssessment(){
   const l = ensureLearnerObj();
   const d = ensureAssessDraft();
-  if(l.assessmentCompletedAt && d.page===0 && !d.retaking){
+  if(l.assessmentCompletedAt && d.step===0 && !d.retaking){
     return assessmentResultsHTML(l);
   }
-  const totalPages = 5; // 4 pages of 6 riasec Qs + 1 strengths page
-  if(d.page < 4){
-    const qs = RIASEC_QUESTIONS.slice(d.page*6, d.page*6+6);
+  const TOTAL_R = RIASEC_QUESTIONS.length, TOTAL_S = STRENGTH_KEYS.length, TOTAL = TOTAL_R + TOTAL_S;
+  const step = d.step;
+
+  if(step >= TOTAL){
     return `
-    ${pageHeadHTML('Interests & personality assessment', `Page ${d.page+1} of ${totalPages} — answer honestly, there are no wrong answers.`)}
-    ${d.page===0 ? `
-    <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
-      <p style="font-size:15px;">24 quick questions (about 5 minutes) using the RIASEC framework — Realistic, Investigative, Artistic, Social, Enterprising, Conventional. Your answers directly shape your career matches and how closely each career’s profile lines up with yours.</p>
-    </div>
-    ` : ''}
-    <div class="card">
-      ${qs.map((q,i)=>{
-        const idx = d.page*6+i;
-        return `<div class="qcard"><div class="qn">QUESTION ${idx+1} OF ${RIASEC_QUESTIONS.length}</div><div class="qt">${esc(q.text)}</div>
-        <div class="likert">
-          ${['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'].map((lb,li)=>`<button class="${d.answers[idx]===li+1?'on':''}" onclick="App.assessAnswer(${idx},${li+1})">${lb}</button>`).join('')}
-        </div></div>`;
-      }).join('')}
-      <div style="display:flex;gap:10px;margin-top:6px;">
-        ${d.page>0?`<button class="btn btn-ghost" onclick="App.assessPage(${d.page-1})">Back</button>`:''}
-        <button class="btn btn-primary" ${qs.some((q,i)=>!d.answers[d.page*6+i])?'disabled':''} onclick="App.assessPage(${d.page+1})">Continue</button>
+    ${pageHeadHTML('Nice work!', 'You’ve answered every question.')}
+    <div class="card q-anim" style="text-align:center;padding:40px 24px;">
+      ${icon('trophy')}
+      <h3 style="margin-top:10px;">All ${TOTAL} questions done</h3>
+      <p class="page-sub">Ready to see how your interests, personality and strengths line up with real careers?</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+        <button class="btn btn-ghost" onclick="App.assessGoto(${TOTAL-1},'back')">Back</button>
+        <button class="btn btn-primary" onclick="App.assessSubmit()">${icon('check')} See my results</button>
       </div>
     </div>`;
   }
-  // strengths page
+
+  const inStrengths = step >= TOTAL_R;
+  const pct = Math.round(step/TOTAL*100);
+  const animClass = 'q-anim' + (d.dir==='back' ? ' back' : '');
+  const headTitle = inStrengths ? 'Rate your strengths' : 'Interests & personality assessment';
+  const headSub = inStrengths
+    ? `Strength ${step-TOTAL_R+1} of ${TOTAL_S} — rate yourself honestly, from not a strength to a real strength.`
+    : `Question ${step+1} of ${TOTAL_R} — answer honestly, there are no wrong answers.`;
+  const qLabel = inStrengths ? `STRENGTH ${step-TOTAL_R+1} OF ${TOTAL_S}` : `QUESTION ${step+1} OF ${TOTAL_R}`;
+  const qText = inStrengths ? STRENGTH_KEYS[step-TOTAL_R].label : RIASEC_QUESTIONS[step].text;
+  const value = inStrengths ? d.strengths[step-TOTAL_R] : d.answers[step];
+  const kind = inStrengths ? 'strength' : 'riasec';
+  const isSlider = assessStyleFor(step)==='slider';
+  const canContinue = inStrengths || isSlider ? true : !!value;
+
   return `
-  ${pageHeadHTML('Rate your strengths', `Page 5 of ${totalPages} — slide to rate yourself from 1 (not a strength) to 5 (a real strength).`)}
-  <div class="card">
-    ${STRENGTH_KEYS.map((s,i)=>confSlider('str_'+i, s.label, d.strengths[i]).replace(`App.guideConf('str_${i}'`, `App.assessStrength(${i}`)).join('')}
-    <div style="display:flex;gap:10px;margin-top:6px;">
-      <button class="btn btn-ghost" onclick="App.assessPage(3)">Back</button>
-      <button class="btn btn-primary" onclick="App.assessSubmit()">See my results</button>
+  ${pageHeadHTML(headTitle, headSub)}
+  ${step===0 ? `
+  <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
+    <p style="font-size:15px;">${TOTAL} quick questions (about 6 minutes) — ${TOTAL_R} using the RIASEC framework (Realistic, Investigative, Artistic, Social, Enterprising, Conventional) and ${TOTAL_S} rating your strengths. Your answers directly shape your career matches.</p>
+  </div>
+  ` : ''}
+  ${step===TOTAL_R ? `
+  <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Nice progress — interest questions done. Just ${TOTAL_S} quick strength ratings to go.</div></div>
+  ` : ''}
+  <div class="aps-bar" style="margin-bottom:18px;"><div style="width:${pct}%"></div></div>
+  <div class="card ${animClass}">
+    <div class="qcard" style="margin-bottom:8px;">
+      <div class="qn">${qLabel}</div>
+      <div class="qt" style="font-size:19px;margin:10px 0 4px;">${esc(qText)}</div>
+    </div>
+    ${assessWidgetHTML(step, kind, value)}
+    <div style="display:flex;gap:10px;margin-top:22px;justify-content:center;">
+      ${step>0?`<button class="btn btn-ghost" onclick="App.assessBack()">Back</button>`:''}
+      <button class="btn btn-primary" ${canContinue?'':'disabled'} onclick="App.assessNext()">Continue</button>
     </div>
   </div>`;
 }
