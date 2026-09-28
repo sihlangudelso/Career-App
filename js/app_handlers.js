@@ -5,6 +5,9 @@ const App = {
     const fac = ROUTE_PARAM && typeof ROUTE_PARAM==='object' ? ROUTE_PARAM.fac : (ROUTE_PARAM||'all');
     document.getElementById('exploreResults').innerHTML = exploreResultsHTML(fac, ensureLearnerObj());
   },
+  setExploreFilter(key,value){ EXPLORE_FILTERS[key] = value || null; render(); },
+  toggleExploreFilter(key){ EXPLORE_FILTERS[key] = !EXPLORE_FILTERS[key]; render(); },
+  clearExploreFilters(){ EXPLORE_FILTERS = {}; render(); },
   // ---- auth ----
   setAuthMode(m){ AUTH_MODE = m; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render(); },
   authSubmitOnEnter(){

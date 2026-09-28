@@ -521,6 +521,17 @@ function viewExplore(){
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('explore','${f.id}')">${f.name}</button>`).join('')}
     <input type="text" id="exploreSearch" placeholder="Search careers by name…" value="${esc(EXPLORE_SEARCH)}" oninput="App.filterExplore(this.value)"/>
   </div>
+  <div class="filter-bar">
+    <select style="width:auto;min-width:170px;" onchange="App.setExploreFilter('pathway',this.value)">
+      <option value="">Any pathway type</option>
+      ${PATHWAY_TYPES.map(t=>`<option value="${esc(t)}" ${EXPLORE_FILTERS.pathway===t?'selected':''}>${esc(t)}</option>`).join('')}
+    </select>
+    <button class="chip-select ${EXPLORE_FILTERS.mathRequired?'on':''}" onclick="App.toggleExploreFilter('mathRequired')">Maths required</button>
+    <button class="chip-select ${EXPLORE_FILTERS.mathLitOk?'on':''}" onclick="App.toggleExploreFilter('mathLitOk')">Maths Lit accepted</button>
+    <button class="chip-select ${EXPLORE_FILTERS.physSciRequired?'on':''}" onclick="App.toggleExploreFilter('physSciRequired')">Physical Sciences required</button>
+    <button class="chip-select ${EXPLORE_FILTERS.uot?'on':''}" onclick="App.toggleExploreFilter('uot')">University of Technology option</button>
+    ${(EXPLORE_FILTERS.pathway||EXPLORE_FILTERS.mathRequired||EXPLORE_FILTERS.mathLitOk||EXPLORE_FILTERS.physSciRequired||EXPLORE_FILTERS.uot) ? `<button class="btn btn-ghost btn-sm" onclick="App.clearExploreFilters()">${icon('close')} Clear filters</button>` : ''}
+  </div>
   <div id="exploreResults">${exploreResultsHTML(fac, l)}</div>
   `;
 }
@@ -571,9 +582,15 @@ function viewClusterDetail(id){
 function exploreResultsHTML(fac, l){
   let list = CAREERS.slice();
   if(fac && fac!=='all') list = list.filter(c=>c.faculty===fac);
+  const f = EXPLORE_FILTERS;
+  if(f.pathway) list = list.filter(c=>c.pathways.some(p=>p.type===f.pathway));
+  if(f.mathRequired) list = list.filter(c=>c.requiredSubjects.includes('Mathematics'));
+  if(f.mathLitOk) list = list.filter(c=>!c.requiredSubjects.includes('Mathematics'));
+  if(f.physSciRequired) list = list.filter(c=>c.requiredSubjects.includes('Physical Sciences'));
+  if(f.uot) list = list.filter(c=>(c.institutions.utech||[]).length>0);
   const q = EXPLORE_SEARCH.trim().toLowerCase();
-  if(q) list = list.filter(c=>c.name.toLowerCase().includes(q) || c.blurb.toLowerCase().includes(q));
-  if(!list.length) return `<div class="empty-state">${icon('search')}<p>No careers match “${esc(EXPLORE_SEARCH)}”.</p></div>`;
+  if(q) list = list.filter(c=>c.name.toLowerCase().includes(q) || c.blurb.toLowerCase().includes(q) || c.applicationNotes.toLowerCase().includes(q));
+  if(!list.length) return `<div class="empty-state">${icon('search')}<p>No careers match ${q?`“${esc(EXPLORE_SEARCH)}”`:'these filters'}.</p><button class="btn btn-ghost btn-sm" onclick="App.clearExploreFilters()">Clear filters</button></div>`;
   return list.map(c=>careerRowHTML(c,null,l)).join('');
 }
 
@@ -660,6 +677,12 @@ function viewCareerDetail(id){
       <a class="btn btn-ghost btn-sm" href="https://www.nsfas.org.za" target="_blank" rel="noopener">${icon('coin')} NSFAS funding info</a>
     </div>
   </div>
+
+  ${(()=>{ const related = relatedCareersFor(career); return related.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Related careers</h3>
+    <div class="pill-list">${related.map(c=>`<span class="tag" style="cursor:pointer;" onclick="navigate('career','${c.id}')">${esc(c.name)}</span>`).join('')}</div>
+  </div>` : ''; })()}
 
   <div style="display:flex;gap:10px;">
     <button class="btn ${isFav?'btn-primary':'btn-ghost'}" onclick="App.toggleFav('${career.id}')">${icon('heart')} ${isFav?'Saved':'Save career'}</button>

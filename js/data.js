@@ -1365,6 +1365,11 @@ const CAREERS = [
   videoQuery:'day in the life of a farmer South Africa' },
 ];
 
+// Derived (not hand-maintained) from whatever pathway types actually appear
+// in CAREERS, so the Explore page's pathway-type filter never drifts out of
+// sync with the data as new careers/pathway types get added.
+const PATHWAY_TYPES = [...new Set(CAREERS.flatMap(c=>c.pathways.map(p=>p.type)))];
+
 // NSC 7-point achievement scale used for APS calculations (general guidance — verify per institution)
 const NSC_LEVELS = [
   { level:7, min:80, max:100, desc:'Outstanding' },

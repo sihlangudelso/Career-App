@@ -9,6 +9,7 @@ let LEARNER = null;
 let ROUTE = 'home';
 let ROUTE_PARAM = null;
 let EXPLORE_SEARCH = '';
+let EXPLORE_FILTERS = {};
 let CLASSES = [];
 let COHORT = [];
 let ASSESSMENT_DRAFT = null;
@@ -301,6 +302,20 @@ function matchLabel(score){
   if(score>=58) return {t:'Good match', c:'badge-good'};
   if(score>=38) return {t:'Worth exploring', c:'badge-explore'};
   return {t:'Less aligned', c:'badge-low'};
+}
+// Computed on the fly from shared faculty + overlapping interest dimensions,
+// rather than a hand-authored relatedCareers list on every career -- keeps
+// "you might also like" correct automatically as careers get added, at the
+// cost of being a heuristic rather than a curated editorial choice.
+function relatedCareersFor(career, limit){
+  limit = limit || 4;
+  return CAREERS
+    .filter(c=>c.id!==career.id)
+    .map(c=>({ career:c, score:(c.faculty===career.faculty?2:0) + c.riasec.filter(d=>career.riasec.includes(d)).length }))
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,limit)
+    .map(x=>x.career);
 }
 function computeMatches(learner){
   return CAREERS.map(c=>{
