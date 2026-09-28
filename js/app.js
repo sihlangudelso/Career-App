@@ -395,17 +395,64 @@ function hollandCode(riasec){
 // scoreCareer). Frames marks as current readiness, never as a judgement of
 // ability: no subject is ever hidden here, "to strengthen" is just the
 // lowest-scoring entries below 50%.
+// Scores all 8 STRENGTH_DOMAINS for a learner, blending marks evidence
+// (never the only factor -- interests always still count) with interest
+// signal (RIASEC). A subject's evidence is only ever counted once per
+// domain: a current FET subjectMarks entry always wins over a Grade 9
+// report antecedent for the same underlying subject, so a learner who
+// has since entered real Grade 10+ marks never has a two-year-old Grade
+// 9 result quietly averaged in alongside it. Sorted best-first; the
+// caller decides whether there's enough evidence to call the top two
+// "primary"/"secondary" (see hasEvidence on each result).
+function computeStrengthDomains(learner){
+  const riasec = learner.riasec || {};
+  const g9 = (learner.grade9Report && learner.grade9Report.subjects) || {};
+  const fet = learner.subjectMarks || {};
+
+  return STRENGTH_DOMAINS.map(domain=>{
+    const evidence = [];
+    const coveredFet = new Set();
+    domain.fet.forEach(subject=>{
+      if(fet[subject] && fet[subject].pct!=null){
+        evidence.push({ subject, pct:fet[subject].pct, source:'current' });
+        coveredFet.add(subject);
+      }
+    });
+    domain.grade9.forEach(subject=>{
+      if(!(g9[subject] && g9[subject].pct!=null)) return;
+      const antecedents = GRADE9_TO_FET[subject] || [];
+      if(antecedents.some(f=>coveredFet.has(f))) return; // a current FET mark already covers this evidence slot
+      evidence.push({ subject, pct:g9[subject].pct, source:'grade9' });
+    });
+    const markFit = evidence.length ? avg(evidence.map(e=>e.pct)) : null;
+    const interestFit = domain.riasec.length ? avg(domain.riasec.map(d=> riasec[d]!=null? riasec[d]:50)) : 50;
+    const score = markFit==null ? interestFit : 0.5*interestFit + 0.5*markFit;
+    return { domain, score, markFit, interestFit, evidence, hasEvidence: markFit!=null || Object.keys(riasec).length>0 };
+  }).sort((a,b)=>b.score-a.score);
+}
+
 function buildAcademicProfile(learner){
-  const marks = learner.subjectMarks || {};
-  const entries = Object.entries(marks)
+  const fetMarks = learner.subjectMarks || {};
+  const fetEntries = Object.entries(fetMarks)
     .filter(([,v]) => v && v.pct!=null && v.pct!=='')
     .map(([subject,v]) => ({ subject, pct: Number(v.pct) }));
-  if(!entries.length) return null;
+  const g9Marks = (learner.grade9Report && learner.grade9Report.subjects) || {};
+  const g9Entries = Object.entries(g9Marks)
+    .filter(([,v]) => v && v.pct!=null && v.pct!=='')
+    .map(([subject,v]) => ({ subject, pct: Number(v.pct) }));
+  // FET marks are the primary subject-level display source; a Grade 9
+  // report is shown here only until real FET marks exist.
+  const entries = fetEntries.length ? fetEntries : g9Entries;
+  const hasInterestEvidence = !!learner.assessmentCompletedAt;
+  if(!entries.length && !hasInterestEvidence) return null;
+
   entries.sort((a,b)=>b.pct-a.pct);
   const strongest = entries.slice(0,3);
   const toStrengthen = entries.filter(e=>e.pct<50).sort((a,b)=>a.pct-b.pct).slice(0,3);
   const areasOfStrength = [...new Set(strongest.map(e=>subjectDomain(e.subject)))];
-  return { entries, strongest, toStrengthen, areasOfStrength };
+  const domains = computeStrengthDomains(learner);
+  const showDomains = domains[0] && domains[0].hasEvidence;
+  return { entries, strongest, toStrengthen, areasOfStrength, primaryDomain: showDomains?domains[0]:null, secondaryDomain: showDomains?domains[1]:null };
 }
 
 /* ---------------- APS ---------------- */

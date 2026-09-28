@@ -181,7 +181,7 @@ const App = {
     });
     GRADE9_DRAFT = null;
     toast('Grade 9 report results saved.');
-    navigate('home');
+    navigate('learner-profile');
   },
 
   // ---- assessment ----

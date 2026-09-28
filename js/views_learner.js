@@ -179,6 +179,15 @@ function academicProfileHTML(l){
   <div class="card" style="margin-bottom:20px;">
     <h3>Your academic profile</h3>
     <p class="page-sub">Based on your latest entered marks — this reflects where you are right now, not what you’re capable of.</p>
+    ${p.primaryDomain ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--tint-violet);border-radius:14px;padding:12px 16px;margin:12px 0;">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--indigo-ink);">Primary strength area</div>
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px;">${esc(p.primaryDomain.domain.name)}</div>
+        ${p.secondaryDomain ? `<div class="page-sub" style="margin:2px 0 0;">Secondary: ${esc(p.secondaryDomain.domain.name)}</div>` : ''}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('learner-profile')">${icon('chevron')} See full profile</button>
+    </div>` : ''}
     <div class="grid grid-2" style="margin-top:10px;">
       <div>
         <h4 style="margin-bottom:8px;">Strongest subjects</h4>
@@ -196,6 +205,67 @@ function academicProfileHTML(l){
 }
 function labelStep(label, done){
   return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:${done?'var(--grass)':'var(--muted)'};font-weight:600;">${icon('check','ic')} ${label}</div>`;
+}
+
+/* ---------------- Your Learner Profile ---------------- */
+function viewLearnerProfile(){
+  const l = ensureLearnerObj();
+  const p = buildAcademicProfile(l);
+  if(!p || !p.primaryDomain){
+    return `${pageHeadHTML('Your Learner Profile', 'Combines your report results, interests and work style into one picture.')}
+    <div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to build your profile.</p></div>`;
+  }
+  const riasec = l.riasec || {};
+  const topInterests = RIASEC.filter(d=>(riasec[d.id]||0)>=65);
+  const topMatches = computeMatches(l).slice(0,3);
+  const pathways = [...new Set([...p.primaryDomain.domain.pathways, ...(p.secondaryDomain?p.secondaryDomain.domain.pathways:[])])];
+
+  return `
+  ${pageHeadHTML('Your Learner Profile', 'Combining your report results, interests and work style — a starting point, not a fixed label.')}
+  <div class="card" style="margin-bottom:18px;">
+    <div class="grid grid-2">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Primary strength area</div>
+        <div style="font-family:var(--font-head);font-weight:800;font-size:22px;color:var(--indigo);">${esc(p.primaryDomain.domain.name)}</div>
+      </div>
+      ${p.secondaryDomain ? `<div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Secondary strength area</div>
+        <div style="font-family:var(--font-head);font-weight:800;font-size:22px;">${esc(p.secondaryDomain.domain.name)}</div>
+      </div>` : ''}
+    </div>
+  </div>
+
+  ${p.entries.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>What your report shows</h3>
+    <p class="page-sub">Your strongest current subjects are:</p>
+    ${p.strongest.map(e=>`<div class="kv"><b>${esc(e.subject)}</b><span>${e.pct}% — ${markBandLabel(e.pct)}</span></div>`).join('')}
+    ${p.toStrengthen.length ? `<p class="page-sub" style="margin-top:10px;">${p.toStrengthen.map(e=>esc(e.subject)).join(', ')} ${p.toStrengthen.length>1?'are':'is'} currently ${markBandLabel(p.toStrengthen[0].pct)} — this describes where you are right now, not what you’re capable of.</p>` : ''}
+  </div>` : ''}
+
+  ${topInterests.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>What your assessment shows</h3>
+    <p class="page-sub">You show strong interest in:</p>
+    <div class="pill-list">${topInterests.map(d=>`<span class="pill rec">${esc(d.name)}</span>`).join('')}</div>
+  </div>` : ''}
+
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Career areas to explore</h3>
+    <div class="pill-list">${pathways.map(pw=>`<span class="tag">${esc(pw)}</span>`).join('')}</div>
+  </div>
+
+  ${topMatches.length ? `
+  <div class="section-title" style="margin-top:0;"><h2>Top career matches right now</h2></div>
+  ${topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('')}
+  ` : ''}
+
+  <div class="card" style="margin:18px 0;">
+    <h3>Grade 10 subjects that may suit you</h3>
+    <p class="page-sub">Your Subject Choice Guidance results are built from this same profile.</p>
+    <button class="btn btn-primary" onclick="navigate('guidance')">${icon('compass')} Open Subject Choice Guidance</button>
+  </div>
+  `;
 }
 
 /* ---------------- Grade 9 Report Results + Work Style ---------------- */

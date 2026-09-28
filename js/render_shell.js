@@ -129,6 +129,7 @@ function render(){
   else if(ROUTE==='home') app.innerHTML = viewHome();
   else if(ROUTE==='guidance') app.innerHTML = viewGuidance();
   else if(ROUTE==='grade9-report') app.innerHTML = viewGrade9Report();
+  else if(ROUTE==='learner-profile') app.innerHTML = viewLearnerProfile();
   else if(ROUTE==='assessment') app.innerHTML = viewAssessment();
   else if(ROUTE==='matches') { l.viewedMatches = true; app.innerHTML = viewMatches(); }
   else if(ROUTE==='explore') app.innerHTML = viewExplore();
