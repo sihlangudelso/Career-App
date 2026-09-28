@@ -183,6 +183,8 @@ const App = {
     const labels = isRiasec ? RIASEC_SCALE : STRENGTH_SCALE;
     const elLabel = document.getElementById('qval_'+step);
     if(elLabel) elLabel.textContent = labels[Number(val)-1];
+    const row = elLabel && elLabel.closest('.slider-row');
+    if(row) row.querySelectorAll('.slider-ticks span').forEach((el,i)=>el.classList.toggle('on', i+1===Number(val)));
   },
   assessSlideCommit(step,val){ App.assessChoose(step, Number(val)); },
   async assessSubmit(){

@@ -327,7 +327,6 @@ function assessStyleFor(step){ return ASSESS_STYLES[step % ASSESS_STYLES.length]
 const RIASEC_SCALE = ['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'];
 const STRENGTH_SCALE = ['Not a strength','A little','Somewhat','Strong','A real strength'];
 const RIASEC_EMOJI = ['😠','🙁','😐','🙂','😄'];
-const STRENGTH_EMOJI = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
 
 function assessWidgetHTML(step, kind, value){
   const style = assessStyleFor(step);
@@ -342,12 +341,18 @@ function assessWidgetHTML(step, kind, value){
     const v = value || 3;
     return `<div class="slider-row">
       <input type="range" min="1" max="5" value="${v}" oninput="App.assessSlide(${step},this.value)" onchange="App.assessSlideCommit(${step},this.value)"/>
+      <div class="slider-ticks">${[1,2,3,4,5].map(n=>`<span class="${v===n?'on':''}">${n}</span>`).join('')}</div>
       <div class="sl-top" style="justify-content:center;"><span id="qval_${step}">${esc(labels[v-1])}</span></div>
     </div>`;
   }
   if(style==='emoji'){
-    const emo = kind==='strength' ? STRENGTH_EMOJI : RIASEC_EMOJI;
-    return `<div class="emoji-scale">${emo.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})" title="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
+    if(kind==='strength'){
+      // A conventional cumulative star rating (button N fills stars 1..N) --
+      // one glyph per hit target, not a 5-glyph string per button, so
+      // nothing overflows/overlaps at any button size.
+      return `<div class="star-scale">${[1,2,3,4,5].map(n=>`<button class="star-btn ${value>=n?'on':''}" onclick="App.assessChoose(${step},${n})" aria-label="${esc(labels[n-1])}">${value>=n?'★':'☆'}</button>`).join('')}</div>`;
+    }
+    return `<div class="emoji-scale">${RIASEC_EMOJI.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})" title="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
   }
   return `<div class="likert">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})">${lb}</button>`).join('')}</div>`;
 }
@@ -430,9 +435,18 @@ function viewAssessment(){
 function assessmentResultsHTML(l){
   const dims = RIASEC.map(d=>({...d, val: l.riasec? l.riasec[d.id]:0}));
   const top2 = hollandCode(l.riasec);
+  const topDims = [...dims].sort((a,b)=>b.val-a.val).slice(0,2);
+  const topMatches = computeMatches(l).slice(0,3);
   return `
-  ${pageHeadHTML('Your assessment results', `Your interest style: ${top2}`)}
+  ${pageHeadHTML('Your type is '+esc(top2), 'Here’s what that means, and a first look at where it points you.')}
   <div class="card" style="margin-bottom:18px;">
+    <h3>What ${esc(top2)} means</h3>
+    ${topDims.map(d=>`<p style="margin-bottom:10px;"><b>${esc(d.name)}</b> — ${esc(d.desc)}</p>`).join('')}
+    <p class="page-sub" style="margin-bottom:0;">This comes from your two strongest RIASEC dimensions below — a starting point for exploring careers, not a fixed label.</p>
+  </div>
+  <div class="section-title" style="margin-top:0;"><h2>Your top career matches</h2></div>
+  ${topMatches.length ? topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('') : `<div class="empty-state">${icon('target')}<p>Complete your profile for personalised matches.</p></div>`}
+  <div class="card" style="margin:18px 0;">
     <h3>Interest profile</h3>
     ${dims.map(d=>`
       <div style="margin-bottom:12px;">
@@ -448,7 +462,7 @@ function assessmentResultsHTML(l){
   </div>
   <div style="display:flex;gap:10px;">
     <button class="btn btn-ghost" onclick="App.assessRetake()">Retake assessment</button>
-    <button class="btn btn-primary" onclick="navigate('matches')">See career matches</button>
+    <button class="btn btn-primary" onclick="navigate('matches')">See all career matches</button>
   </div>`;
 }
 

@@ -182,8 +182,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 .emoji-btn{width:56px;height:56px;border-radius:16px;border:2px solid var(--line);background:var(--surface);font-size:26px;display:flex;align-items:center;justify-content:center;line-height:1;}
 .emoji-btn.on{background:var(--tint-violet);border-color:var(--indigo);}
 
+/* One glyph per button (not a 5-star string per button) so nothing
+   overflows its hit target -- a classic cumulative star rating. */
+.star-scale{display:flex;gap:6px;justify-content:center;margin:14px 0 4px;}
+.star-btn{width:46px;height:46px;border:none;background:transparent;font-size:32px;line-height:1;color:var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.star-btn.on{color:var(--indigo);}
+
 .slider-row{margin-bottom:18px;}
 .slider-row .sl-top{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px;}
+.slider-ticks{display:flex;justify-content:space-between;padding:0 3px;margin-top:-6px;font-size:11.5px;font-weight:600;color:var(--muted);}
+.slider-ticks span.on{color:var(--indigo);}
 input[type=range]{width:100%;accent-color:var(--indigo);height:8px;border-radius:999px;cursor:pointer;margin:10px 0;}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:var(--indigo);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
 input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--indigo);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
