@@ -141,6 +141,7 @@ function viewHome(){
     <div class="stat-pill"><div class="dot" style="background:${l.licenseStatus==='active'?'var(--grass)':'var(--coral)'}"></div><div><div class="n">${l.licenseStatus==='active'?'Active':'Trial'}</div><div class="l">Licence status</div></div></div>
   </div>
 
+  ${gradeTipHTML(l)}
   ${academicProfileHTML(l)}
 
   <div class="section-title"><h2>Quick actions</h2></div>
@@ -158,6 +159,17 @@ function viewHome(){
 
   ${cls ? `<div class="section-title"><h2>Your class</h2></div><div class="card"><b>${esc(cls.name)}</b><div class="page-sub">Class code: <span class="class-code">${esc(cls.code)}</span></div></div>` : ''}
   `;
+}
+// Grade-specific framing per the request: 9 = exploration, 10-11 = current
+// subjects & marks, 12 = APS/eligibility. Absent for exploring-only
+// learners, who aren't tied to a grade at all.
+function gradeTipHTML(l){
+  if(l.exploringOnly) return '';
+  const g = l.grade;
+  if(g===9) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 9 — this is exploration time.</b> Nothing is locked in yet. Try the <a href="#" onclick="navigate('guidance');return false;">Subject Choice Guidance</a> tool and the assessment to see what excites you before choosing Grade 10 subjects.</div></div>`;
+  if(g===10 || g===11) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade ${g} — your subjects and marks now shape your matches.</b> Keep your <a href="#" onclick="navigate('profile');return false;">profile</a> updated as you get new results, so your career matches stay accurate.</div></div>`;
+  if(g===12) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 12 — check real eligibility, not just fit.</b> Use the <a href="#" onclick="navigate('aps');return false;">APS Calculator</a> alongside your matches — a high match score reflects fit with your profile, not a guarantee of admission.</div></div>`;
+  return '';
 }
 function academicProfileHTML(l){
   const p = buildAcademicProfile(l);
@@ -186,14 +198,6 @@ function labelStep(label, done){
 }
 
 /* ---------------- Grade 9 subject guidance ---------------- */
-const GUIDE_TAGS = [
-  {k:'stem', l:'STEM experiments & how things work'},
-  {k:'biz', l:'Numbers, money & business'},
-  {k:'health', l:'Helping people & health'},
-  {k:'build', l:'Building, designing & making things'},
-  {k:'nature', l:'Nature, animals & the environment'},
-  {k:'tech', l:'Technology & computers'},
-];
 function ensureGuideDraft(){
   const l = ensureLearnerObj();
   if(!GUIDE_DRAFT){
@@ -207,16 +211,16 @@ function viewGuidance(){
   const l = ensureLearnerObj();
   if(d.step===3 || (l.subjectGuidance && d.step===1 && d.justViewing)) return guidanceResultsHTML(l.subjectGuidance || buildGuidanceResult(d));
   return `
-  ${pageHeadHTML('Subject Choice Guidance', 'Built for Grade 9 learners choosing subjects for Grade 10 — 2 quick steps.')}
+  ${pageHeadHTML('Subject Choice Guidance', 'Mainly built for Grade 9 learners choosing subjects for Grade 10, but useful any time you’re weighing up a subject change — 2 quick steps.')}
   ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
   <div class="card">
     ${d.step===1 ? `
-      <h3>Step 1 — What excites you most?</h3>
-      <p class="page-sub">Pick up to 3.</p>
+      <h3>Step 1 — Which fields excite you?</h3>
+      <p class="page-sub">Pick up to 3 — these aren’t final, just a starting point.</p>
       <div class="filter-bar">
-        ${GUIDE_TAGS.map(t=>`<button class="chip-select ${d.tags.includes(t.k)?'on':''}" onclick="App.guideToggleTag('${t.k}')">${t.l}</button>`).join('')}
+        ${CLUSTERS.map(cl=>`<button class="chip-select ${d.tags.includes(cl.id)?'on':''}" onclick="App.guideToggleTag('${cl.id}')">${esc(cl.name)}</button>`).join('')}
       </div>
-      <div style="margin-top:20px;"><button class="btn btn-primary" onclick="App.guideStep(2)">Next</button></div>
+      <div style="margin-top:20px;"><button class="btn btn-primary" ${d.tags.length?'':'disabled'} onclick="App.guideStep(2)">Next</button></div>
     ` : `
       <h3>Step 2 — Rate your confidence</h3>
       <p class="page-sub">Be honest — this just helps guide the suggestion.</p>
@@ -235,36 +239,85 @@ function confSlider(key,label,val){
   return `<div class="slider-row"><div class="sl-top"><span>${label}</span><span id="val_${key}">${val}/5</span></div>
     <input type="range" min="1" max="5" value="${val}" oninput="App.guideConf('${key}',this.value)"/></div>`;
 }
+// Grounded in the real career database rather than a hardcoded tag->subject
+// table: for every career example under the learner's selected clusters,
+// tally which subjects are actually required/recommended, so "why" can
+// name real careers instead of a generic sentence.
 function buildGuidanceResult(d){
-  const tags = d.tags;
+  const tags = d.tags; // cluster ids
+  const selectedClusters = tags.map(function(id){ return clusterById(id); }).filter(Boolean);
+  const subjectInfo = {}; // subject -> { required:Set<careerName>, recommended:Set<careerName> }
+  function touch(s, tier, name){
+    subjectInfo[s] = subjectInfo[s] || { required:new Set(), recommended:new Set() };
+    subjectInfo[s][tier].add(name);
+  }
+  selectedClusters.forEach(function(cl){
+    cl.exampleCareerIds.forEach(function(cid){
+      const c = CAREERS.find(function(x){ return x.id===cid; });
+      if(!c) return;
+      c.requiredSubjects.forEach(function(s){ touch(s,'required',c.name); });
+      c.recommendedSubjects.forEach(function(s){ touch(s,'recommended',c.name); });
+    });
+  });
+
   const rec = [];
   const reasoning = [];
-  const mathsStrong = d.conf.maths>=3 || tags.some(t=>['stem','biz','tech','build'].includes(t));
-  if(mathsStrong){ rec.push('Mathematics'); reasoning.push('Mathematics keeps STEM, health, IT, engineering and finance careers open.'); }
-  else { rec.push('Mathematics or Mathematical Literacy — discuss with your teacher'); reasoning.push('Mathematical Literacy can suit you if you\u2019re not aiming at STEM, health or finance careers, but it closes off many of them — talk this through with your subject counsellor.'); }
-  if(tags.includes('stem')||tags.includes('build')){ rec.push('Physical Sciences'); reasoning.push('Physical Sciences is required for most engineering, built-environment and physical-science careers.'); }
-  if(tags.includes('health')||tags.includes('nature')){ rec.push('Life Sciences'); reasoning.push('Life Sciences is required for health, agricultural and biological science careers.'); }
-  if(tags.includes('biz')){ rec.push('Accounting', 'Business Studies'); reasoning.push('Accounting and Business Studies build a strong base for finance, accounting and business careers.'); }
-  if(tags.includes('tech')){ rec.push('Information Technology'); reasoning.push('Information Technology gives you a head start for software, data and IT careers.'); }
-  if(tags.includes('nature')){ rec.push('Geography','Agricultural Sciences'); reasoning.push('Geography and Agricultural Sciences support environmental, agricultural and earth-science careers.'); }
-  if(!rec.includes('Mathematics') && d.conf.practical>=4 && !tags.includes('stem')){ reasoning.push('Your practical strengths suggest exploring built-environment or engineering-aligned TVET/technical pathways too.'); }
-  return { tags, conf:d.conf, recommendedSubjects:[...new Set(rec)], reasoning, completedAt: todayISO() };
+  function nameList(set,max){
+    max = max||3;
+    const arr=[...set];
+    return arr.length>max ? (arr.slice(0,max).join(', ')+' and '+(arr.length-max)+' other career'+(arr.length-max>1?'s':'')) : arr.join(', ');
+  }
+
+  const math = subjectInfo['Mathematics'];
+  if(math && math.required.size){
+    rec.push('Mathematics');
+    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.');
+  } else if((math && math.recommended.size) || d.conf.maths>=4){
+    rec.push('Mathematics');
+    reasoning.push(math ? ('Mathematics isn’t strictly required for your selected interests, but it’s recommended for '+nameList(math.recommended)+' and generally keeps more doors open.') : 'Mathematics isn’t required by your selected interests specifically, but it keeps the widest range of future options open.');
+  } else {
+    rec.push('Mathematics or Mathematical Literacy — discuss with your teacher');
+    reasoning.push('None of your selected interests strictly need Mathematics, so Mathematical Literacy is a reasonable option — but talk this through with your subject counsellor, since switching back later is hard if your interests change.');
+  }
+
+  Object.keys(subjectInfo).filter(function(s){ return s!=='Mathematics'; }).forEach(function(s){
+    const info = subjectInfo[s];
+    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'); }
+    else if(info.recommended.size>=2){ rec.push(s); reasoning.push(s+' is recommended for '+nameList(info.recommended)+'.'); }
+  });
+
+  selectedClusters.forEach(function(cl){
+    if(cl.usefulSubjects.length && !cl.usefulSubjects.some(function(s){ return rec.includes(s); })){
+      rec.push(cl.usefulSubjects[0]);
+      reasoning.push(cl.usefulSubjects[0]+' is a useful foundation subject for '+cl.name+'.');
+    }
+  });
+  if(!selectedClusters.length) reasoning.push('Pick at least one field you’re curious about to get a grounded recommendation.');
+
+  return { tags: tags, conf:d.conf, recommendedSubjects:[...new Set(rec)], reasoning: reasoning, completedAt: todayISO() };
 }
 function guidanceResultsHTML(res){
+  const selectedClusters = (res.tags||[]).map(function(id){ return clusterById(id); }).filter(Boolean);
   return `
-  ${pageHeadHTML('Your subject recommendation', 'A starting point for your Grade 10 subject choice conversation.')}
-  <div class="card">
+  ${pageHeadHTML('Your subject recommendation', 'A starting point for your Grade 10 subject choice conversation — grounded in real careers, not just a guess.')}
+  <div class="card" style="margin-bottom:18px;">
     <h3>Suggested subject focus</h3>
     <div class="pill-list" style="margin-bottom:16px;">
       ${res.recommendedSubjects.map(s=>`<span class="pill req">${esc(s)}</span>`).join('')}
     </div>
     <h3>Why</h3>
     <ul>${res.reasoning.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>
-    ${disclaimerHTML('This is guidance to support a conversation with your school\u2019s Life Orientation teacher or subject counsellor — final subject choice depends on your school\u2019s offering and timetable.')}
-    <div style="margin-top:16px;display:flex;gap:10px;">
-      <button class="btn btn-ghost" onclick="App.guideRetake()">Retake</button>
-      <button class="btn btn-primary" onclick="navigate('matches')">See career matches</button>
-    </div>
+    ${disclaimerHTML('This is guidance to support a conversation with your school’s Life Orientation teacher or subject counsellor — final subject choice depends on your school’s offering and timetable.')}
+  </div>
+  ${selectedClusters.length? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Your selected fields</h3>
+    <div class="pill-list">${selectedClusters.map(cl=>`<span class="tag" style="cursor:pointer;" onclick="navigate('cluster','${cl.id}')">${esc(cl.name)}</span>`).join('')}</div>
+    <p class="page-sub" style="margin-top:10px;">Click any field above to see real example careers and how they connect to these subjects.</p>
+  </div>` : ''}
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-ghost" onclick="App.guideRetake()">Retake</button>
+    <button class="btn btn-primary" onclick="navigate('matches')">See career matches</button>
   </div>`;
 }
 
@@ -440,6 +493,7 @@ function viewMatches(){
     <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths, subjects and marks. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
   ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
+  <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>A match score reflects <b>fit</b> with your interests, strengths, subjects and marks — it is not a guarantee of admission. Meeting a programme’s minimum requirements doesn’t guarantee acceptance, especially for competitive programmes — always confirm on the institution’s own site.</div></div>
   <div class="filter-bar">
     <button class="chip-select ${fac==='all'?'on':''}" onclick="navigate('matches','all')">All faculties</button>
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('matches','${f.id}')">${f.name}</button>`).join('')}
