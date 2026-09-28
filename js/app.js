@@ -163,26 +163,139 @@ async function saveLearner(partial){
 }
 
 /* ---------------- matching engine ---------------- */
+// Structural (enrollment) fit for a single named subject, 0-100 -- not
+// aware of tiers, that's handled by the tier-weighted combiners below.
+// "X Home Language"/"X First Additional Language" resolve as fully met
+// for anyone, since onboarding tracks that every learner takes *some*
+// home language and FAL without asking which -- the skill a career
+// actually wants is strong literacy, not a specific language.
 function subjectScore(learner, subjectName){
   if(subjectName === 'Mathematics'){
     if(learner.mathType === 'Mathematics') return 100;
     if(learner.mathType === 'MathLit') return 25;
     return 50;
   }
+  if(subjectName === 'Mathematical Literacy'){
+    if(learner.mathType === 'MathLit') return 100;
+    if(learner.mathType === 'Mathematics') return 70;
+    return 50;
+  }
+  // Structurally neutral, not a reward: every learner takes *some* home
+  // language and FAL, but onboarding doesn't ask which, so there's no real
+  // per-learner enrollment signal here -- treating it as 100 would let a
+  // career anchored only on "English Home Language (recommended)" score
+  // maximally for a learner about whom nothing else is known. The real
+  // signal, once it exists, comes from their entered mark (see
+  // subjectMarkPct/academicPerformanceFit), not from this structural check.
+  if(subjectName.includes('Home Language') || subjectName.includes('Additional Language')) return 50;
   const subs = learner.subjects || [];
   if(!subs.length && (!learner.grade || learner.grade===9)) return 50;
   return subs.includes(subjectName) ? 100 : 20;
 }
-function scoreCareer(learner, career){
+
+// A learner's actual entered percentage for a named subject, or null if
+// they haven't entered one (never fabricated -- see academicPerformanceFit).
+function subjectMarkPct(learner, subjectName){
+  const marks = learner.subjectMarks || {};
+  if(subjectName === 'Mathematics' || subjectName === 'Mathematical Literacy'){
+    const key = learner.mathType === 'MathLit' ? 'Mathematical Literacy' : 'Mathematics';
+    if(subjectName !== key) return null; // no mark to report for the track they didn't take
+    return marks[key] && marks[key].pct != null ? marks[key].pct : null;
+  }
+  let key = subjectName;
+  if(subjectName.includes('Home Language')) key = 'Home Language';
+  else if(subjectName.includes('Additional Language')) key = 'First Additional Language';
+  return marks[key] && marks[key].pct != null ? marks[key].pct : null;
+}
+
+const TIER_WEIGHT = { required:1, recommended:0.4, related:0.08 };
+function careerSubjectTiers(career){
+  return [
+    ['required', career.requiredSubjects||[]],
+    ['recommended', career.recommendedSubjects||[]],
+    ['related', career.relatedSubjects||[]],
+  ];
+}
+// Structural subject-alignment fit, tier-weighted so a merely "related"
+// subject barely moves the needle next to a missing "required" one.
+// Returns null only when a career lists no subjects in any tier.
+function subjectAlignmentFit(learner, career){
+  let sumWeighted=0, sumWeight=0;
+  careerSubjectTiers(career).forEach(([tier,subs])=>{
+    const w = TIER_WEIGHT[tier];
+    subs.forEach(subject=>{ sumWeighted += w*subjectScore(learner,subject); sumWeight += w; });
+  });
+  return sumWeight>0 ? sumWeighted/sumWeight : null;
+}
+// Marks-based academic-performance fit for this career specifically,
+// same tier weights as subjectAlignmentFit (so a strong mark in a
+// "related" subject can't mask a weak one in a "required" subject).
+// Skips any subject the learner hasn't entered a mark for -- a
+// percentage has no honest neutral default the way a self-rating does,
+// so a missing mark is omitted rather than imputed to 50. Returns null
+// when there are no relevant marks yet at all (e.g. Grade 9, or the
+// learner simply hasn't entered marks for subjects this career cares about).
+function academicPerformanceFit(learner, career){
+  let sumWeighted=0, sumWeight=0;
+  careerSubjectTiers(career).forEach(([tier,subs])=>{
+    const w = TIER_WEIGHT[tier];
+    subs.forEach(subject=>{
+      const pct = subjectMarkPct(learner, subject);
+      if(pct!=null){ sumWeighted += w*pct; sumWeight += w; }
+    });
+  });
+  return sumWeight>0 ? sumWeighted/sumWeight : null;
+}
+
+const MATCH_CATEGORIES = {
+  strong:   { label:'Strong match',               badge:'badge-strong' },
+  academic: { label:'Academic strength match',    badge:'badge-good' },
+  interest: { label:'Interest match',             badge:'badge-explore' },
+  possible: { label:'Possible pathway',           badge:'badge-explore' },
+  low:      { label:'Less aligned',               badge:'badge-low' },
+};
+const W_INTEREST=30, W_STRENGTH=20, W_SUBJECT=20, W_ACADEMIC=30;
+
+// Single source of truth for a learner/career pairing: computes every
+// component factor once, the blended score, and (once an assessment
+// exists) which of the four match categories it falls into. Everything
+// else (scoreCareer, computeMatches, the career-detail explanation) reads
+// from this instead of recomputing the same factors separately.
+function evaluateCareer(learner, career){
   const riasec = learner.riasec || {};
   const strengths = learner.strengths || {};
+  const hasAssessment = !!learner.assessmentCompletedAt;
+
   const interestFit = career.riasec.length ? avg(career.riasec.map(d=> riasec[d]!=null? riasec[d]:50)) : 50;
   const strengthFit = career.strengths.length ? avg(career.strengths.map(k=> strengths[k]!=null? strengths[k]:50)) : 50;
-  const subjectFit = career.requiredSubjects.length ? avg(career.requiredSubjects.map(rs=>subjectScore(learner, rs.subject))) : 50;
-  const hasAssessment = learner.assessmentCompletedAt;
-  let score = hasAssessment ? (0.4*interestFit + 0.35*subjectFit + 0.25*strengthFit) : (0.6*subjectFit + 0.4*50);
-  return Math.round(clamp(score,0,100));
+  const subjectFitRaw = subjectAlignmentFit(learner, career);
+  const subjectFit = subjectFitRaw==null ? 50 : subjectFitRaw;
+  const academicFitRaw = hasAssessment ? academicPerformanceFit(learner, career) : null;
+
+  let score;
+  if(!hasAssessment){
+    score = 0.6*subjectFit + 0.4*50; // least-informed state, unchanged from before
+  } else if(academicFitRaw==null){
+    // No relevant marks entered yet -- renormalise interest:strength:subject
+    // (30:20:20) to sum to 100 rather than defaulting academic fit to 50.
+    score = (W_INTEREST*interestFit + W_STRENGTH*strengthFit + W_SUBJECT*subjectFit) / (W_INTEREST+W_STRENGTH+W_SUBJECT);
+  } else {
+    score = (W_INTEREST*interestFit + W_STRENGTH*strengthFit + W_SUBJECT*subjectFit + W_ACADEMIC*academicFitRaw) / (W_INTEREST+W_STRENGTH+W_SUBJECT+W_ACADEMIC);
+  }
+  score = Math.round(clamp(score,0,100));
+
+  let category = null;
+  if(hasAssessment){
+    const best = academicFitRaw==null ? subjectFit : Math.max(subjectFit, academicFitRaw);
+    if(interestFit>=65 && best>=65) category = 'strong';
+    else if(best>=65) category = 'academic';
+    else if(interestFit>=65) category = 'interest';
+    else if(score>=40) category = 'possible';
+    else category = 'low';
+  }
+  return { score, category, interestFit, strengthFit, subjectFit, academicFit:academicFitRaw };
 }
+function scoreCareer(learner, career){ return evaluateCareer(learner, career).score; }
 function matchLabel(score){
   if(score>=78) return {t:'Strong match', c:'badge-strong'};
   if(score>=58) return {t:'Good match', c:'badge-good'};
@@ -190,7 +303,46 @@ function matchLabel(score){
   return {t:'Less aligned', c:'badge-low'};
 }
 function computeMatches(learner){
-  return CAREERS.map(c=>({career:c, score:scoreCareer(learner,c)})).sort((a,b)=>b.score-a.score);
+  return CAREERS.map(c=>{
+    const ev = evaluateCareer(learner, c);
+    return { career:c, score:ev.score, category:ev.category, eval:ev };
+  }).sort((a,b)=>b.score-a.score);
+}
+
+// Template-based (not free-text) "why this might suit you" explanation --
+// deterministic and debuggable, only asserts what the actual component
+// scores and entered marks back up.
+function careerExplanationHTML(learner, career, ev){
+  if(!learner.assessmentCompletedAt){
+    return `<p class="page-sub">Complete the assessment to see a personalised explanation of why this career might suit you.</p>`;
+  }
+  const why = [];
+  if(ev.interestFit>=65 && career.riasec.length){
+    const dims = career.riasec.map(d=>{ const r=RIASEC.find(x=>x.id===d); return r?r.name.toLowerCase():null; }).filter(Boolean);
+    if(dims.length) why.push(`Your interests align well with ${dims.join(' and ')}.`);
+  }
+  if(ev.strengthFit>=65 && career.strengths.length){
+    const labels = career.strengths.map(k=>{ const s=STRENGTH_KEYS.find(x=>x.id===k); return s?s.label:null; }).filter(Boolean);
+    if(labels.length) why.push(`You rate yourself strongly on ${labels.join(', ')}.`);
+  }
+  const strongRequired = career.requiredSubjects.filter(s=>{ const pct=subjectMarkPct(learner,s); return pct!=null && pct>=60; });
+  if(strongRequired.length) why.push(`${strongRequired.join(' and ')} — among your stronger subjects — directly supports this pathway.`);
+  if(!why.length) why.push('This career doesn’t have a strong signal either way yet from your interests or strengths — its details below may still be worth exploring.');
+
+  const toImprove = career.requiredSubjects.filter(s=>{
+    const pct = subjectMarkPct(learner,s);
+    return (pct!=null && pct<50) || (pct==null && subjectScore(learner,s)<60);
+  });
+  const nextSteps = [];
+  if(toImprove.length) nextSteps.push(`Strengthen ${toImprove.join(' and ')}`);
+  nextSteps.push('Check individual university/programme requirements');
+  if(career.pathways.some(p=>p.type==='TVET')) nextSteps.push('Explore the diploma/University of Technology or TVET route as an alternative entry point');
+
+  return `
+    <p><b>Why it may suit you:</b></p><ul>${why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>
+    ${toImprove.length? `<p>${esc(toImprove.join(' and '))} may need improvement — most programmes in this field expect a solid result here.</p>`:''}
+    <p><b>Possible next steps:</b></p><ul>${nextSteps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
+  `;
 }
 function hollandCode(riasec){
   if(!riasec) return '—';

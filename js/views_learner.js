@@ -154,7 +154,7 @@ function viewHome(){
   </div>
 
   <div class="section-title"><h2>Your top career matches</h2><button class="btn btn-ghost btn-sm" onclick="navigate('matches')">See all</button></div>
-  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l)).join('') : `<div class="empty-state">${icon('target')}<p>Complete the assessment to see personalised matches.</p></div>`}
+  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l, m.category)).join('') : `<div class="empty-state">${icon('target')}<p>Complete the assessment to see personalised matches.</p></div>`}
 
   ${cls ? `<div class="section-title"><h2>Your class</h2></div><div class="card"><b>${esc(cls.name)}</b><div class="page-sub">Class code: <span class="class-code">${esc(cls.code)}</span></div></div>` : ''}
   `;
@@ -305,7 +305,11 @@ function ensureAssessDraft(){
     ASSESSMENT_DRAFT = {
       step:0, dir:'fwd',
       answers: l.riasecRaw ? [...l.riasecRaw] : Array(RIASEC_QUESTIONS.length).fill(0),
-      strengths: l.strengthsRaw ? [...l.strengthsRaw] : Array(STRENGTH_KEYS.length).fill(3),
+      // Mapped (not spread) so a learner whose saved strengthsRaw predates a
+      // STRENGTH_KEYS expansion gets the new trailing categories padded to
+      // the default 3, instead of leaving them undefined -- STRENGTH_KEYS
+      // is append-only specifically so this positional padding stays safe.
+      strengths: STRENGTH_KEYS.map((_,i)=> (l.strengthsRaw && l.strengthsRaw[i]!=null) ? l.strengthsRaw[i] : 3),
     };
   }
   return ASSESSMENT_DRAFT;
@@ -396,10 +400,11 @@ function assessmentResultsHTML(l){
 }
 
 /* ---------------- Career list / matches / explore ---------------- */
-function careerRowHTML(career, score, l){
+function careerRowHTML(career, score, l, category){
   const fac = facultyById(career.faculty);
   const isFav = (l.favourites||[]).includes(career.id);
-  const label = score!=null ? matchLabel(score) : null;
+  const meta = category ? MATCH_CATEGORIES[category] : null;
+  const label = meta ? {t:meta.label, c:meta.badge} : (score!=null ? matchLabel(score) : null);
   return `
   <div class="career-row">
     <div class="left">
@@ -416,22 +421,36 @@ function careerRowHTML(career, score, l){
     </div>
   </div>`;
 }
+const MATCH_GROUP_ORDER = [
+  ['strong', 'Strong matches', 'Your interests, strengths and current academic performance all line up with these.'],
+  ['academic', 'Academic strength matches', 'You’re already performing well in subjects these careers value, even if you hadn’t considered them yet.'],
+  ['interest', 'Interest matches', 'You show strong interest here — your subjects or marks may need some development to fully back it up.'],
+  ['possible', 'Possible pathways', 'Not a clear match yet on interest or academics — still genuinely worth exploring, especially this early on.'],
+  ['low', 'Also worth browsing', 'Less aligned with your profile today, but never hidden — every career here is worth a look.'],
+];
 function viewMatches(){
   const l = ensureLearnerObj();
   const fac = ROUTE_PARAM || 'all';
   let matches = computeMatches(l);
   if(fac!=='all') matches = matches.filter(m=>m.career.faculty===fac);
+  const grouped = l.assessmentCompletedAt;
   return `
-  ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Ranked by fit with your interests, strengths and subjects.':'Complete the assessment for personalised ranking — showing subject-based fit for now.')}
+  ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Grouped by how your interests, strengths, subjects and marks line up.':'Complete the assessment for personalised ranking — showing subject-based fit for now.')}
   <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
-    <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths and subjects. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
+    <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths, subjects and marks. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
   ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
   <div class="filter-bar">
     <button class="chip-select ${fac==='all'?'on':''}" onclick="navigate('matches','all')">All faculties</button>
     ${FACULTIES.map(f=>`<button class="chip-select ${fac===f.id?'on':''}" onclick="navigate('matches','${f.id}')">${f.name}</button>`).join('')}
   </div>
-  ${matches.map(m=>careerRowHTML(m.career,m.score,l)).join('')}
+  ${grouped
+    ? MATCH_GROUP_ORDER.map(([key,title,sub])=>{
+        const list = matches.filter(m=>m.category===key);
+        if(!list.length) return '';
+        return `<div class="section-title"><h2>${title}</h2></div><p class="page-sub" style="margin-top:-10px;margin-bottom:12px;">${sub}</p>${list.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('')}`;
+      }).join('')
+    : matches.map(m=>careerRowHTML(m.career,m.score,l)).join('')}
   `;
 }
 function viewExplore(){
@@ -464,8 +483,10 @@ function viewCareerDetail(id){
   const l = ensureLearnerObj();
   if(!career) return `${pageHeadHTML('Career not found')}<div class="empty-state">${icon('search')}<p>That career couldn\u2019t be found.</p></div>`;
   const fac = facultyById(career.faculty);
-  const score = scoreCareer(l, career);
-  const label = matchLabel(score);
+  const ev = evaluateCareer(l, career);
+  const score = ev.score;
+  const meta = ev.category ? MATCH_CATEGORIES[ev.category] : null;
+  const label = meta ? {t:meta.label, c:meta.badge} : matchLabel(score);
   const isFav = (l.favourites||[]).includes(career.id);
   const inCompare = (l.compare||[]).includes(career.id);
   const ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(career.videoQuery);
@@ -478,16 +499,24 @@ function viewCareerDetail(id){
     <span class="badge ${label.c}" style="background:rgba(255,255,255,.9);">${score}% · ${label.t} for you</span>
   </div>
 
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Why this may (or may not) suit you</h3>
+    ${careerExplanationHTML(l, career, ev)}
+  </div>
+
   <div class="grid grid-2" style="margin-bottom:18px;">
     <div class="card">
       <h3>A day in the life</h3>
       <p>${esc(career.dayInLife)}</p>
     </div>
     <div class="card">
-      <h3>Required & recommended NSC subjects</h3>
+      <h3>Required, recommended & related NSC subjects</h3>
       <div class="pill-list">
-        ${career.requiredSubjects.map(s=>`<span class="pill ${s.necessity==='required'?'req':'rec'}">${esc(s.subject)} ${s.necessity==='required'?'(required)':'(recommended)'}</span>`).join('')}
+        ${career.requiredSubjects.map(s=>`<span class="pill req">${esc(s)} (required)</span>`).join('')}
+        ${career.recommendedSubjects.map(s=>`<span class="pill rec">${esc(s)} (recommended)</span>`).join('')}
+        ${(career.relatedSubjects||[]).map(s=>`<span class="pill">${esc(s)} (related)</span>`).join('')}
       </div>
+      ${!career.requiredSubjects.length ? `<p class="page-sub" style="margin-top:8px;">No specific NSC subject is a strict requirement for this pathway — check individual programme/employer requirements.</p>` : ''}
     </div>
   </div>
 
@@ -600,7 +629,7 @@ function viewFavourites(){
   const favs = (l.favourites||[]).map(id=>CAREERS.find(c=>c.id===id)).filter(Boolean);
   return `
   ${pageHeadHTML('Favourites', 'Careers you\u2019ve saved for later.')}
-  ${favs.length? favs.map(c=>careerRowHTML(c, scoreCareer(l,c), l)).join('') : `<div class="empty-state">${icon('heart')}<p>No saved careers yet. Explore careers and tap the heart icon to save them here.</p></div>`}
+  ${favs.length? favs.map(c=>{const ev=evaluateCareer(l,c); return careerRowHTML(c, ev.score, l, ev.category);}).join('') : `<div class="empty-state">${icon('heart')}<p>No saved careers yet. Explore careers and tap the heart icon to save them here.</p></div>`}
   ${favs.length? `<button class="btn btn-primary" style="margin-top:10px;" onclick="App.compareFromFavs()">${icon('layers')} Compare all saved</button>`:''}
   `;
 }
@@ -610,7 +639,7 @@ function viewCompare(){
   if(!items.length) return `${pageHeadHTML('Compare careers')}<div class="empty-state">${icon('layers')}<p>Add up to 3 careers to compare from Explore, Matches or Favourites.</p><button class="btn btn-primary" style="margin-top:12px;" onclick="navigate('explore')">Explore careers</button></div>`;
   const rows = [
     ['Faculty', c=>facultyById(c.faculty).name],
-    ['Required subjects', c=>c.requiredSubjects.map(s=>s.subject+(s.necessity==='required'?' (required)':' (rec.)')).join(', ')],
+    ['Required subjects', c=>[...c.requiredSubjects.map(s=>s+' (required)'), ...c.recommendedSubjects.map(s=>s+' (rec.)')].join(', ') || '—'],
     ['Typical APS', c=>c.apsGuidance.typical],
     ['Main qualification', c=>c.pathways[0].qualification+' — '+c.pathways[0].duration],
     ['TVET route?', c=>c.institutions.tvet?'Yes':'Mainly university'],

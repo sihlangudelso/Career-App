@@ -152,7 +152,7 @@ function viewAdminLearnerDetail(id){
   </div>
   <div class="card" style="margin-bottom:18px;">
     <h3>Top career matches</h3>
-    ${matches.length? matches.map(m=>careerRowHTML(m.career,m.score,l)).join('') : '<p class="page-sub">No assessment data yet.</p>'}
+    ${matches.length? matches.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('') : '<p class="page-sub">No assessment data yet.</p>'}
   </div>
   <div class="card">
     <h3>Saved favourites</h3>
