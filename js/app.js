@@ -330,6 +330,69 @@ function careerWorkStyleProfile(career){
     routineVsVariety: has('E')||has('A') ? 65 : (structured ? 35 : 50),
   };
 }
+// ---- Pre-registration mini-assessment (see js/views_anon.js) ----
+// Deliberately separate from the real matching engine above: these two
+// functions turn 4 single-tap answers into two broad "career directions"
+// for an anonymous visitor. Never reads or writes learner.riasec/
+// strengths/assessmentCompletedAt, and no real scoring function
+// (evaluateCareer, computeMatches, computeStrengthDomains) ever reads
+// their output -- a coarse 4-tap guess must never masquerade as, or
+// contaminate, the real assessment's evidence.
+
+// A cluster's RIASEC profile isn't hand-authored (20 more entries to
+// maintain and keep in sync) -- derived from its own exampleCareerIds'
+// real riasec letters, the same "derive, don't hand-author" precedent as
+// careerWorkStyleProfile above. Normalized to proportions so a cluster
+// with more example careers isn't systematically favoured over one with
+// fewer.
+function clusterRiasecProfile(cluster){
+  const tally = { R:0,I:0,A:0,S:0,E:0,C:0 };
+  let total = 0;
+  cluster.exampleCareerIds.forEach(id=>{
+    const c = CAREERS.find(x=>x.id===id);
+    if(!c) return;
+    c.riasec.forEach(letter=>{ tally[letter] = (tally[letter]||0) + 1; total++; });
+  });
+  if(total===0) return tally;
+  Object.keys(tally).forEach(k=> tally[k] = tally[k]/total);
+  return tally;
+}
+// answers: {interest, strength, motivation, activity} -- option ids from
+// RIASEC/STRENGTH_DOMAINS/MINI_MOTIVATION_OPTIONS/MINI_ACTIVITY_OPTIONS.
+// Each question contributes equally regardless of how many RIASEC letters
+// its chosen option carries (a 2-letter answer splits 0.5/0.5, not 1/1),
+// so no single question silently outweighs the others. Returns the top 2
+// CLUSTERS by a normalized dot-product against clusterRiasecProfile --
+// stable order on ties, no diversity/faculty tie-break (the real
+// career-riasec data already differentiates clusters reasonably well).
+function computeMiniDirections(answers){
+  const tally = { R:0,I:0,A:0,S:0,E:0,C:0 };
+  function addLetters(letters){
+    if(!letters || !letters.length) return;
+    const share = 1/letters.length;
+    letters.forEach(l=>{ tally[l] = (tally[l]||0) + share; });
+  }
+  addLetters(answers.interest ? [answers.interest] : null);
+  const strengthDomain = STRENGTH_DOMAINS.find(d=>d.id===answers.strength);
+  addLetters(strengthDomain && strengthDomain.riasec);
+  const motivation = MINI_MOTIVATION_OPTIONS.find(o=>o.id===answers.motivation);
+  addLetters(motivation && motivation.riasec);
+  const activity = MINI_ACTIVITY_OPTIONS.find(o=>o.id===answers.activity);
+  addLetters(activity && activity.riasec);
+
+  const total = Object.values(tally).reduce((s,v)=>s+v,0) || 1;
+  const learnerProfile = {};
+  Object.keys(tally).forEach(k=> learnerProfile[k] = tally[k]/total);
+
+  const scored = CLUSTERS.map(cluster=>{
+    const cp = clusterRiasecProfile(cluster);
+    const score = Object.keys(learnerProfile).reduce((s,k)=> s + learnerProfile[k]*cp[k], 0);
+    return { cluster, score };
+  });
+  scored.sort((a,b)=> b.score-a.score);
+  return scored.slice(0,2).map(s=>s.cluster);
+}
+
 // How closely a learner's stated work-style preferences match a career's
 // derived profile, 0-100 (100 = identical). Null (omit from the blend)
 // until the learner has completed the work-style mini-survey.

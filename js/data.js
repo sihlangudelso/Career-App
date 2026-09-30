@@ -403,6 +403,30 @@ const WORK_STYLE_QUESTIONS = [
   { key:'routineVsVariety', left:'A predictable, steady routine', right:'Variety and frequent change' },
 ];
 
+// Answer options for the 60-second pre-registration mini-assessment (see
+// js/views_anon.js). Deliberately separate from RIASEC_QUESTIONS/
+// STRENGTH_KEYS -- these are single-tap, broad-strokes picks, not part of
+// the real assessment's scoring. Each option is tagged with the RIASEC
+// letter(s) it maps to, so mini-assessment answers can be turned into
+// career "directions" (see computeMiniDirections in app.js) without a
+// second, parallel matching engine.
+const MINI_MOTIVATION_OPTIONS = [
+  { id:'help-others', label:'Helping or supporting other people', riasec:['S'] },
+  { id:'stable-income', label:'Earning a good, stable income', riasec:['C','E'] },
+  { id:'solve-problems', label:'Solving hard problems', riasec:['I'] },
+  { id:'create-design', label:'Creating or designing things', riasec:['A'] },
+  { id:'lead-build', label:'Leading or building something of my own', riasec:['E'] },
+  { id:'work-hands', label:'Working with my hands', riasec:['R'] },
+];
+const MINI_ACTIVITY_OPTIONS = [
+  { id:'build-fix', label:'Building or fixing things', riasec:['R'] },
+  { id:'people', label:'Talking and working with people', riasec:['S'] },
+  { id:'analyse', label:'Analysing data or solving puzzles', riasec:['I'] },
+  { id:'create-content', label:'Creating designs, content or art', riasec:['A'] },
+  { id:'organise', label:'Organising, planning or managing', riasec:['C'] },
+  { id:'lead-team', label:'Leading a team or a project', riasec:['E'] },
+];
+
 // Well-known SA public universities & TVET reference lists (general — always verify)
 const UNIVERSITIES = [
   'University of Cape Town (UCT)', 'University of the Witwatersrand (Wits)',
