@@ -168,7 +168,16 @@ const App = {
     render();
   },
   grade9Step(n){ ensureGrade9Draft().step = n; render(); },
-  grade9SetWorkStyle(key, val){ ensureGrade9Draft().workStyle[key] = Number(val); },
+  grade9SetWorkStyle(key, val, el){
+    const d = ensureGrade9Draft();
+    d.workStyle[key] = Number(val);
+    if(!el) return;
+    const row = el.closest('.slider-row');
+    if(row) row.classList.remove('unanswered');
+    const card = el.closest('.card');
+    const saveBtn = card && card.querySelector('.btn-primary');
+    if(saveBtn) saveBtn.disabled = !WORK_STYLE_QUESTIONS.every(q=>d.workStyle[q.key]>0);
+  },
   async grade9Submit(){
     const d = ensureGrade9Draft();
     const subjects = {};
@@ -195,9 +204,7 @@ const App = {
   assessBack(){ const d=ensureAssessDraft(); App.assessGoto(d.step-1,'back'); },
   assessNext(){
     const d = ensureAssessDraft();
-    const step = d.step;
-    if(step<RIASEC_QUESTIONS.length && assessStyleFor(step)==='slider' && !d.answers[step]) d.answers[step]=3;
-    App.assessGoto(step+1,'fwd');
+    App.assessGoto(d.step+1,'fwd');
   },
   assessChoose(step,val){
     const d = ensureAssessDraft();
@@ -212,7 +219,12 @@ const App = {
     const elLabel = document.getElementById('qval_'+step);
     if(elLabel) elLabel.textContent = labels[Number(val)-1];
     const row = elLabel && elLabel.closest('.slider-row');
-    if(row) row.querySelectorAll('.slider-ticks span').forEach((el,i)=>el.classList.toggle('on', i+1===Number(val)));
+    if(row){
+      row.classList.remove('unanswered');
+      row.querySelectorAll('.slider-ticks span').forEach((el,i)=>el.classList.toggle('on', i+1===Number(val)));
+    }
+    const continueBtn = row && row.closest('.card') && row.closest('.card').querySelector('.btn-primary');
+    if(continueBtn) continueBtn.disabled = false;
   },
   assessSlideCommit(step,val){ App.assessChoose(step, Number(val)); },
   async assessSubmit(){

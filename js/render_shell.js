@@ -1,6 +1,6 @@
 const LEARNER_NAV = [
   { r:'home', label:'Dashboard', ic:'home' },
-  { r:'guidance', label:'Subject Guidance', ic:'compass' },
+  { r:'guidance', label:'Grade 10 Subject Guidance', short:'Guidance', ic:'compass' },
   { r:'assessment', label:'Assessment', ic:'spark' },
   { r:'matches', label:'Career Matches', ic:'target' },
   { r:'explore', label:'Explore Careers', ic:'search' },
@@ -73,7 +73,7 @@ function bottomNavHTML(){
   const nav = currentNav().slice(0,5);
   return nav.map(n=>`
     <button class="${ROUTE===n.r?'active':''}" onclick="navigate('${n.r}')">
-      ${icon(n.ic)}<span>${n.label.split(' ')[0]}</span>
+      ${icon(n.ic)}<span>${n.short || n.label.split(' ')[0]}</span>
     </button>`).join('');
 }
 

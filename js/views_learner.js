@@ -278,7 +278,7 @@ function ensureGrade9Draft(){
     const ws = {};
     WORK_STYLE_QUESTIONS.forEach(q=>{
       const saved = l.workStyle && l.workStyle[q.key];
-      ws[q.key] = saved!=null ? Math.round(saved/25)+1 : 3; // 0-100 saved -> 1-5 slider
+      ws[q.key] = saved!=null ? Math.round(saved/25)+1 : 0; // 0-100 saved -> 1-5 slider; 0 = not yet answered
     });
     GRADE9_DRAFT = {
       step: 1,
@@ -343,18 +343,21 @@ function grade9ReportStepHTML(d, l){
   </div>`;
 }
 function grade9WorkStyleStepHTML(d, l){
+  const allAnswered = WORK_STYLE_QUESTIONS.every(q=>d.workStyle[q.key]>0);
   return `
   ${pageHeadHTML('Grade 9 Report Results', 'Step 2 of 2 — a few quick questions about how you like to work — there are no right answers.')}
   <div class="card">
-    ${WORK_STYLE_QUESTIONS.map(q=>`
-      <div class="slider-row">
+    ${WORK_STYLE_QUESTIONS.map(q=>{
+      const answered = d.workStyle[q.key]>0;
+      const v = answered ? d.workStyle[q.key] : 3;
+      return `<div class="slider-row ${answered?'':'unanswered'}">
         <div class="sl-top"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>
-        <input type="range" min="1" max="5" value="${d.workStyle[q.key]}" oninput="App.grade9SetWorkStyle('${q.key}', this.value)"/>
-      </div>
-    `).join('')}
+        <input type="range" min="1" max="5" value="${v}" oninput="App.grade9SetWorkStyle('${q.key}', this.value, this)"/>
+      </div>`;
+    }).join('')}
     <div style="margin-top:8px;display:flex;gap:10px;">
       <button class="btn btn-ghost" onclick="App.grade9Step(1)">Back</button>
-      <button class="btn btn-primary" onclick="App.grade9Submit()">${icon('check')} Save my results</button>
+      <button class="btn btn-primary" ${allAnswered?'':'disabled'} onclick="App.grade9Submit()">${icon('check')} Save my results</button>
     </div>
   </div>`;
 }
@@ -393,7 +396,7 @@ function viewGuidance(){
   const l = ensureLearnerObj();
   if(d.step===3 || (l.subjectGuidance && d.step===1 && d.justViewing)) return guidanceResultsHTML(l.subjectGuidance || buildGuidanceResult(d));
   return `
-  ${pageHeadHTML('Subject Choice Guidance', 'Mainly built for Grade 9 learners choosing subjects for Grade 10, but useful any time you’re weighing up a subject change — 2 quick steps.')}
+  ${pageHeadHTML('Grade 10 Subject Guidance', 'Mainly built for Grade 9 learners choosing subjects for Grade 10, but useful any time you’re weighing up a subject change — 2 quick steps.')}
   ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
   <div class="card">
     ${d.step===1 ? `
@@ -555,11 +558,16 @@ function assessWidgetHTML(step, kind, value){
     </div>`;
   }
   if(style==='slider'){
-    const v = value || 3;
-    return `<div class="slider-row">
+    // A native range input always needs some numeric position to render at,
+    // but an untouched question must not look like an answer was already
+    // given -- so the thumb sits at the midpoint only visually (greyed out
+    // via .unanswered), while the real value stays unset until dragged.
+    const answered = !!value;
+    const v = answered ? value : 3;
+    return `<div class="slider-row ${answered?'':'unanswered'}">
       <input type="range" min="1" max="5" value="${v}" oninput="App.assessSlide(${step},this.value)" onchange="App.assessSlideCommit(${step},this.value)"/>
-      <div class="slider-ticks">${[1,2,3,4,5].map(n=>`<span class="${v===n?'on':''}">${n}</span>`).join('')}</div>
-      <div class="sl-top" style="justify-content:center;"><span id="qval_${step}">${esc(labels[v-1])}</span></div>
+      <div class="slider-ticks">${[1,2,3,4,5].map(n=>`<span class="${answered && v===n?'on':''}">${n}</span>`).join('')}</div>
+      <div class="sl-top" style="justify-content:center;"><span id="qval_${step}">${answered ? esc(labels[v-1]) : 'Drag the slider to answer'}</span></div>
     </div>`;
   }
   if(style==='emoji'){
@@ -582,9 +590,10 @@ function ensureAssessDraft(){
       answers: l.riasecRaw ? [...l.riasecRaw] : Array(RIASEC_QUESTIONS.length).fill(0),
       // Mapped (not spread) so a learner whose saved strengthsRaw predates a
       // STRENGTH_KEYS expansion gets the new trailing categories padded to
-      // the default 3, instead of leaving them undefined -- STRENGTH_KEYS
-      // is append-only specifically so this positional padding stays safe.
-      strengths: STRENGTH_KEYS.map((_,i)=> (l.strengthsRaw && l.strengthsRaw[i]!=null) ? l.strengthsRaw[i] : 3),
+      // 0 (not yet answered) instead of leaving them undefined -- same
+      // reset-not-neutral sentinel as `answers` above, and STRENGTH_KEYS is
+      // append-only specifically so this positional padding stays safe.
+      strengths: STRENGTH_KEYS.map((_,i)=> (l.strengthsRaw && l.strengthsRaw[i]!=null) ? l.strengthsRaw[i] : 0),
     };
   }
   return ASSESSMENT_DRAFT;
@@ -623,8 +632,11 @@ function viewAssessment(){
   const qText = inStrengths ? STRENGTH_KEYS[step-TOTAL_R].label : RIASEC_QUESTIONS[step].text;
   const value = inStrengths ? d.strengths[step-TOTAL_R] : d.answers[step];
   const kind = inStrengths ? 'strength' : 'riasec';
-  const isSlider = assessStyleFor(step)==='slider';
-  const canContinue = inStrengths || isSlider ? true : !!value;
+  // Every question style must be genuinely answered before continuing --
+  // strength questions and slider questions used to be waved through
+  // regardless, which let a slider's greyed-out midpoint (or a strength
+  // question of any style) get silently skipped with no real answer.
+  const canContinue = !!value;
 
   return `
   ${pageHeadHTML(headTitle, headSub)}

@@ -57,9 +57,9 @@ function boot(){
 
 async function handleSession(session){
   AUTH_READY = true;
-  if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
   const user = session && session.user;
   if(!user){
+    if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
     ME = { id:null, name:'', email:'', avatarUrl:'' };
     IS_ADMIN = false; LEARNER = null;
     renderAuthGateOnly();
@@ -70,12 +70,22 @@ async function handleSession(session){
     renderRecoveryOnly();
     return;
   }
+  // Supabase re-fires onAuthStateChange (e.g. TOKEN_REFRESHED) whenever the
+  // browser tab regains focus/visibility, not just on a genuine new
+  // sign-in. For the *same* already-signed-in user, just refresh the
+  // identity fields in place and stop -- otherwise switching back to this
+  // tab would reset ROUTE to the dashboard and blow away whatever the
+  // learner was in the middle of (an assessment, a form, etc).
+  const alreadySignedIn = ME.id === user.id && LEARNER;
   ME = {
     id: user.id,
     name: (user.user_metadata && user.user_metadata.display_name) || user.email,
     email: user.email,
     avatarUrl: (user.user_metadata && user.user_metadata.avatar_url) || '',
   };
+  if(alreadySignedIn) return;
+
+  if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
   if(JUST_CONFIRMED_EMAIL){
     JUST_CONFIRMED_EMAIL = false;
     toast('Email verified! Welcome to Iroli Career Pathway.');
