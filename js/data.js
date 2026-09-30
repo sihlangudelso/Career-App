@@ -365,31 +365,44 @@ const GRADE9_TO_FET = {
    the existing dashboard academic-profile card (see buildAcademicProfile
    in app.js) so the two can never disagree.
    ============================================================ */
+// Each domain's `blend` is a short gerund phrase -- the same pattern
+// RIASEC.blend already uses -- so the learner report can synthesize a
+// natural "You tend to enjoy ..." sentence from a learner's top domains
+// instead of just listing names (see joinBlends/reportProfileHTML in
+// js/views_report.js).
 const STRENGTH_DOMAINS = [
   { id:'quantitative', name:'Quantitative and Analytical',
     grade9:['Mathematics'], fet:['Mathematics','Mathematical Literacy','Technical Mathematics'], riasec:['I','C'],
-    pathways:['Finance','Economics','Data','Engineering','Computing','Accounting','Quantitative careers'] },
+    pathways:['Finance','Economics','Data','Engineering','Computing','Accounting','Quantitative careers'],
+    blend:'working with numbers, patterns and logical problems' },
   { id:'scientific', name:'Scientific and Investigative',
     grade9:['Natural Sciences','Mathematics'], fet:['Physical Sciences','Life Sciences','Technical Sciences','Agricultural Sciences'], riasec:['I','R'],
-    pathways:['Health','Science','Agriculture','Environmental careers','Engineering','Research'] },
+    pathways:['Health','Science','Agriculture','Environmental careers','Engineering','Research'],
+    blend:'investigating how things work and exploring new discoveries' },
   { id:'business', name:'Business and Commercial',
     grade9:['Economic and Management Sciences','Mathematics'], fet:['Accounting','Business Studies','Economics','Consumer Studies','Tourism'], riasec:['E','C'],
-    pathways:['Accounting','Business','Economics','Entrepreneurship','Marketing','Management','Finance'] },
+    pathways:['Accounting','Business','Economics','Entrepreneurship','Marketing','Management','Finance'],
+    blend:'planning, organising and making decisions that help things grow' },
   { id:'humanities', name:'Humanities and Social Understanding',
     grade9:['Social Sciences'], fet:['Geography','History','Religion Studies'], riasec:['S','I'],
-    pathways:['Law','Politics','Public administration','Sociology','Geography','Urban planning','Heritage','International relations','Community development'] },
+    pathways:['Law','Politics','Public administration','Sociology','Geography','Urban planning','Heritage','International relations','Community development'],
+    blend:'understanding people, society and how the world came to be' },
   { id:'communication', name:'Communication and Language',
     grade9:['Home Language','First Additional Language','Social Sciences'], fet:['Home Language','First Additional Language'], riasec:['A','S'],
-    pathways:['Journalism','Law','Teaching','Communication','Public relations','Writing','Translation','Languages','Media'] },
+    pathways:['Journalism','Law','Teaching','Communication','Public relations','Writing','Translation','Languages','Media'],
+    blend:'expressing ideas clearly and connecting with people through language' },
   { id:'creative', name:'Creative and Expressive',
     grade9:['Creative Arts'], fet:['Visual Arts','Design','Dramatic Arts','Dance Studies','Music'], riasec:['A'],
-    pathways:['Design','Visual Arts','Fashion','Film','Acting','Music','Advertising','Content creation','Animation','Media'] },
+    pathways:['Design','Visual Arts','Fashion','Film','Acting','Music','Advertising','Content creation','Animation','Media'],
+    blend:'designing, creating and expressing ideas in original ways' },
   { id:'practical', name:'Practical and Technical',
     grade9:['Technology','Natural Sciences'], fet:['Information Technology','Computer Applications Technology','Engineering Graphics and Design','Civil Technology','Electrical Technology','Mechanical Technology','Agricultural Management Practices','Agricultural Technology','Hospitality Studies'], riasec:['R'],
-    pathways:['Engineering','Technical trades','Design','Construction','Manufacturing','Electronics','Mechanics','Artisan careers'] },
+    pathways:['Engineering','Technical trades','Design','Construction','Manufacturing','Electronics','Mechanics','Artisan careers'],
+    blend:'building, fixing and applying your knowledge to real, hands-on challenges' },
   { id:'people', name:'People and Social Support',
     grade9:['Life Orientation'], fet:['Life Orientation'], riasec:['S'],
-    pathways:['Teaching','Psychology','Social work','Human resources','Community development','Counselling','Health support careers'] },
+    pathways:['Teaching','Psychology','Social work','Human resources','Community development','Counselling','Health support careers'],
+    blend:'supporting, helping and working closely with other people' },
 ];
 function strengthDomainById(id){ return STRENGTH_DOMAINS.find(d=>d.id===id); }
 

@@ -1,5 +1,6 @@
 const LEARNER_NAV = [
   { r:'home', label:'Dashboard', ic:'home' },
+  { r:'report', label:'Your Report', short:'Report', ic:'chart' },
   { r:'guidance', label:'Grade 10 Subject Guidance', short:'Guidance', ic:'compass' },
   { r:'assessment', label:'Assessment', ic:'spark' },
   { r:'matches', label:'Career Matches', ic:'target' },
@@ -127,6 +128,7 @@ function render(){
 
   if(ROUTE==='onboarding') app.innerHTML = viewOnboarding();
   else if(ROUTE==='home') app.innerHTML = viewHome();
+  else if(ROUTE==='report') app.innerHTML = viewReport();
   else if(ROUTE==='guidance') app.innerHTML = viewGuidance();
   else if(ROUTE==='grade9-report') app.innerHTML = viewGrade9Report();
   else if(ROUTE==='learner-profile') app.innerHTML = viewLearnerProfile();

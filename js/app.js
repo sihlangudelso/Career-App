@@ -26,6 +26,15 @@ function esc(s){ const d=document.createElement('div'); d.textContent = (s==null
 function avg(arr){ if(!arr.length) return 50; return arr.reduce((a,b)=>a+b,0)/arr.length; }
 function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
 function todayISO(){ return new Date().toISOString(); }
+// Joins short phrases into one natural sentence fragment -- "a", "a and b",
+// "a, b and c" -- used to synthesize a "You tend to enjoy X, Y and Z"
+// sentence from a learner's top strength-domain/RIASEC blend phrases.
+function joinBlends(list){
+  if(!list.length) return '';
+  if(list.length===1) return list[0];
+  if(list.length===2) return list[0]+', and '+list[1];
+  return list.slice(0,-1).join(', ')+', and '+list[list.length-1];
+}
 function genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<5;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
 
 function toast(msg){

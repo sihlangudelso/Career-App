@@ -216,17 +216,36 @@ function labelStep(label, done){
 function viewLearnerProfile(){
   const l = ensureLearnerObj();
   const p = buildAcademicProfile(l);
+  const sub = (!p || !p.primaryDomain)
+    ? 'Combines your report results, interests and work style into one picture.'
+    : 'Combining your report results, interests and work style — a starting point, not a fixed label.';
+  return `${pageHeadHTML('Your Learner Profile', sub)}${learnerProfileBodyHTML(l)}`;
+}
+// Split out from viewLearnerProfile so the redesigned report's "My
+// Profile" tab (js/views_report.js) can reuse the exact same content
+// without a duplicate page header nested inside the report's own shell.
+function learnerProfileBodyHTML(l){
+  const p = buildAcademicProfile(l);
   if(!p || !p.primaryDomain){
-    return `${pageHeadHTML('Your Learner Profile', 'Combines your report results, interests and work style into one picture.')}
-    <div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to build your profile.</p></div>`;
+    return `<div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to build your profile.</p></div>`;
   }
   const riasec = l.riasec || {};
   const topInterests = RIASEC.filter(d=>(riasec[d.id]||0)>=65);
   const topMatches = computeMatches(l).slice(0,3);
   const pathways = [...new Set([...p.primaryDomain.domain.pathways, ...(p.secondaryDomain?p.secondaryDomain.domain.pathways:[])])];
+  // Leads with the plain-language headline (top 3 strongest domains + a
+  // generated sentence) before the percentage-driven cards below -- the
+  // underlying scores still show, just not first and not dominant.
+  const topDomains = computeStrengthDomains(l).filter(d=>d.hasEvidence).slice(0,3);
 
   return `
-  ${pageHeadHTML('Your Learner Profile', 'Combining your report results, interests and work style — a starting point, not a fixed label.')}
+  ${topDomains.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Your strongest areas</div>
+    <div class="pill-list" style="margin-bottom:12px;">${topDomains.map(d=>`<span class="pill rec">${esc(d.domain.name)}</span>`).join('')}</div>
+    <p style="margin:0;">You tend to enjoy ${esc(joinBlends(topDomains.map(d=>d.domain.blend)))}.</p>
+  </div>` : ''}
+
   <div class="card" style="margin-bottom:18px;">
     <div class="grid grid-2">
       <div>

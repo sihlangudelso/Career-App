@@ -4,7 +4,7 @@
   --grass:#1FA25A; --sky:#5570FF; --olive:#9B6FE3; --plum:#B8349C;
   --brand-blue:#5570FF; --brand-violet:#9B6FE3; --brand-pink:#DD64CC; --brand-pink-bright:#F266C4;
   --brand-grad:linear-gradient(90deg,#5570FF,#9B6FE3 50%,#F266C4);
-  --tint-violet:#F1ECFF; --tint-blue:#E9EDFF; --tint-pink:#FCEAF7; --tint-line:#DAD0FF;
+  --tint-violet:#F1ECFF; --tint-blue:#E9EDFF; --tint-pink:#FCEAF7; --tint-line:#DAD0FF; --tint-amber:#FFF4E0;
   --sidebar-bg:#5A4BE0; --sidebar-border:rgba(255,255,255,.18); --sidebar-muted:#F1ECFF;
   --radius-sm:10px; --radius-md:16px; --radius-lg:26px;
   --shadow-soft:0 1px 2px rgba(23,26,35,.04), 0 8px 24px -12px rgba(23,26,35,.10);
@@ -231,6 +231,10 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 
 .disclaimer{background:var(--tint-violet);border:1.5px solid #DAD0FF;color:#40308F;padding:13px 16px;border-radius:14px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;}
 .disclaimer .ic{flex-shrink:0;margin-top:1px;}
+/* A genuinely different tone from the violet-branded informational
+   disclaimer above -- used only for subject-career conflict warnings,
+   so they read as visually distinct and prominent, not just more info. */
+.disclaimer.warn{background:var(--tint-amber);border-color:#F0CE8A;color:#7A4E00;}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
 .empty-state .em-ic{margin-bottom:12px;}
