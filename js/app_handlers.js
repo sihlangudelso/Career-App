@@ -8,6 +8,56 @@ const App = {
   setExploreFilter(key,value){ EXPLORE_FILTERS[key] = value || null; render(); },
   toggleExploreFilter(key){ EXPLORE_FILTERS[key] = !EXPLORE_FILTERS[key]; render(); },
   clearExploreFilters(){ EXPLORE_FILTERS = {}; render(); },
+  // ---- anonymous mini-assessment ----
+  startAnonFlow(){ MINI_DRAFT.step = 0; MINI_DRAFT.dir = 'fwd'; render(); },
+  miniChoose(key, optionId){
+    MINI_DRAFT.answers[key] = optionId;
+    MINI_DRAFT.dir = 'fwd';
+    const idx = MINI_QUESTIONS.findIndex(q=>q.key===key);
+    const next = idx + 1;
+    if(next >= MINI_QUESTIONS.length){
+      MINI_DRAFT.step = 'results';
+      writeMiniAssessment({ answers: MINI_DRAFT.answers, completedAt: todayISO() });
+    } else {
+      MINI_DRAFT.step = next;
+    }
+    render();
+  },
+  miniBack(){
+    MINI_DRAFT.dir = 'back';
+    if(MINI_DRAFT.step==='results') MINI_DRAFT.step = MINI_QUESTIONS.length - 1;
+    else if(MINI_DRAFT.step===0) MINI_DRAFT.step = 'intro';
+    else MINI_DRAFT.step = MINI_DRAFT.step - 1;
+    render();
+  },
+  // A visitor who already has an account shouldn't be forced through this
+  // every time they land here signed-out -- remember the decline so
+  // handleSession() goes straight to the familiar sign-in card next time.
+  // `declined` is a routing preference only -- it's set alongside any
+  // existing completed `answers`, never replacing them, since a later
+  // signup should still be able to carry those forward.
+  declineAnonFlow(){
+    const saved = readMiniAssessment() || {};
+    writeMiniAssessment(Object.assign({}, saved, { declined:true }));
+    MINI_DRAFT = null;
+    render();
+  },
+  // From the sign-in card's reciprocal link: an explicit request overrides
+  // any earlier decline. A previously completed mini-assessment is shown
+  // again rather than re-asked.
+  showAnonFlow(){
+    const saved = readMiniAssessment();
+    MINI_DRAFT = (saved && saved.answers)
+      ? { step:'results', answers: saved.answers }
+      : { step:'intro', answers:{interest:null,strength:null,motivation:null,activity:null} };
+    render();
+  },
+  // Switches to the (existing) signup form. The completed mini-assessment
+  // stays in localStorage untouched -- loadLearner() merges it into the
+  // real account once signup actually succeeds, which for the default
+  // email-confirmation flow may be minutes away. Clearing MINI_DRAFT itself
+  // (not the stored data) is what makes render() show the auth gate now.
+  miniContinueToSignup(){ MINI_DRAFT = null; AUTH_MODE = 'signup'; AUTH_ERROR = ''; render(); },
   // ---- auth ----
   setAuthMode(m){ AUTH_MODE = m; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render(); },
   authSubmitOnEnter(){
