@@ -867,7 +867,14 @@ function exploreResultsHTML(fac, l){
   return list.map(c=>careerRowHTML(c,null,l)).join('');
 }
 
-function viewCareerDetail(id){
+function viewCareerDetail(param){
+  // Accepts a plain id (every existing call site: careerRowHTML, related
+  // careers) or {id, from} (the report's own "View Career" links), same
+  // object-param convention viewExplore already uses for its faculty
+  // filter -- so the Back button returns to wherever the visit actually
+  // came from instead of always assuming Explore Careers.
+  const id = (param && typeof param==='object') ? param.id : param;
+  const from = (param && typeof param==='object' && param.from) ? param.from : 'explore';
   const career = CAREERS.find(c=>c.id===id);
   const l = ensureLearnerObj();
   if(!career) return `${pageHeadHTML('Career not found')}<div class="empty-state">${icon('search')}<p>That career couldn\u2019t be found.</p></div>`;
@@ -880,7 +887,7 @@ function viewCareerDetail(id){
   const inCompare = (l.compare||[]).includes(career.id);
   const ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(career.videoQuery);
   return `
-  <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="navigate('explore')">${icon('chevron')} Back</button>
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="${from==='report' ? "navigate('report','careers')" : "navigate('explore')"}">${icon('chevron')} Back</button>
   <div class="detail-hero" style="background:linear-gradient(135deg, ${fac.color}, #14172A);">
     <span class="badge badge-faculty" style="background:rgba(255,255,255,.18);">${fac.name}</span>
     <h1>${esc(career.name)}</h1>
