@@ -8,7 +8,18 @@ const REPORT_TABS = [
   { id:'profile', label:'My Profile' },
   { id:'pathways', label:'Career Pathways' },
   { id:'careers', label:'Careers' },
+  { id:'academic', label:'Academic Strengths' },
+  { id:'subjects', label:'Subjects' },
 ];
+// Display metadata for buildSubjectRelevanceTiers' 4 tiers -- never
+// implies an optional subject is compulsory; each label is distinct from
+// the others on purpose.
+const SUBJECT_TIER_META = {
+  required: { label:'Required for many programmes', pillClass:'req' },
+  strongly: { label:'Strongly recommended', pillClass:'rec' },
+  useful: { label:'Useful', pillClass:'' },
+  complementary: { label:'Optional / complementary', pillClass:'' },
+};
 
 function viewReport(){
   const l = ensureLearnerObj();
@@ -18,6 +29,8 @@ function viewReport(){
     tab==='profile' ? learnerProfileBodyHTML(l) :
     tab==='pathways' ? reportPathwaysHTML(l) :
     tab==='careers' ? reportCareersHTML(l) :
+    tab==='academic' ? reportAcademicHTML(l) :
+    tab==='subjects' ? reportSubjectsHTML(l) :
     reportOverviewHTML(l);
   return `
   ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and Grade 10 subjects — not a prediction of your future.')}
@@ -180,5 +193,100 @@ function reportCareersHTML(l){
       <button class="btn btn-primary btn-sm" onclick="navigate('career',{id:'${c.id}',from:'report'})">${icon('chevron')} View Career</button>
     </div>`;
   }).join('')}
+  `;
+}
+
+// Part 6 — "Your Academic Strengths": entered results, strongest
+// subjects, then interpreted against the learner's own top pathways using
+// current-readiness/keeping-pathways-open language -- never "this
+// permanently excludes you".
+function reportAcademicHTML(l){
+  const p = buildAcademicProfile(l);
+  if(!p || !p.entries.length){
+    return `<div class="empty-state">${icon('chart')}<p>Enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> to see your academic strengths here.</p></div>`;
+  }
+  const pathways = computePathwayMatches(l).filter(pw=>pw.alignment!=null && pw.alignment>=65).slice(0,3);
+  return `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Your entered results</h3>
+    ${p.entries.map(e=>`<div class="kv"><b>${esc(e.subject)}</b><span>${e.pct}%</span></div>`).join('')}
+  </div>
+
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Strongest subjects</h3>
+    ${p.strongest.map(e=>`<div class="kv"><b>${esc(e.subject)}</b><span>${e.pct}% — ${esc(markBandLabel(e.pct))}</span></div>`).join('')}
+  </div>
+
+  ${pathways.length ? `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>What this means for your pathways</h3>
+    <ul style="margin:0;">${pathways.map(pw=>{
+      const subject = keySubjectFor(pw.faculty.id);
+      const pct = subject ? subjectMarkPct(l, subject) : null;
+      if(pct==null) return `<li>${esc(pw.faculty.name)} doesn’t depend on one specific subject result the way some pathways do.</li>`;
+      return pct>=60
+        ? `<li>Your current ${esc(subject)} performance (${pct}%) supports several of the ${esc(pw.faculty.name)} pathways you’re aligned with.</li>`
+        : `<li>You show strong interest in ${esc(pw.faculty.name)}, but your current ${esc(subject)} result (${pct}% — ${esc(markBandLabel(pct))}) suggests ${esc(subject)} could become a priority area if you want to keep this pathway fully open.</li>`;
+    }).join('')}</ul>
+  </div>` : ''}
+
+  ${p.toStrengthen.length ? `
+  <div class="disclaimer" style="margin-bottom:18px;">${icon('info','ic')}<div>${esc(p.toStrengthen.map(e=>e.subject).join(', '))} ${p.toStrengthen.length>1?'are':'is'} currently ${esc(markBandLabel(p.toStrengthen[0].pct))} — this describes where you are right now, and where extra support could help keep more pathways open, not a permanent limit.</div></div>` : ''}
+  `;
+}
+
+// Part 7 — 4-tier "Subjects to Consider for Grade 10" (from
+// buildSubjectRelevanceTiers) + Part 8 — the subject-career conflict
+// warning, built from the SAME subjectConflictForFaculty function the
+// school dashboard will also use. The intended-subjects checkboxes below
+// start unchecked and are never pre-filled from the app's own
+// recommendation -- ticking them is what turns the conflict check on.
+function reportSubjectsHTML(l){
+  const tiers = buildSubjectRelevanceTiers(l);
+  const hasAny = Object.values(tiers).some(arr=>arr.length);
+  if(!hasAny){
+    return `<div class="empty-state">${icon('compass')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to see which subjects matter for your pathways.</p></div>`;
+  }
+  const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null && p.alignment>=50).slice(0,5);
+  const conflicts = pathways
+    .map(p=>({ pathway:p, conflict: subjectConflictForFaculty(l, p.faculty.id) }))
+    .filter(x=>x.conflict && x.conflict.hasConflict);
+  const allSubjects = [...new Set(Object.values(tiers).flat().map(s=>s.subject))]
+    .filter(s=>s!=='Mathematics' && s!=='Mathematical Literacy');
+
+  return `
+  ${conflicts.map(x=>`
+  <div class="disclaimer warn" style="margin-bottom:16px;">${icon('warn','ic')}<div><b>Subject Choice Needs Attention</b><br/>${esc(x.conflict.reason)}<br/><br/><b>Discuss this with your teacher, parent or career adviser before finalising your subjects.</b></div></div>`).join('')}
+
+  ${['required','strongly','useful','complementary'].map(tier=>{
+    const list = tiers[tier];
+    if(!list.length) return '';
+    const meta = SUBJECT_TIER_META[tier];
+    return `
+    <div class="card" style="margin-bottom:16px;">
+      <h3>${esc(meta.label)}</h3>
+      ${list.map(s=>`<div class="kv"><b>${esc(s.subject)}</b></div><p class="page-sub" style="margin:-6px 0 10px;">${esc(s.explanation)}</p>`).join('')}
+    </div>`;
+  }).join('')}
+
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Which are you currently leaning toward?</h3>
+    <p class="page-sub" style="margin-bottom:12px;">Optional, and not final — this just helps us check whether your intended subjects support the pathways above.</p>
+    <div class="form-row">
+      <label>Mathematics track</label>
+      <div class="filter-bar">
+        <button class="chip-select ${l.intendedMathType==='Mathematics'?'on':''}" onclick="App.setIntendedMathType('Mathematics')">Mathematics</button>
+        <button class="chip-select ${l.intendedMathType==='MathLit'?'on':''}" onclick="App.setIntendedMathType('MathLit')">Mathematical Literacy</button>
+      </div>
+    </div>
+    <div class="check-grid">
+      ${allSubjects.map(s=>`
+      <label class="check-item">
+        <input type="checkbox" ${((l.intendedSubjects||[]).includes(s))?'checked':''} onchange="App.toggleIntendedSubject('${esc(s)}')"/>
+        <span style="flex:1;">${esc(s)}</span>
+      </label>`).join('')}
+    </div>
+  </div>
+  ${disclaimerHTML('This does not lock in your subjects — final choice depends on your school’s offering and timetable. Talk it through with your Life Orientation teacher or subject counsellor.')}
   `;
 }

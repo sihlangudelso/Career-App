@@ -297,6 +297,19 @@ const App = {
   },
   assessRetake(){ ASSESSMENT_DRAFT=null; const d=ensureAssessDraft(); d.retaking=true; d.step=0; render(); },
 
+  // ---- report: intended subjects ----
+  async toggleIntendedSubject(subject){
+    const l = ensureLearnerObj();
+    let subs = l.intendedSubjects || [];
+    subs = subs.includes(subject) ? subs.filter(x=>x!==subject) : [...subs, subject];
+    await saveLearner({ intendedSubjects: subs });
+    render();
+  },
+  async setIntendedMathType(type){
+    await saveLearner({ intendedMathType: type });
+    render();
+  },
+
   // ---- favourites / compare ----
   async toggleFav(id, ev){
     if(ev && ev.stopPropagation) ev.stopPropagation();
