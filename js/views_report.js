@@ -36,10 +36,12 @@ function viewReport(){
     reportOverviewHTML(l);
   return `
   ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and Grade 10 subjects — not a prediction of your future.')}
-  <div class="filter-bar" style="margin-bottom:18px;">
+  <div class="filter-bar" style="margin-bottom:10px;">
     ${REPORT_TABS.map(t=>`<button class="chip-select ${tab===t.id?'on':''}" onclick="navigate('report','${t.id}')">${esc(t.label)}</button>`).join('')}
   </div>
-  ${body}`;
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:18px;" onclick="window.print()">${icon('download')} Print / Save as PDF</button>
+  ${body}
+  <div class="print-only">${reportPrintHTML(l)}</div>`;
 }
 
 // Part 1 — report header: learner name/grade/school/assessment date + the
@@ -313,5 +315,30 @@ function reportNextStepsHTML(l){
     <button class="btn btn-ghost" onclick="navigate('report','subjects')">${icon('compass')} Review Subjects</button>
     <button class="btn btn-primary" onclick="navigate('matches')">${icon('chevron')} See All Career Matches</button>
   </div>
+  `;
+}
+
+// Part 6 — the structured, printable full report (native browser
+// print-to-PDF via the @media print rules in style.css, not a
+// screenshot-based library): every section concatenated in one
+// document, always present in the DOM but hidden on screen (.print-only)
+// and shown only when printing, so "Print / Save as PDF" captures the
+// whole report in one go regardless of which tab is currently open.
+function reportPrintHTML(l){
+  const sections = [
+    { title:'Your Profile', html: learnerProfileBodyHTML(l) },
+    { title:'Career Pathways', html: reportPathwaysHTML(l) },
+    { title:'Careers Worth Exploring', html: reportCareersHTML(l) },
+    { title:'Your Academic Strengths', html: reportAcademicHTML(l) },
+    { title:'Subjects to Consider for Grade 10', html: reportSubjectsHTML(l) },
+    { title:'Your Next Steps', html: reportNextStepsHTML(l) },
+  ];
+  return `
+  <div style="text-align:center;margin-bottom:24px;">
+    <img class="brand-mark-img" src="assets/logo-mark.png" alt="Iroli"/>
+    <h1>Your Career &amp; Subject Choice Report</h1>
+  </div>
+  ${reportHeaderHTML(l)}
+  ${sections.map(s=>`<h2 style="margin-top:28px;">${esc(s.title)}</h2>${s.html}`).join('')}
   `;
 }

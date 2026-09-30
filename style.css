@@ -278,3 +278,22 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   .mobile-menu-sheet{position:fixed;inset:0;background:rgba(20,20,30,.5);z-index:60;display:flex;align-items:flex-end;}
   .mobile-menu-panel{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px;max-height:80vh;overflow-y:auto;}
 }
+
+/* ---------------- Learner report: print / save as PDF ---------------- */
+/* Hidden on screen, shown only when printing -- a native browser
+   print-to-PDF via window.print() rather than a screenshot-based export
+   library, so the result is real structured, selectable text. */
+.print-only{display:none;}
+@media print{
+  .sidebar, .topbar, .bottom-nav{display:none !important;}
+  #app > *:not(.print-only){display:none !important;}
+  .print-only{display:block !important;}
+  .card{break-inside:avoid;}
+  .print-only button{display:none !important;}
+  /* Force the light palette regardless of the viewer's dark mode --
+     otherwise a dark-mode learner would print near-black pages. */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+    --bg:#F6F5FC !important; --surface:#FFFFFF !important; --ink:#1A1733 !important;
+    --muted:#5E5A78 !important; --line:#E6E3F3 !important;
+  }
+}
