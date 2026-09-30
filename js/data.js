@@ -4,21 +4,40 @@
    third-party product's proprietary text or design.
    ============================================================ */
 
+// Each faculty's `overview` is a short, plain-language one-liner used by
+// the learner report and school dashboard as the "why this pathway" lead
+// sentence -- same tone/length as CLUSTERS' own `overview` field.
 const FACULTIES = [
-  { id: 'engineering',   name: 'Engineering',                 color: '#3E4FD6', tag: 'ENG' },
-  { id: 'ict',           name: 'ICT & Computer Science',      color: '#5570FF', tag: 'ICT' },
-  { id: 'health',        name: 'Health Sciences',             color: '#7A5CF0', tag: 'HLT' },
-  { id: 'natsci',        name: 'Natural Sciences',            color: '#9B6FE3', tag: 'SCI' },
-  { id: 'built',         name: 'Built Environment',           color: '#B866D6', tag: 'BLT' },
-  { id: 'agri',          name: 'Agriculture',                 color: '#C94FB8', tag: 'AGR' },
-  { id: 'finance',       name: 'Finance, Actuarial & Quant',  color: '#E0569E', tag: 'FIN' },
-  { id: 'humanities',    name: 'Humanities & Social Sciences',color: '#F0508C', tag: 'HUM' },
-  { id: 'law-public',    name: 'Law & Public Service',        color: '#2D6E7E', tag: 'LAW' },
-  { id: 'education',     name: 'Education & Training',        color: '#3D8C6C', tag: 'EDU' },
-  { id: 'media-arts',    name: 'Media, Arts & Design',        color: '#BF5A2A', tag: 'ART' },
-  { id: 'tourism',       name: 'Tourism & Hospitality',       color: '#A66A1A', tag: 'TRM' },
-  { id: 'trades',        name: 'Trades & Logistics',          color: '#5B6B7A', tag: 'TRD' },
-  { id: 'sport',         name: 'Sport & Fitness',             color: '#D64545', tag: 'SPT' },
+  { id: 'engineering',   name: 'Engineering',                 color: '#3E4FD6', tag: 'ENG',
+    overview: 'Designing, building and maintaining the structures, machines and systems society relies on.' },
+  { id: 'ict',           name: 'ICT & Computer Science',      color: '#5570FF', tag: 'ICT',
+    overview: 'Building software, systems and data solutions that power how people work and communicate.' },
+  { id: 'health',        name: 'Health Sciences',             color: '#7A5CF0', tag: 'HLT',
+    overview: "Diagnosing, treating and caring for people's physical and mental health." },
+  { id: 'natsci',        name: 'Natural Sciences',            color: '#9B6FE3', tag: 'SCI',
+    overview: 'Investigating how the natural world works, from ecosystems to cells to the physical universe.' },
+  { id: 'built',         name: 'Built Environment',           color: '#B866D6', tag: 'BLT',
+    overview: 'Planning, designing and managing the buildings, cities and infrastructure people live and work in.' },
+  { id: 'agri',          name: 'Agriculture',                 color: '#C94FB8', tag: 'AGR',
+    overview: 'Producing, managing and improving food, farming and land use.' },
+  { id: 'finance',       name: 'Finance, Actuarial & Quant',  color: '#E0569E', tag: 'FIN',
+    overview: 'Managing money, risk and financial decisions for people, businesses and institutions.' },
+  { id: 'business',      name: 'Business & Management',       color: '#E8639C', tag: 'BIZ',
+    overview: 'Starting, running and growing organisations -- from small businesses to large companies.' },
+  { id: 'humanities',    name: 'Humanities & Social Sciences',color: '#F0508C', tag: 'HUM',
+    overview: 'Understanding people, societies, cultures and history.' },
+  { id: 'law-public',    name: 'Law & Public Service',        color: '#2D6E7E', tag: 'LAW',
+    overview: 'Upholding justice, shaping policy and serving the public interest.' },
+  { id: 'education',     name: 'Education & Training',        color: '#3D8C6C', tag: 'EDU',
+    overview: "Teaching, training and supporting other people's learning and development." },
+  { id: 'media-arts',    name: 'Media, Arts & Design',        color: '#BF5A2A', tag: 'ART',
+    overview: 'Creating visual, written or performed work that informs, persuades or entertains.' },
+  { id: 'tourism',       name: 'Tourism & Hospitality',       color: '#A66A1A', tag: 'TRM',
+    overview: 'Welcoming, hosting and creating experiences for travellers and guests.' },
+  { id: 'trades',        name: 'Trades & Logistics',          color: '#5B6B7A', tag: 'TRD',
+    overview: 'Hands-on, practical work building, fixing, moving and maintaining the things people rely on.' },
+  { id: 'sport',         name: 'Sport & Fitness',             color: '#D64545', tag: 'SPT',
+    overview: 'Coaching, training and supporting physical performance, fitness and wellbeing.' },
 ];
 
 function facultyById(id){ return FACULTIES.find(f=>f.id===id) || FACULTIES[0]; }
@@ -1382,7 +1401,7 @@ const CAREERS = [
   videoQuery:'day in the life of a truck driver South Africa' },
 
 // ---------------- BUSINESS, MANAGEMENT & ENTREPRENEURSHIP ----------------
-{ id:'entrepreneur', name:'Entrepreneur / Business Owner', faculty:'finance',
+{ id:'entrepreneur', name:'Entrepreneur / Business Owner', faculty:'business',
   blurb:'Starts and runs a business — identifying an opportunity, building a product or service, and growing a team and customer base around it.',
   dayInLife:'Varies hugely day to day — could include sales and customer conversations, managing cash flow, hiring, and solving whatever problem is most urgent.',
   riasec:['E','A'], strengths:['leadership','enterprise','creative'],
@@ -1397,7 +1416,7 @@ const CAREERS = [
   applicationNotes:'SEDA (the Small Enterprise Development Agency) and various university/incubator programmes offer free support, mentorship and sometimes funding for new business owners.',
   videoQuery:'what does it take to become an entrepreneur South Africa' },
 
-{ id:'hr-manager', name:'Human Resources Manager', faculty:'finance',
+{ id:'hr-manager', name:'Human Resources Manager', faculty:'business',
   blurb:'Manages an organisation’s people function — recruitment, training, performance, pay and workplace policy.',
   dayInLife:'Recruiting and interviewing, resolving workplace issues, running training, and advising managers on people-related decisions.',
   riasec:['S','C'], strengths:['people','organisation','leadership'],
@@ -1409,7 +1428,7 @@ const CAREERS = [
   applicationNotes:'SABPP (South African Board for People Practices) offers professional registration valued by employers.',
   videoQuery:'what does a human resources manager do' },
 
-{ id:'marketing-manager', name:'Marketing Manager', faculty:'finance',
+{ id:'marketing-manager', name:'Marketing Manager', faculty:'business',
   blurb:'Plans and runs how a brand or organisation reaches its audience — advertising, digital campaigns, branding and market research.',
   dayInLife:'Planning campaigns, analysing market/customer data, briefing creative or agency teams, and tracking campaign performance.',
   riasec:['E','A'], strengths:['creative','leadership','enterprise'],
