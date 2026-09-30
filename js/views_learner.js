@@ -434,19 +434,14 @@ function buildGuidanceResult(d){
   const l = ensureLearnerObj();
   const tags = d.tags; // cluster ids
   const selectedClusters = tags.map(function(id){ return clusterById(id); }).filter(Boolean);
-  const subjectInfo = {}; // subject -> { required:Set<careerName>, recommended:Set<careerName> }
-  function touch(s, tier, name){
-    subjectInfo[s] = subjectInfo[s] || { required:new Set(), recommended:new Set() };
-    subjectInfo[s][tier].add(name);
-  }
+  const selectedCareers = [];
   selectedClusters.forEach(function(cl){
     cl.exampleCareerIds.forEach(function(cid){
       const c = CAREERS.find(function(x){ return x.id===cid; });
-      if(!c) return;
-      c.requiredSubjects.forEach(function(s){ touch(s,'required',c.name); });
-      c.recommendedSubjects.forEach(function(s){ touch(s,'recommended',c.name); });
+      if(c) selectedCareers.push(c);
     });
   });
+  const subjectInfo = tallySubjectsAcrossCareers(selectedCareers); // subject -> { required:Set<careerName>, recommended:Set<careerName> }
 
   const rec = [];
   const reasoning = [];

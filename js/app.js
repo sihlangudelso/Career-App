@@ -312,6 +312,49 @@ function academicPerformanceFit(learner, career){
   return sumWeight>0 ? sumWeighted/sumWeight : null;
 }
 
+// A faculty's single most representative required/recommended subject,
+// derived from its own careers rather than hand-authored -- used by the
+// report's Academic Readiness section, the subject-conflict check, and
+// the school dashboard's readiness cross-tab, so all three agree on "the
+// one subject that matters most for this pathway". Generic subjects every
+// learner takes (a home language, an additional language, Life
+// Orientation) are excluded since they're not pathway-specific signal.
+// Returns null when no subject is genuinely representative (required/
+// recommended by at least 40% of the faculty's careers) -- several
+// faculties (humanities, law, education, media-arts, tourism, trades)
+// don't gate on one hard NSC subject the way engineering or health do,
+// and that's a real, honest absence, not a bug to paper over.
+function keySubjectFor(facultyId){
+  const careers = CAREERS.filter(c=>c.faculty===facultyId);
+  if(!careers.length) return null;
+  const GENERIC = s => /Home Language|Additional Language|Life Orientation/.test(s);
+  for(const tier of ['requiredSubjects','recommendedSubjects']){
+    const freq = {};
+    careers.forEach(c=>(c[tier]||[]).forEach(s=>{ if(!GENERIC(s)) freq[s]=(freq[s]||0)+1; }));
+    const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+    if(sorted.length && sorted[0][1]/careers.length >= 0.4) return sorted[0][0];
+  }
+  return null;
+}
+// Tallies which subjects a list of careers requires/recommends, keyed by
+// subject name -> the set of career names citing it at each tier. Shared
+// by the Subject Choice Guidance quiz (buildGuidanceResult) and the
+// report's automatic per-pathway subject tiering (buildSubjectRelevanceTiers),
+// so there's one implementation of "which subjects matter for these
+// careers and why", not two that could quietly disagree.
+function tallySubjectsAcrossCareers(careers){
+  const info = {};
+  function touch(s, tier, name){
+    info[s] = info[s] || { required:new Set(), recommended:new Set() };
+    info[s][tier].add(name);
+  }
+  careers.forEach(c=>{
+    (c.requiredSubjects||[]).forEach(s=>touch(s,'required',c.name));
+    (c.recommendedSubjects||[]).forEach(s=>touch(s,'recommended',c.name));
+  });
+  return info;
+}
+
 const MATCH_CATEGORIES = {
   strong:   { label:'Strong match',               badge:'badge-strong' },
   academic: { label:'Academic strength match',    badge:'badge-good' },
@@ -510,6 +553,77 @@ function computeMatches(learner){
   }).sort((a,b)=>b.score-a.score);
 }
 
+// A faculty/pathway's Alignment ("does this fit your interests and
+// strengths") and Readiness ("do your current results/subjects support
+// it right now") -- a pure aggregation over evaluateCareer for that
+// faculty's own careers, the same "derive from real per-career data,
+// don't hand-author a parallel model" precedent as
+// clusterRiasecProfile/careerWorkStyleProfile. Deliberately two separate
+// numbers, never collapsed into one blended "pathway match %" -- a
+// learner can have Strong Alignment with Developing Readiness, and that's
+// shown as exactly that, not hidden behind one misleading percentage.
+function facultyAlignmentFit(learner, facultyId){
+  const careers = CAREERS.filter(c=>c.faculty===facultyId);
+  if(!careers.length) return { alignment:null, readiness:null };
+  const evals = careers.map(c=>evaluateCareer(learner, c));
+  const alignment = avg(evals.map(e=>e.interestFit));
+  const readiness = avg(evals.map(e=>e.academicFit==null ? e.subjectFit : Math.max(e.subjectFit, e.academicFit)));
+  return { alignment, readiness };
+}
+// Same 65/50 thresholds evaluateCareer's own category already uses for
+// "strong" -- these are a presentation split of that existing logic, not
+// a new scoring model. Never "badge-low" for either axis: low
+// alignment/readiness should read as "worth exploring further", not as a
+// dead end (this pathway is never hidden just because one axis is weak).
+function alignmentLabel(score){
+  if(score==null) return { t:'Not yet assessed', c:'badge-explore' };
+  if(score>=65) return { t:'Strong Alignment', c:'badge-strong' };
+  if(score>=50) return { t:'Good Alignment', c:'badge-good' };
+  return { t:'Explore Further', c:'badge-explore' };
+}
+// Readiness reuses markBandLabel's existing "current performance, not a
+// verdict" phrasing directly, rather than inventing new readiness wording.
+function readinessLabel(pct){
+  if(pct==null) return { t:'Not yet assessed', c:'badge-explore' };
+  return { t:markBandLabel(pct), c: pct>=65?'badge-strong':(pct>=50?'badge-good':'badge-explore') };
+}
+// The pathway-level analogue of computeMatches -- every FACULTY (not
+// CLUSTERS, which has no exhaustive reverse mapping from career to
+// cluster) scored and sorted by Alignment.
+function computePathwayMatches(learner){
+  return FACULTIES.map(f=>{
+    const fit = facultyAlignmentFit(learner, f.id);
+    return { faculty:f, alignment:fit.alignment, readiness:fit.readiness };
+  }).sort((a,b)=>{
+    const av = a.alignment==null?-1:a.alignment, bv = b.alignment==null?-1:b.alignment;
+    return bv-av;
+  });
+}
+// "Why this pathway appears" -- transparent, template-based reasoning
+// mirroring careerExplanationHTML's own pattern below, so both read
+// consistently. Never asserts a claim the learner's own data doesn't
+// support; returns an array of plain-language bullet strings.
+function pathwayReasoningHTML(learner, faculty){
+  const why = [];
+  const careers = CAREERS.filter(c=>c.faculty===faculty.id);
+  const facultyRiasec = new Set(careers.flatMap(c=>c.riasec));
+  const riasec = learner.riasec || {};
+  const strongDims = RIASEC.filter(d=>facultyRiasec.has(d.id) && (riasec[d.id]||0)>=65);
+  if(strongDims.length) why.push(`You show strong interest in work where you ${strongDims.map(d=>d.blend).join(', and where you ')}.`);
+
+  const domains = computeStrengthDomains(learner);
+  const topMatchingDomain = domains.find(d=>d.hasEvidence && d.domain.riasec.some(r=>facultyRiasec.has(r)));
+  if(topMatchingDomain) why.push(`Your strongest profile area, ${topMatchingDomain.domain.name}, connects naturally to this field.`);
+
+  const subject = keySubjectFor(faculty.id);
+  if(subject){
+    const pct = subjectMarkPct(learner, subject);
+    if(pct!=null && pct>=60) why.push(`${subject} is currently ${markBandLabel(pct)} for you (${pct}%), which supports this pathway.`);
+  }
+  if(!why.length) why.push('This pathway doesn’t yet have a strong signal from your interests or results — still worth exploring rather than ruling out.');
+  return why;
+}
+
 // Template-based (not free-text) "why this might suit you" explanation --
 // deterministic and debuggable, only asserts what the actual component
 // scores and entered marks back up.
@@ -613,6 +727,93 @@ function buildAcademicProfile(learner){
   const domains = computeStrengthDomains(learner);
   const showDomains = domains[0] && domains[0].hasEvidence;
   return { entries, strongest, toStrengthen, areasOfStrength, primaryDomain: showDomains?domains[0]:null, secondaryDomain: showDomains?domains[1]:null };
+}
+
+/* ---------------- subject-career conflict detection + report helpers ---------------- */
+// One shared conflict-detection function, used both by the learner's own
+// report (checked across their own top aligned pathways) and the school
+// dashboard (checked once, for a learner's single top pathway) -- so
+// there's exactly one definition of "conflict", never two that could
+// disagree. Returns null until the learner has declared any intended
+// subjects/maths track -- no conflict is ever inferred from silence, and
+// {hasConflict:false} once they have but nothing looks mismatched.
+// Never says "you cannot become X" -- only that a specific, named subject
+// may not currently be covered, and that it's worth a conversation.
+function subjectConflictForFaculty(learner, facultyId){
+  if((!learner.intendedSubjects || !learner.intendedSubjects.length) && !learner.intendedMathType) return null;
+  const subject = keySubjectFor(facultyId);
+  if(!subject) return { hasConflict:false };
+  const hypothetical = { ...learner, subjects: learner.intendedSubjects||[], mathType: learner.intendedMathType||learner.mathType };
+  if(subjectScore(hypothetical, subject) >= 50) return { hasConflict:false };
+  const planned = (subject==='Mathematics' || subject==='Mathematical Literacy')
+    ? (hypothetical.mathType==='MathLit' ? 'Mathematical Literacy' : hypothetical.mathType==='Mathematics' ? 'Mathematics' : 'not yet decided')
+    : (hypothetical.subjects.length ? 'not currently on your list' : 'not yet specified');
+  return {
+    hasConflict: true,
+    requiredSubject: subject,
+    plannedSubject: planned,
+    reason: `Many ${facultyById(facultyId).name} careers rely on ${subject}. Your current subject leaning may not fully support this pathway — worth reviewing with a teacher, parent or career adviser before finalising your subjects.`,
+  };
+}
+// 4-tier "Subjects to Consider for Grade 10" (Required for many programmes
+// / Strongly recommended / Useful / Optional-complementary), built from
+// the learner's own top-aligned pathways' real career subject
+// requirements -- never implies an optional subject is compulsory. A
+// strong current subject not otherwise cited is still surfaced (bottom
+// tier) so a good mark is never simply overruled by interests alone.
+function buildSubjectRelevanceTiers(learner){
+  const pathways = computePathwayMatches(learner).filter(p=>p.alignment!=null && p.alignment>=50).slice(0,5);
+  const careers = pathways.flatMap(p=>CAREERS.filter(c=>c.faculty===p.faculty.id));
+  const info = tallySubjectsAcrossCareers(careers);
+  const tiers = { required:[], strongly:[], useful:[], complementary:[] };
+  const seen = new Set();
+  Object.keys(info).forEach(subject=>{
+    const { required, recommended } = info[subject];
+    seen.add(subject);
+    if(required.size) tiers.required.push({ subject, explanation: `Required for ${[...required].slice(0,3).join(', ')}${required.size>3?' and other careers':''} in your top pathways.` });
+    else if(recommended.size>=2) tiers.strongly.push({ subject, explanation: `Strongly recommended for ${[...recommended].slice(0,3).join(', ')}.` });
+    else if(recommended.size) tiers.useful.push({ subject, explanation: `Useful for ${[...recommended].join(', ')}.` });
+  });
+  const profile = buildAcademicProfile(learner);
+  if(profile){
+    profile.strongest.filter(e=>e.pct>=60 && !seen.has(e.subject)).forEach(e=>{
+      tiers.complementary.push({ subject:e.subject, explanation: `${e.subject} is currently ${markBandLabel(e.pct)} for you (${e.pct}%) and could keep additional pathways open.` });
+    });
+  }
+  return tiers;
+}
+// Shared "does this learner need extra guidance right now" check -- used
+// both by the learner's own Overview ("1 area needs your attention") and
+// the school dashboard's per-learner flag, so there's one definition, not
+// two. Never fires before the assessment is done -- that's a
+// data-completeness gap, not a guidance one; there's nothing concrete to
+// flag yet.
+function isGuidanceRequired(learner){
+  if(!learner.assessmentCompletedAt) return false;
+  const top = computePathwayMatches(learner)[0];
+  if(!top || top.alignment==null) return false;
+  const conflict = subjectConflictForFaculty(learner, top.faculty.id);
+  if(conflict && conflict.hasConflict) return true;
+  if(top.alignment>=65 && top.readiness!=null && top.readiness<50) return true;
+  if(!learner.intendedSubjects || !learner.intendedSubjects.length) return true;
+  return false;
+}
+// Personalised, always-actionable "what should I do next" list -- built
+// from the same computed data as the rest of the report, never generic
+// boilerplate.
+function buildNextSteps(learner){
+  const steps = [];
+  const pathways = computePathwayMatches(learner).filter(p=>p.alignment!=null).slice(0,3);
+  if(pathways.length) steps.push(`Explore your top ${pathways.length===1?'pathway':'pathways'}: ${pathways.map(p=>p.faculty.name).join(', ')}.`);
+  const matches = computeMatches(learner).slice(0,3);
+  if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} in Careers Worth Exploring.`);
+  if(learner.intendedSubjects && learner.intendedSubjects.length) steps.push('Review your intended Grade 10 subjects against the pathways above.');
+  else steps.push('Note down which Grade 10 subjects you’re currently leaning toward, in the Subjects section.');
+  const conflict = pathways[0] && subjectConflictForFaculty(learner, pathways[0].faculty.id);
+  if(conflict && conflict.hasConflict) steps.push('Discuss your subject choice with a teacher, parent or career adviser before finalising it.');
+  const profile = buildAcademicProfile(learner);
+  if(profile && profile.toStrengthen.length) steps.push(`Consider extra support in ${profile.toStrengthen.map(e=>e.subject).join(' and ')} to keep more pathways open.`);
+  return steps;
 }
 
 /* ---------------- APS ---------------- */
