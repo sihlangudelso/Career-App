@@ -41,6 +41,7 @@ create table if not exists public.learners (
   "subjectMarks" jsonb,
   "grade9Report" jsonb,
   "workStyle" jsonb,
+  "miniAssessment" jsonb,
   "displayName" text,
   email text,
   "createdAt" timestamptz not null default now(),

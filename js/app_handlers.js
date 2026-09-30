@@ -167,7 +167,10 @@ const App = {
     if(l.exploringOnly){
       await saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
       toast('Profile saved.');
-      navigate('home');
+      // A mini-assessment-driven signup lands straight in the real
+      // assessment instead of the dashboard -- the invitation they just
+      // accepted should be an immediate continuation, not a link to find.
+      navigate(l.miniAssessment ? 'assessment' : 'home');
       return;
     }
     if(!l.grade){ toast('Please select your grade.'); return; }
@@ -182,7 +185,7 @@ const App = {
     }
     await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, subjectMarks: l.grade>9?subjectMarks:null, licenseStatus: l.licenseStatus||'trial' });
     toast('Profile saved.');
-    navigate('home');
+    navigate(l.miniAssessment ? 'assessment' : 'home');
   },
 
   // ---- grade 9 guidance ----

@@ -147,6 +147,20 @@ async function loadLearner(){
   const { data } = await sb.from('learners').select('*').eq('id', ME.id).maybeSingle();
   LEARNER = data ? { ...data, exists:true } : { id: ME.id, exists:false };
 
+  // Carry a completed pre-registration mini-assessment into a genuinely
+  // brand-new account only -- gated on !exists (not "just signed up"),
+  // since the default email-confirmation signup flow means this is the
+  // first loadLearner() call for this account, possibly minutes or hours
+  // after the mini-assessment itself. An existing learner's real profile
+  // is never touched by a stray localStorage blob on this device.
+  if(!LEARNER.exists){
+    const mini = readMiniAssessment();
+    if(mini && mini.answers){
+      await saveLearner({ miniAssessment: { answers: mini.answers, completedAt: mini.completedAt } });
+      clearMiniAssessment();
+    }
+  }
+
   // Live updates (e.g. an admin activates your licence while you're on
   // the page). Needs Realtime turned on for the "learners" table in the
   // Supabase dashboard (Database → Replication) — see README Phase 1.
