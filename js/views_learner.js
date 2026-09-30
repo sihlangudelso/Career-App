@@ -165,7 +165,12 @@ function viewHome(){
 // subjects & marks, 12 = APS/eligibility. Absent for exploring-only
 // learners, who aren't tied to a grade at all.
 function gradeTipHTML(l){
-  if(l.exploringOnly) return '';
+  // Every grade-specific case below gets a tip with a link onward -- an
+  // exploring-only learner got nothing at all, and there's no other nav
+  // entry point back to "actually, I'm a school learner" once this path
+  // is chosen (needsOnboarding only re-triggers on a missing grade/school,
+  // which this state never has).
+  if(l.exploringOnly) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>You're set up to just explore.</b> Career Matches, the assessment and Explore Careers all work either way. Actually a Grade 9–12 learner at school? <a href="#" onclick="navigate('profile');return false;">Switch to a school-learner profile</a> to unlock Grade 10 Subject Guidance and subject-based matching too.</div></div>`;
   const g = l.grade;
   if(g===9) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade 9 — this is exploration time.</b> Nothing is locked in yet. ${l.grade9Report?'':`Enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> and `}try the <a href="#" onclick="navigate('guidance');return false;">Subject Choice Guidance</a> tool and the assessment to see what excites you before choosing Grade 10 subjects.</div></div>`;
   if(g===10 || g===11) return `<div class="disclaimer" style="margin-bottom:20px;">${icon('info','ic')}<div><b>Grade ${g} — your subjects and marks now shape your matches.</b> Keep your <a href="#" onclick="navigate('profile');return false;">profile</a> updated as you get new results, so your career matches stay accurate.</div></div>`;
