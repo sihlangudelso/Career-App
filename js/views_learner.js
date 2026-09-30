@@ -645,6 +645,9 @@ function viewAssessment(){
     <p style="font-size:15px;">${TOTAL} quick questions (about 6 minutes) — ${TOTAL_R} using the RIASEC framework (Realistic, Investigative, Artistic, Social, Enterprising, Conventional) and ${TOTAL_S} rating your strengths. Your answers directly shape your career matches.</p>
   </div>
   ` : ''}
+  ${step===0 && l.miniAssessment ? `
+  <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You already told us you're drawn to <strong>${esc(miniAnswerLabel('interest', l.miniAssessment.answers.interest))}</strong> and enjoy <strong>${esc(miniAnswerLabel('activity', l.miniAssessment.answers.activity))}</strong> — this builds on that with a lot more detail, so no need to repeat yourself.</div></div>
+  ` : ''}
   ${step===TOTAL_R ? `
   <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Nice progress — interest questions done. Just ${TOTAL_S} quick strength ratings to go.</div></div>
   ` : ''}
