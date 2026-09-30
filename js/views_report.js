@@ -10,6 +10,7 @@ const REPORT_TABS = [
   { id:'careers', label:'Careers' },
   { id:'academic', label:'Academic Strengths' },
   { id:'subjects', label:'Subjects' },
+  { id:'next-steps', label:'Next Steps' },
 ];
 // Display metadata for buildSubjectRelevanceTiers' 4 tiers -- never
 // implies an optional subject is compulsory; each label is distinct from
@@ -31,6 +32,7 @@ function viewReport(){
     tab==='careers' ? reportCareersHTML(l) :
     tab==='academic' ? reportAcademicHTML(l) :
     tab==='subjects' ? reportSubjectsHTML(l) :
+    tab==='next-steps' ? reportNextStepsHTML(l) :
     reportOverviewHTML(l);
   return `
   ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and Grade 10 subjects — not a prediction of your future.')}
@@ -288,5 +290,28 @@ function reportSubjectsHTML(l){
     </div>
   </div>
   ${disclaimerHTML('This does not lock in your subjects — final choice depends on your school’s offering and timetable. Talk it through with your Life Orientation teacher or subject counsellor.')}
+  `;
+}
+
+// Part 9 — "Your Next Steps": a personalised, actionable list built from
+// buildNextSteps (the same computed pathway/career/conflict/academic data
+// as the rest of the report), never generic boilerplate.
+function reportNextStepsHTML(l){
+  const steps = buildNextSteps(l);
+  if(!steps.length){
+    return `<div class="empty-state">${icon('check')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to get your personalised next steps.</p></div>`;
+  }
+  return `
+  <div class="card" style="margin-bottom:18px;">
+    <h3>Your Next Steps</h3>
+    <ol style="margin:0;padding-left:20px;">
+      ${steps.map(s=>`<li style="margin-bottom:10px;">${esc(s)}</li>`).join('')}
+    </ol>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-ghost" onclick="navigate('report','pathways')">${icon('target')} Review Pathways</button>
+    <button class="btn btn-ghost" onclick="navigate('report','subjects')">${icon('compass')} Review Subjects</button>
+    <button class="btn btn-primary" onclick="navigate('matches')">${icon('chevron')} See All Career Matches</button>
+  </div>
   `;
 }
