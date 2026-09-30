@@ -98,29 +98,23 @@ function viewAnonMini(){
 function viewAnonResults(){
   const answers = MINI_DRAFT.answers;
   const directions = computeMiniDirections(answers);
-  const citePairs = [['interest','strength'], ['motivation','activity']];
+  const interestLabel = miniAnswerLabel('interest', answers.interest);
   return `
   <div style="min-height:100vh;padding:24px 24px 40px;">
     <div style="max-width:600px;margin:0 auto;">
       <div style="text-align:center;margin-bottom:22px;">
         <img class="brand-mark-img" src="assets/logo-mark.png" alt="Iroli"/>
         <h1 style="font-size:24px;margin:10px 0 8px;">Here's a starting point</h1>
-        <p class="page-sub" style="margin:0 auto;">Based on your 4 answers, these two directions could be worth exploring.</p>
+        <p class="page-sub" style="margin:0 auto;">${interestLabel ? `Because you're drawn to <strong>${esc(interestLabel)}</strong> work, ` : 'Based on your answers, '}these two directions could be worth exploring.</p>
       </div>
       ${directions.map((cluster,i)=>{
-        const [k1,k2] = citePairs[i] || citePairs[0];
-        const l1 = miniAnswerLabel(k1, answers[k1]), l2 = miniAnswerLabel(k2, answers[k2]);
         const examples = cluster.exampleCareerIds.slice(0,3).map(id=>CAREERS.find(c=>c.id===id)).filter(Boolean);
         return `
         <div class="card" style="margin-bottom:16px;">
           <div style="font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.03em;">DIRECTION ${i+1}</div>
-          <h3 style="font-size:19px;margin:4px 0 8px;">${esc(cluster.name)}</h3>
-          <p class="page-sub" style="margin-bottom:10px;">${esc(cluster.overview)}</p>
-          ${l1&&l2?`<p style="font-size:13.5px;margin-bottom:14px;">Because you're drawn to <strong>${esc(l1)}</strong> and <strong>${esc(l2)}</strong>, this could be worth a look.</p>`:''}
-          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px;">A few example careers</div>
-          <ul style="margin:0;padding-left:18px;">
-            ${examples.map(c=>`<li style="margin-bottom:4px;font-size:13.5px;"><strong>${esc(c.name)}</strong>${c.blurb?` — <span class="page-sub">${esc(c.blurb)}</span>`:''}</li>`).join('')}
-          </ul>
+          <h3 style="font-size:19px;margin:4px 0 10px;">${esc(cluster.name)}</h3>
+          <p class="page-sub" style="margin-bottom:14px;">${esc(cluster.overview)}</p>
+          <div class="pill-list">${examples.map(c=>`<span class="tag">${esc(c.name)}</span>`).join('')}</div>
         </div>`;
       }).join('')}
       ${disclaimerHTML('This is a quick starting point based on just 4 questions — not a definitive match or a precise score. The full assessment digs much deeper.')}
