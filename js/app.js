@@ -30,6 +30,40 @@ let learnerChannel = null;
 let JUST_CONFIRMED_EMAIL = false;
 let AUTH_RECOVERY_MODE = false;
 
+// In-progress assessment/guidance/APS/Grade-9 drafts had no persistence
+// at all (found in the pre-launch audit): a reload, crash, or a mobile
+// tab discarded under memory pressure silently lost all progress, with
+// no warning -- unlike the anonymous mini-assessment (js/views_anon.js),
+// which deliberately persists to localStorage for exactly this reason.
+// Mirrors that same pattern (versioned key, try/catch everywhere so
+// Safari private mode / storage-disabled degrades to "works for this
+// page view" rather than throwing), keyed per learner id so signing out
+// and a different person signing into the same browser never loads
+// someone else's draft -- defense in depth alongside handleSession's own
+// in-memory reset on sign-out.
+const DRAFTS_LS_VERSION = 1;
+function draftsLsKey(){ return 'iroli_drafts_v'+DRAFTS_LS_VERSION+'_'+ME.id; }
+function persistDrafts(){
+  if(!ME.id) return;
+  try{
+    const drafts = { ASSESSMENT_DRAFT, GUIDE_DRAFT, APS_DRAFT, GRADE9_DRAFT };
+    if(Object.values(drafts).some(d=>d!=null)) localStorage.setItem(draftsLsKey(), JSON.stringify(drafts));
+    else localStorage.removeItem(draftsLsKey());
+  }catch(e){ /* private mode / storage disabled -- silently no-op */ }
+}
+function restoreDrafts(){
+  if(!ME.id) return;
+  try{
+    const raw = localStorage.getItem(draftsLsKey());
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d.ASSESSMENT_DRAFT) ASSESSMENT_DRAFT = d.ASSESSMENT_DRAFT;
+    if(d.GUIDE_DRAFT) GUIDE_DRAFT = d.GUIDE_DRAFT;
+    if(d.APS_DRAFT) APS_DRAFT = d.APS_DRAFT;
+    if(d.GRADE9_DRAFT) GRADE9_DRAFT = d.GRADE9_DRAFT;
+  }catch(e){ /* corrupt/unavailable storage -- just start fresh */ }
+}
+
 function esc(s){ const d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
 function avg(arr){ if(!arr.length) return 50; return arr.reduce((a,b)=>a+b,0)/arr.length; }
 function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
@@ -137,6 +171,7 @@ async function handleSession(session){
     avatarUrl: (user.user_metadata && user.user_metadata.avatar_url) || '',
   };
   if(alreadySignedIn) return;
+  restoreDrafts();
 
   if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
   if(JUST_CONFIRMED_EMAIL){

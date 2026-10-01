@@ -146,6 +146,10 @@ function disclaimerHTML(text){
 function render(){
   if(AUTH_RECOVERY_MODE){ renderRecoveryOnly(); return; }
   if(!ME.id){ (MINI_DRAFT ? renderAnonymousOnly() : renderAuthGateOnly()); return; }
+  // Keeps localStorage in sync with every draft mutation, whatever
+  // handler caused it, rather than hooking each one individually --
+  // render() is already the universal post-mutation call in this app.
+  persistDrafts();
   // refresh nav highlight without full teardown
   document.getElementById('sidebarEl').innerHTML = sidebarHTML();
   document.getElementById('topbarEl').innerHTML = topbarHTML();
