@@ -44,9 +44,11 @@ JS client is loaded from a CDN as a plain `<script>` tag.
    # or
    python3 -m http.server 8000
    ```
-7. Open it in your browser, click **Create an account**, sign up with
-   your own email. Check your inbox for the confirmation link (check
-   spam too), click it, then come back and sign in.
+7. Open it in your browser — that's the public landing page
+   (`index.html`); click **Sign Up** to reach the actual app
+   (`app.html`), then **Create an account** and sign up with your own
+   email. Check your inbox for the confirmation link (check spam too),
+   click it, then come back and sign in.
 8. In the Supabase dashboard, **Table Editor → profiles** — you should
    see one row for you, with `role = learner`. That confirms the whole
    chain (Auth → trigger → Postgres) is working.
@@ -208,7 +210,10 @@ this phase as your privacy checkpoint under South Africa's **POPIA**
 ## Project structure
 
 ```
-index.html                entry point, loads everything in order
+index.html                public landing page (marketing, no Supabase calls)
+app.html                  the actual app — entry point, loads everything in order
+pricing.html              pricing page
+privacy.html              privacy notice
 style.css                 design system (colours, layout, components)
 supabase/
   schema.sql              tables + Row Level Security policies — run once!

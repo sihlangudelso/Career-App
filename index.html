@@ -3,38 +3,137 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Iroli Career Pathway</title>
+<title>Iroli Career Pathway — Find the path that fits you</title>
+<meta name="description" content="Iroli helps South African Grade 9–12 learners discover careers that match who they are, choose the right Grade 10 subjects, and see exactly what it takes to get there."/>
 <link rel="icon" type="image/png" href="assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+  .topbar-land{display:flex;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto;padding:20px 20px;}
+  .topbar-land .brand-wordmark{height:28px;display:block;}
+  .hero{position:relative;overflow:hidden;min-height:560px;display:flex;align-items:center;}
+  .hero-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center;z-index:0;}
+  .hero-inner{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:20px;width:100%;}
+  .hero-content{max-width:460px;}
+  .hero-content h1{font-size:40px;line-height:1.1;margin-bottom:16px;}
+  .hero-content .page-sub{font-size:16px;line-height:1.6;max-width:420px;}
+  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;}
+  @media(max-width:900px){
+    .hero{display:block;min-height:0;}
+    .hero-bg-img{position:static;width:100%;height:auto;object-fit:contain;display:block;}
+    .hero-inner{padding:0 20px;}
+    .hero-content{max-width:none;padding:28px 0 10px;text-align:center;}
+    .hero-content .page-sub{max-width:none;margin:0 auto;}
+    .hero-ctas{justify-content:center;}
+    .hero-content h1{font-size:30px;}
+  }
+  .section{max-width:1180px;margin:0 auto;padding:60px 20px;}
+  .feature-card{border-top:4px solid var(--indigo);height:100%;}
+  .feature-card .ico{width:40px;height:40px;border-radius:12px;background:var(--tint-violet);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+  .step-num{width:30px;height:30px;border-radius:50%;background:var(--brand-grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--font-head);font-size:14px;flex-shrink:0;}
+  .cta-band{background:var(--brand-grad);border-radius:var(--radius-lg);padding:48px 32px;text-align:center;color:#fff;}
+  .cta-band h2{color:#fff;}
+  .cta-band .btn-primary{background:#fff;color:var(--indigo-ink);}
+  .cta-band .btn-primary:hover{background:#F1ECFF;}
+  .land-footer{border-top:1px solid var(--line);margin-top:20px;}
+  .land-footer-inner{max-width:1180px;margin:0 auto;padding:28px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;}
+</style>
 </head>
 <body>
-<div id="root">
-  <div style="min-height:100vh;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;font-family:Inter,sans-serif;color:#5B6272;">
-    <img src="assets/logo-mark.png" alt="Iroli" width="52" height="52"/>
-    Loading Iroli Career Pathway…
+
+<div class="topbar-land">
+  <img class="brand-wordmark" src="assets/logo-wordmark.png" alt="Iroli"/>
+  <div style="display:flex;gap:10px;">
+    <a href="app.html" class="btn btn-ghost btn-sm">Log In</a>
+    <a href="app.html" class="btn btn-primary btn-sm">Sign Up</a>
   </div>
 </div>
 
-<!-- Supabase JS client (UMD build — plain <script> tag, no bundler needed) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+<section class="hero">
+  <img class="hero-bg-img" src="assets/hero-learners.webp" alt="South African learners looking toward different career paths"/>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <h1>Find the path that actually fits you.</h1>
+      <p class="page-sub">Iroli helps Grade 9–12 learners discover careers that match who they are, choose the right subjects for Grade 10, and see exactly what it takes to get there — backed by real degree and entry-requirement data, not guesswork.</p>
+      <div class="hero-ctas">
+        <a href="app.html" class="btn btn-primary">Get Started — It's Free</a>
+        <a href="#what-we-do" class="btn btn-ghost">See how it works</a>
+      </div>
+    </div>
+  </div>
+</section>
 
-<script src="js/supabase-config.js"></script>
-<script src="js/icons.js"></script>
-<script src="js/data.js"></script>
-<script src="js/course-links.js"></script>
-<script src="js/app.js"></script>
-<script src="js/auth-ui.js"></script>
-<script src="js/views_anon.js"></script>
-<script src="js/render_shell.js"></script>
-<script src="js/views_learner.js"></script>
-<script src="js/views_report.js"></script>
-<script src="js/views_admin.js"></script>
-<script src="js/app_handlers.js"></script>
-<script>
-  window.addEventListener('DOMContentLoaded', boot);
-</script>
+<section class="section" id="what-we-do">
+  <div style="text-align:center;max-width:640px;margin:0 auto 40px;">
+    <h2 style="font-size:28px;">What Iroli does</h2>
+    <p class="page-sub">One place to figure out who you are, what fits you, and the subjects and steps to get there — never a prediction, always a starting point.</p>
+  </div>
+  <div class="grid grid-3" style="gap:18px;">
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6 6-2z"/></svg></div>
+      <h3>Discover your fit</h3>
+      <p class="page-sub">A quick interest and strengths assessment matched against 77 real careers across 15 fields — blending your interests, strengths, subjects and marks, never marks alone.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="var(--indigo)" stroke="none"/></svg></div>
+      <h3>Choose the right subjects</h3>
+      <p class="page-sub">Grade 9 subject choice guidance that flags it clearly if the subjects you're leaning toward don't actually support the careers you're excited about — before you have to commit.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M19 19l-4-4"/></svg></div>
+      <h3>Explore real careers</h3>
+      <p class="page-sub">Browse every career with real degree programmes, APS scores and entry requirements from an actual national course-requirements dataset, plus a built-in APS calculator.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/><path d="M2.5 20h19"/></svg></div>
+      <h3>Your full report</h3>
+      <p class="page-sub">One personalised report — career pathways, academic strengths, subject guidance and next steps — that you can print or save as a PDF to talk through with a parent or teacher.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M2.5 19c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><circle cx="17" cy="8" r="2.4"/><path d="M15.5 13.6c2.7.5 4.5 2.4 4.5 5.4"/></svg></div>
+      <h3>Built for schools</h3>
+      <p class="page-sub">Class codes and seat tracking, a Grade 9 cohort dashboard showing pathway trends and who needs guidance, and admin roles scoped to a teacher's own class or the whole institute.</p>
+    </div>
+    <div class="card feature-card">
+      <div class="ico"><svg viewBox="0 0 24 24" width="22" height="22" stroke="var(--indigo)" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.2c0 4.6-3 8.2-7 9.8-4-1.6-7-5.2-7-9.8V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>Honest, never final</h3>
+      <p class="page-sub">Every result is framed as "worth exploring", never "you can't become this" — a starting point for a conversation with a teacher or parent, not a verdict on your future.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0;">
+  <div class="card" style="padding:36px;">
+    <h2 style="font-size:24px;text-align:center;margin-bottom:28px;">How it works</h2>
+    <div class="grid grid-3" style="gap:24px;">
+      <div style="display:flex;gap:14px;"><div class="step-num">1</div><div><h4 style="margin-bottom:4px;">Sign up free</h4><p class="page-sub" style="margin:0;">Create an account in under a minute — no payment needed to start exploring.</p></div></div>
+      <div style="display:flex;gap:14px;"><div class="step-num">2</div><div><h4 style="margin-bottom:4px;">Take the assessment</h4><p class="page-sub" style="margin:0;">A short interest and strengths assessment, plus your current subjects and marks if you have them.</p></div></div>
+      <div style="display:flex;gap:14px;"><div class="step-num">3</div><div><h4 style="margin-bottom:4px;">Get your report</h4><p class="page-sub" style="margin:0;">See your matched career pathways, subject guidance and next steps — ready to print or share.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="cta-band">
+    <h2 style="font-size:26px;">Ready to find your path?</h2>
+    <p style="color:#F1ECFF;max-width:480px;margin:0 auto 20px;">Join free and get your first career matches in minutes.</p>
+    <a href="app.html" class="btn btn-primary">Get Started — It's Free</a>
+  </div>
+</section>
+
+<div class="land-footer">
+  <div class="land-footer-inner">
+    <img src="assets/logo-mark.png" alt="Iroli" width="28" height="28"/>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;">
+      <a href="pricing.html">Pricing</a>
+      <a href="privacy.html">Privacy Notice</a>
+      <a href="mailto:Delso@tlouinstitute.com">Contact</a>
+      <a href="app.html">Log In</a>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
