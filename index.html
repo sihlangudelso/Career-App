@@ -13,30 +13,30 @@
 <style>
   .topbar-land{display:flex;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto;padding:20px 20px;}
   .topbar-land .brand-wordmark{height:28px;display:block;}
-  .hero{position:relative;overflow:hidden;min-height:560px;display:flex;align-items:center;}
-  .hero-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center;z-index:0;}
-  .hero-inner{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:20px;width:100%;}
-  .hero-content{max-width:460px;}
-  .hero-content h1{font-size:40px;line-height:1.1;margin-bottom:16px;}
-  .hero-content .page-sub{font-size:16px;line-height:1.6;max-width:420px;}
-  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;}
-  @media(max-width:900px){
-    .hero{display:block;min-height:0;}
-    .hero-bg-img{position:static;width:100%;height:auto;object-fit:contain;display:block;}
-    .hero-inner{padding:0 20px;}
-    .hero-content{max-width:none;padding:28px 0 10px;text-align:center;}
-    .hero-content .page-sub{max-width:none;margin:0 auto;}
-    .hero-ctas{justify-content:center;}
-    .hero-content h1{font-size:30px;}
+  .hero-framed{padding:60px 20px 20px;}
+  .hero-framed-inner{
+    max-width:700px;margin:0 auto;text-align:center;
+    background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--amber);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow-soft);padding:56px 44px;
   }
+  .hero-framed-inner h1{font-size:40px;line-height:1.15;margin-bottom:16px;}
+  .hero-framed-inner .page-sub{font-size:16px;line-height:1.6;max-width:520px;margin:0 auto;}
+  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px;justify-content:center;}
+  @media(max-width:640px){
+    .hero-framed-inner{padding:36px 22px;}
+    .hero-framed-inner h1{font-size:28px;}
+  }
+  /* This page's own buttons use the logo's pink, never the app's indigo/purple. */
+  .btn-primary{background:var(--amber);color:#fff;}
+  .btn-primary:hover{background:var(--plum);}
   .section{max-width:1180px;margin:0 auto;padding:60px 20px;}
   .feature-card{border-top:4px solid var(--indigo);height:100%;}
   .feature-card .ico{width:40px;height:40px;border-radius:12px;background:var(--tint-violet);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
   .step-num{width:30px;height:30px;border-radius:50%;background:var(--brand-grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--font-head);font-size:14px;flex-shrink:0;}
   .cta-band{background:var(--brand-grad);border-radius:var(--radius-lg);padding:48px 32px;text-align:center;color:#fff;}
   .cta-band h2{color:#fff;}
-  .cta-band .btn-primary{background:#fff;color:var(--indigo-ink);}
-  .cta-band .btn-primary:hover{background:#F1ECFF;}
+  .cta-band .btn-primary{background:#fff;color:var(--plum);}
+  .cta-band .btn-primary:hover{background:#FCEAF7;}
   .land-footer{border-top:1px solid var(--line);margin-top:20px;}
   .land-footer-inner{max-width:1180px;margin:0 auto;padding:28px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;}
 </style>
@@ -51,16 +51,13 @@
   </div>
 </div>
 
-<section class="hero">
-  <img class="hero-bg-img" src="assets/hero-learners.webp" alt="South African learners looking toward different career paths"/>
-  <div class="hero-inner">
-    <div class="hero-content">
-      <h1>Find the path that actually fits you.</h1>
-      <p class="page-sub">Iroli helps Grade 9–12 learners discover careers that match who they are, choose the right subjects for Grade 10, and see exactly what it takes to get there — backed by real degree and entry-requirement data, not guesswork.</p>
-      <div class="hero-ctas">
-        <a href="app.html" class="btn btn-primary">Get Started — It's Free</a>
-        <a href="#what-we-do" class="btn btn-ghost">See how it works</a>
-      </div>
+<section class="hero-framed">
+  <div class="hero-framed-inner">
+    <h1>Find the path that actually fits you.</h1>
+    <p class="page-sub">Iroli helps Grade 9–12 learners discover careers that match who they are, choose the right subjects for Grade 10, and see exactly what it takes to get there — backed by real degree and entry-requirement data, not guesswork.</p>
+    <div class="hero-ctas">
+      <a href="app.html" class="btn btn-primary">Get Started — It's Free</a>
+      <a href="#what-we-do" class="btn btn-ghost">See how it works</a>
     </div>
   </div>
 </section>
