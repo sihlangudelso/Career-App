@@ -49,7 +49,7 @@ function viewAdminHome(){
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('admin-cohort')">${icon('chart','tico')}<h3>View cohort data</h3><p>See every learner\u2019s profile, matches and personality — export anytime.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="App.togglePreview()">${icon('spark','tico')}<h3>Preview learner view</h3><p>See exactly what your learners experience.</p></button>
   </div>
-  <div style="margin-top:24px;">${disclaimerHTML('This workspace is shared with everyone who opens this link. Give the general link (Can interact) to learners, and grant "Can edit" to fellow Institute staff who should see admin tools like this one.')}</div>
+  <div style="margin-top:24px;">${disclaimerHTML('Access requires signing in — nobody can see learner data or admin tools just by opening a link. Learners create their own account; Institute Admin and Class Admin access is granted separately, not by link-sharing (assign a class admin by email from Classes & Licences, or promote a super admin from the Supabase dashboard).')}</div>
   `;
 }
 
