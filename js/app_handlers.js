@@ -238,7 +238,9 @@ const App = {
   async grade9Submit(){
     const d = ensureGrade9Draft();
     const subjects = {};
-    Object.keys(d.marks).forEach(k=>{ if(d.marks[k]!=null && d.marks[k]!=='') subjects[k] = { pct: Number(d.marks[k]) }; });
+    // clamp(...,0,100): found accepting out-of-range input (150, -20) in
+    // the pre-launch audit -- this feeds academic-fit scoring directly.
+    Object.keys(d.marks).forEach(k=>{ if(d.marks[k]!=null && d.marks[k]!=='') subjects[k] = { pct: clamp(Number(d.marks[k]),0,100) }; });
     const workStyle = {};
     WORK_STYLE_QUESTIONS.forEach(q=>{ workStyle[q.key] = clamp((d.workStyle[q.key]-1)/4*100, 0, 100); });
     await saveLearner({
@@ -572,7 +574,9 @@ function readOnboardingForm(gradeOnScreen){
     subjects = Array.from(document.querySelectorAll('.subject-check:checked')).map(el=>el.value);
     subjectMarks = {};
     document.querySelectorAll('.subject-mark:not(:disabled)').forEach(el=>{
-      if(el.value!=='') subjectMarks[el.dataset.subject] = { pct: Number(el.value), term: todayISO() };
+      // clamp(...,0,100): found accepting out-of-range input (150, -20) in
+      // the pre-launch audit -- this feeds academic-fit scoring directly.
+      if(el.value!=='') subjectMarks[el.dataset.subject] = { pct: clamp(Number(el.value),0,100), term: todayISO() };
     });
   }
   return { school, subjects, subjectMarks };

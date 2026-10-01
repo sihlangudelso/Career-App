@@ -942,7 +942,11 @@ function buildNextSteps(learner){
 
 /* ---------------- APS ---------------- */
 function computeAPSFromMarks(marks){
-  const rows = Object.entries(marks).filter(([s,p])=> p!=null && p!=='').map(([s,p])=>({subject:s, pct:Number(p), level:nscLevel(Number(p))}));
+  // clamp(...,0,100): a number input's min/max isn't self-enforcing
+  // against typed text (150, -20 are both accepted) -- found in the
+  // pre-launch audit. nscLevel() already clamped internally so the APS
+  // total itself was never wrong, but the displayed per-subject % was.
+  const rows = Object.entries(marks).filter(([s,p])=> p!=null && p!=='').map(([s,p])=>({subject:s, pct:clamp(Number(p),0,100), level:nscLevel(Number(p))}));
   const nonLO = rows.filter(r=>r.subject!=='Life Orientation').sort((a,b)=>b.level-a.level);
   const top6 = nonLO.slice(0,6);
   const aps = top6.reduce((s,r)=>s+r.level,0);
