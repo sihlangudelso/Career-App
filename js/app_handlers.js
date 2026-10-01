@@ -449,8 +449,8 @@ const App = {
   // table) as a single file with a header row per section -- mirrors
   // exportCohortCSV's own Blob/download pattern exactly, just with
   // several small tables instead of one.
-  exportDashboardCSV(){
-    const d = buildSchoolDashboardData();
+  exportDashboardCSV(filterClass){
+    const d = buildSchoolDashboardData(filterClass);
     const lines = [];
     const section = (title, headers, rows)=>{
       lines.push(csvEscape(title));
@@ -485,7 +485,11 @@ const App = {
   // A deliberate, admin-triggered point-in-time copy of the dashboard's
   // aggregate numbers -- never a silent background snapshot, mirroring
   // how apsLast/subjectGuidance are saved elsewhere in this app. Only
-  // cohort-level aggregates are stored, never per-learner rows.
+  // cohort-level aggregates are stored, never per-learner rows. Always
+  // whole-cohort (ignores any active class-filter chip) -- this feature
+  // is specifically for whole-school term-over-term trend tracking, and
+  // is super-admin-only regardless, so a per-class snapshot dimension
+  // isn't needed.
   async saveDashboardSnapshot(){
     const d = buildSchoolDashboardData();
     const label = (prompt('Label this snapshot (e.g. "Term 3 2026") -- optional:') || '').trim() || null;

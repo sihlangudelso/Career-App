@@ -202,8 +202,8 @@ function viewAdminCareers(){
 // never cached columns). Every dashboard section reads from this SAME
 // object, so the overview tiles, the pathway bars, and the guidance table
 // can never disagree with each other.
-function buildSchoolDashboardData(){
-  const rows = COHORT.filter(l=>l.grade===9);
+function buildSchoolDashboardData(classFilter){
+  const rows = COHORT.filter(l=>l.grade===9 && (!classFilter || classFilter==='all' || l.classId===classFilter));
   const assessed = rows.filter(l=>l.assessmentCompletedAt);
 
   const enriched = assessed.map(l=>{
@@ -333,13 +333,24 @@ function generateSchoolInsights(d){
 }
 
 function viewAdminDashboard(){
-  const d = buildSchoolDashboardData();
+  // Plain classId/'all' route param, same convention as viewAdminCohort's
+  // own filter (this route never receives the {fac} object form). Chips
+  // only render once there's more than one class to choose between.
+  const filterClass = ROUTE_PARAM || 'all';
+  const mine = myClasses();
+  const d = buildSchoolDashboardData(filterClass);
   return `
   ${pageHeadHTML('Grade 9 Dashboard', 'An aggregate view of your Grade 9 cohort — patterns and learners who may benefit from extra guidance, never final decisions.')}
+  ${mine.length>1 ? `
+  <div class="filter-bar">
+    <button class="chip-select ${filterClass==='all'?'on':''}" onclick="navigate('admin-dashboard','all')">All classes</button>
+    ${mine.map(c=>`<button class="chip-select ${filterClass===c.id?'on':''}" onclick="navigate('admin-dashboard','${c.id}')">${esc(c.name)}</button>`).join('')}
+  </div>` : ''}
+  ${IS_SUPER_ADMIN? `
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-    <button class="btn btn-amber" onclick="App.exportDashboardCSV()">${icon('download')} Export CSV</button>
+    <button class="btn btn-amber" onclick="App.exportDashboardCSV('${filterClass}')">${icon('download')} Export CSV</button>
     <button class="btn btn-ghost" onclick="App.saveDashboardSnapshot()">${icon('check')} Save Snapshot</button>
-  </div>
+  </div>` : ''}
   <div class="grid grid-4" style="margin-bottom:26px;">
     <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${d.overview.totalLearners}</div><div class="l">Grade 9 learners</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--grass)"></div><div><div class="n">${d.overview.completionRate}%</div><div class="l">Assessment completion</div></div></div>
