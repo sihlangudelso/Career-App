@@ -78,6 +78,32 @@ create table if not exists public.learners (
   "updatedAt" timestamptz not null default now()
 );
 
+-- ---------- courseRequirements / careerCourseLinks ----------
+-- Reference data for js/course-links.js's "real degree programmes &
+-- entry requirements" card -- loaded separately from a national course-
+-- requirements dataset (see supabase/add_humanities_course_links.sql),
+-- not hand-authored here. Column shape is a best-effort reconstruction
+-- (see supabase/add_course_links_rls.sql for the full reasoning); only
+-- matters for a brand-new install, since IF NOT EXISTS makes this a
+-- no-op against an already-populated project.
+create table if not exists public."courseRequirements" (
+  id serial primary key,
+  institution text,
+  "courseName" text,
+  faculty text,
+  "apsScore" integer,
+  "closingDate" text,
+  "subjectRequirements" jsonb
+);
+
+create table if not exists public."careerCourseLinks" (
+  id serial primary key,
+  "careerId" text not null,
+  "courseRequirementId" integer not null references public."courseRequirements"(id),
+  "matchType" text,
+  "matchedKeywords" text
+);
+
 -- ============================================================
 -- Row Level Security — this is what actually makes the app safe.
 -- Without these, either nobody can read/write anything (RLS on with
@@ -87,6 +113,8 @@ create table if not exists public.learners (
 alter table public.profiles enable row level security;
 alter table public.classes  enable row level security;
 alter table public.learners enable row level security;
+alter table public."courseRequirements" enable row level security;
+alter table public."careerCourseLinks"  enable row level security;
 alter table public.dashboard_snapshots enable row level security;
 
 -- Helper: is the currently authenticated person an admin? SECURITY
@@ -152,6 +180,21 @@ create policy "classes_delete_admin"
   on public.classes for delete
   using (public.is_admin());
 
+-- ---------- courseRequirements / careerCourseLinks policies ----------
+-- Read-only reference data: every learner-facing route that reads it
+-- already requires a real signed-in session, so authenticated-only is
+-- the correct scope. No insert/update/delete policy for anyone -- new
+-- course-link data is added by running a migration directly in the
+-- Supabase SQL Editor as the project owner (bypasses RLS entirely),
+-- never through the app.
+create policy "course_requirements_select_authenticated"
+  on public."courseRequirements" for select
+  using (auth.role() = 'authenticated');
+
+create policy "career_course_links_select_authenticated"
+  on public."careerCourseLinks" for select
+  using (auth.role() = 'authenticated');
+
 -- ---------- dashboard_snapshots policies ----------
 -- Admin-only in every direction (unlike classes, which any authenticated
 -- user can read) -- this is aggregate cohort data with no reason for a
@@ -210,6 +253,62 @@ drop trigger if exists protect_license_status_trigger on public.learners;
 create trigger protect_license_status_trigger
   before update on public.learners
   for each row execute function public.protect_license_status();
+
+-- Same column-level-protection problem as licenseStatus above, for
+-- classId: classes_select_authenticated hands every signed-in user the
+-- full classes table (by design, so the learner-facing join-by-code flow
+-- can match a typed code client-side), so without this a learner could
+-- set their own classId to ANY class's id directly, skipping the "must
+-- know the code" step and becoming visible to a class admin they have no
+-- relationship to. A plain self-update can no longer change classId to a
+-- new non-null value; only join_class_by_code() below (or an admin) can.
+create or replace function public.protect_class_id()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin()
+     and new."classId" is distinct from old."classId"
+     and new."classId" is not null
+     and coalesce(current_setting('app.allow_class_join', true), 'false') <> 'true'
+  then
+    new."classId" := old."classId";
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_class_id_trigger on public.learners;
+create trigger protect_class_id_trigger
+  before update on public.learners
+  for each row execute function public.protect_class_id();
+
+-- Looks a class up by its real code server-side and joins the CALLING
+-- learner (auth.uid(), never a client-supplied id) to it -- the only way
+-- to set a new classId now that the trigger above blocks a plain
+-- self-update from doing it directly. set_config(...,true) scopes the
+-- bypass flag to this one transaction, never the session, so it can't
+-- leak into a later, unrelated query on a pooled connection.
+create or replace function public.join_class_by_code(p_code text)
+returns table(class_id uuid, class_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  found_class public.classes;
+begin
+  select * into found_class from public.classes where upper(code) = upper(trim(p_code));
+  if found_class.id is null then
+    raise exception 'No class found with that code';
+  end if;
+  perform set_config('app.allow_class_join', 'true', true);
+  update public.learners set "classId" = found_class.id, "updatedAt" = now() where id = auth.uid();
+  return query select found_class.id, found_class.name;
+end;
+$$;
 
 -- ============================================================
 -- Auto-create a profile row the moment someone signs up, always as

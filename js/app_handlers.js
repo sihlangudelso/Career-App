@@ -367,10 +367,19 @@ const App = {
   async joinClass(){
     const code = ((document.getElementById('joinCode')||{}).value||'').trim().toUpperCase();
     if(!code){ toast('Enter a class code.'); return; }
-    const cls = CLASSES.find(c=>(c.code||'').toUpperCase()===code);
-    if(!cls){ toast('No class found with that code.'); return; }
-    await saveLearner({ classId: cls.id });
-    toast('Joined '+cls.name+'.');
+    // Resolved server-side by join_class_by_code(), not by matching
+    // against the client's own full CLASSES array -- found in the
+    // pre-launch audit that the old client-side-only match let a learner
+    // set classId to ANY class's id directly, skipping the "must know
+    // the code" step entirely (classes_select_authenticated hands every
+    // signed-in user the full table, by design, so CLASSES.find() alone
+    // never actually verified anything).
+    const { data, error } = await sb.rpc('join_class_by_code', { p_code: code });
+    if(error){ toast('No class found with that code.'); console.error(error); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    if(!row){ toast('No class found with that code.'); return; }
+    LEARNER.classId = row.class_id;
+    toast('Joined '+row.class_name+'.');
     render();
   },
   async leaveClass(){
