@@ -65,6 +65,12 @@ create table if not exists public.learners (
   compare text[] default '{}',
   "classId" uuid references public.classes(id) on delete set null,
   "licenseStatus" text not null default 'trial' check ("licenseStatus" in ('trial','active')),
+  -- How licenseStatus='active' was granted -- 'admin' (super admin
+  -- activated this learner directly, persists regardless of class
+  -- changes) or 'class' (granted by occupying a paid class seat, reverts
+  -- automatically if that seat is given up -- see protect_license_status
+  -- below). NULL for grandfathered/legacy rows with no real provenance.
+  "licenseSource" text check ("licenseSource" in ('admin','class')),
   "apsLast" jsonb,
   "subjectMarks" jsonb,
   "grade9Report" jsonb,
@@ -216,9 +222,12 @@ create policy "learners_select_own_or_admin"
   on public.learners for select
   using (auth.uid() = id or public.is_admin() or public.owns_class("classId"));
 
+-- licenseStatus must start 'trial' even on a learner's very first write --
+-- protect_license_status (below) only fires on UPDATE, never INSERT, so
+-- without this a learner's first-ever save could set 'active' directly.
 create policy "learners_insert_own"
   on public.learners for insert
-  with check (auth.uid() = id);
+  with check (auth.uid() = id and "licenseStatus" = 'trial');
 
 create policy "learners_update_own_or_admin"
   on public.learners for update
@@ -234,7 +243,10 @@ create policy "learners_delete_admin"
 -- could self-grant licenseStatus='active' on their own row via a direct
 -- Supabase call. A non-admin update silently keeps the old value instead
 -- of erroring, so every other legitimate self-update (favourites,
--- subjects, assessment results, joining a class) is unaffected.
+-- subjects, assessment results, joining a class) is unaffected. Two
+-- responsibilities in one function (not two separate triggers) to avoid
+-- a BEFORE-UPDATE multi-trigger ordering hazard, where whichever trigger
+-- ran second could silently undo what the first one just decided.
 create or replace function public.protect_license_status()
 returns trigger
 language plpgsql
@@ -242,8 +254,29 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_admin() then
+  -- A class-granted licence tracks current class membership: if classId
+  -- is changing (leaving, switching classes, or a class deletion
+  -- cascading via ON DELETE SET NULL -- which fires this same trigger
+  -- too) and the licence came from occupying that seat, revert it.
+  -- Unconditional, including an admin-driven class change, since "no
+  -- longer in a paid seat" should always mean "no longer licensed
+  -- through that seat" regardless of who changed classId. Without this,
+  -- join-then-leave would permanently bank a seat's worth of access
+  -- while freeing the slot for someone else to repeat.
+  if old."licenseSource" = 'class' and new."classId" is distinct from old."classId" then
+    new."licenseStatus" := 'trial';
+    new."licenseSource" := null;
+    return new;
+  end if;
+  -- Otherwise, only an admin or the privileged class-join path (via its
+  -- own escape hatch, kept separate from protect_class_id's
+  -- app.allow_class_join so a future change to either privileged path
+  -- can't silently widen the other's blast radius) may change this.
+  if not public.is_admin()
+     and coalesce(current_setting('app.allow_license_activation', true), 'false') <> 'true'
+  then
     new."licenseStatus" := old."licenseStatus";
+    new."licenseSource" := old."licenseSource";
   end if;
   return new;
 end;
@@ -288,9 +321,10 @@ create trigger protect_class_id_trigger
 -- Looks a class up by its real code server-side and joins the CALLING
 -- learner (auth.uid(), never a client-supplied id) to it -- the only way
 -- to set a new classId now that the trigger above blocks a plain
--- self-update from doing it directly. set_config(...,true) scopes the
--- bypass flag to this one transaction, never the session, so it can't
--- leak into a later, unrelated query on a pooled connection.
+-- self-update from doing it directly. Also enforces the seat limit and
+-- activates the learner (licenseStatus/licenseSource) in the same
+-- transaction -- joining with a valid code IS the payment proof, since
+-- codes are only ever handed out after a school has paid for N seats.
 create or replace function public.join_class_by_code(p_code text)
 returns table(class_id uuid, class_name text)
 language plpgsql
@@ -299,13 +333,40 @@ set search_path = public
 as $$
 declare
   found_class public.classes;
+  active_count int;
 begin
-  select * into found_class from public.classes where upper(code) = upper(trim(p_code));
+  -- `for update` locks this class row for the rest of the transaction,
+  -- so a second learner racing for the same class's last seat blocks
+  -- here until the first caller commits, then re-reads a fresh seat
+  -- count that correctly includes that now-committed join -- this is
+  -- what actually prevents overselling seats under concurrent joins.
+  -- Different class codes lock different rows and never contend.
+  select * into found_class from public.classes where upper(code) = upper(trim(p_code)) for update;
   if found_class.id is null then
     raise exception 'No class found with that code';
   end if;
+  -- Both NULL and 0 mean "unlimited" -- matching the admin UI's own
+  -- existing display convention (seatLimit||'∞'), which already treats a
+  -- falsy value this way. Without matching it here, any class whose seat
+  -- count was ever left blank would become a hard 0-seat class the
+  -- instant this ships, indistinguishable from a genuinely full one.
+  if found_class."seatLimit" is not null and found_class."seatLimit" > 0 then
+    -- Excludes the caller's own row so a learner already active in this
+    -- exact class, re-submitting the same code, is never blocked by
+    -- their own existing seat.
+    select count(*) into active_count from public.learners
+      where "classId" = found_class.id and "licenseStatus" = 'active' and id <> auth.uid();
+    if active_count >= found_class."seatLimit" then
+      raise exception 'This class has reached its seat limit';
+    end if;
+  end if;
+  -- set_config(...,true) scopes both bypass flags to this one
+  -- transaction, never the session, so neither can leak into a later,
+  -- unrelated query on a pooled connection.
   perform set_config('app.allow_class_join', 'true', true);
-  update public.learners set "classId" = found_class.id, "updatedAt" = now() where id = auth.uid();
+  perform set_config('app.allow_license_activation', 'true', true);
+  update public.learners set "classId" = found_class.id, "licenseStatus" = 'active', "licenseSource" = 'class', "updatedAt" = now()
+    where id = auth.uid();
   return query select found_class.id, found_class.name;
 end;
 $$;
