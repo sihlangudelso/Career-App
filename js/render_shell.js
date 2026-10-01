@@ -18,6 +18,13 @@ const ADMIN_NAV = [
   { r:'admin-careers', label:'Career Library', ic:'book' },
 ];
 
+function roleLabel(){
+  if(PREVIEW_MODE) return 'Preview (Learner view)';
+  if(IS_SUPER_ADMIN) return 'Institute Admin';
+  if(IS_ADMIN) return 'Class Admin';
+  return 'Learner';
+}
+
 function currentNav(){
   if(IS_ADMIN && !PREVIEW_MODE) return ADMIN_NAV;
   if(LEARNER && LEARNER.exploringOnly) return LEARNER_NAV.filter(n=>n.r!=='guidance');
@@ -43,7 +50,6 @@ function renderShell(){
 
 function sidebarHTML(){
   const nav = currentNav();
-  const roleLabel = IS_ADMIN && !PREVIEW_MODE ? 'Institute Admin' : (PREVIEW_MODE ? 'Preview (Learner view)' : 'Learner');
   return `
     <div class="brand">
       <img class="brand-logo" src="assets/logo-wordmark.png" alt="Iroli"/>
@@ -57,7 +63,7 @@ function sidebarHTML(){
     </div>
     <div class="sidebar-foot">
       ${IS_ADMIN ? `<button class="nav-item" onclick="App.togglePreview()">${icon(PREVIEW_MODE?'switch':'spark')}<span>${PREVIEW_MODE?'Exit preview':'Preview learner view'}</span></button>` : ''}
-      <div class="role-pill" style="margin-top:8px;">${icon('shield','ic')} ${roleLabel}</div>
+      <div class="role-pill" style="margin-top:8px;">${icon('shield','ic')} ${roleLabel()}</div>
       <button class="nav-item" style="margin-top:6px;" onclick="App.signOut()">${icon('logout')}<span>Sign out</span></button>
       <a href="privacy.html" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:11px;color:var(--sidebar-muted,var(--muted));margin-top:12px;">Privacy Notice</a>
     </div>
@@ -92,7 +98,7 @@ function avatarChipHTML(){
   const nm = ME.name || (IS_ADMIN? 'Admin':'Learner');
   return `<div class="avatar-chip">
     <img src="${av}" onerror="this.style.display='none'" alt=""/>
-    <div><div class="nm">${esc(nm)||(IS_ADMIN?'Admin':'You')}</div><div class="rl">${IS_ADMIN && !PREVIEW_MODE?'Institute Admin':'Learner'}</div></div>
+    <div><div class="nm">${esc(nm)||(IS_ADMIN?'Admin':'You')}</div><div class="rl">${roleLabel()}</div></div>
   </div>`;
 }
 

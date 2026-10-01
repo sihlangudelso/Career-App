@@ -3,7 +3,13 @@
    ============================================================ */
 
 let ME = { id:null, name:'', email:'', avatarUrl:'' };
+// IS_ADMIN is true for either admin tier (shows the admin shell/nav to
+// both); IS_SUPER_ADMIN is the narrower "my team" tier -- gates class
+// creation/deletion, licence toggling, dashboard snapshots, and assigning
+// class admins. A class admin (IS_ADMIN && !IS_SUPER_ADMIN) is read-only,
+// scoped by RLS to the class(es) classes.classAdminId assigns them.
 let IS_ADMIN = false;
+let IS_SUPER_ADMIN = false;
 let PREVIEW_MODE = false;
 let LEARNER = null;
 let ROUTE = 'home';
@@ -72,7 +78,7 @@ async function handleSession(session){
   if(!user){
     if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
     ME = { id:null, name:'', email:'', avatarUrl:'' };
-    IS_ADMIN = false; LEARNER = null;
+    IS_ADMIN = false; IS_SUPER_ADMIN = false; LEARNER = null;
     // Decide the anonymous mini-assessment's state once, the same way
     // AUTH_RECOVERY_MODE is decided once -- but only if it isn't already
     // set, so a re-fire of this listener (e.g. on tab refocus, same as the
@@ -118,7 +124,8 @@ async function handleSession(session){
     toast('Email verified! Welcome to Iroli Career Pathway.');
   }
   const profile = await ensureProfile(user);
-  IS_ADMIN = profile.role === 'admin';
+  IS_SUPER_ADMIN = profile.role === 'admin';
+  IS_ADMIN = IS_SUPER_ADMIN || profile.role === 'class_admin';
   renderShell();
   await loadClasses();
   if(IS_ADMIN){ ROUTE='admin-home'; await loadCohort(); await loadDashboardSnapshots(); }
@@ -188,6 +195,14 @@ async function loadLearner(){
 async function loadClasses(){
   const { data, error } = await sb.from('classes').select('*').order('createdAt', { ascending:false });
   CLASSES = error ? [] : (data || []);
+}
+
+// classes_select_authenticated lets every signed-in user read every class
+// row (the learner join-by-code flow depends on this), so CLASSES itself
+// is never scoped -- any admin view that should only show a class admin's
+// own class(es) must filter through this instead of reading CLASSES raw.
+function myClasses(){
+  return IS_SUPER_ADMIN ? CLASSES : CLASSES.filter(c=>c.classAdminId===ME.id);
 }
 
 async function loadCohort(){
