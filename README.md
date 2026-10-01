@@ -65,6 +65,14 @@ verifying it and taking the one manual step nothing can do for you.
    - Supabase dashboard → **Table Editor → profiles** → find your row →
      change `role` from `learner` to `admin` → save.
    - Refresh the app — you should now land in the Admin Portal.
+   - This makes you a **super admin** (full access to every class). The
+     narrower **class admin** role — scoped to only the class(es) they're
+     assigned — never needs a manual table edit: assign one from
+     **Classes & Licences** by email, once they've signed up. If you ever
+     demote a class admin back to `learner` by hand here instead, also
+     clear that class's `classAdminId` in the **classes** table — not
+     required for security (access is revoked the instant their role
+     changes), just so the class doesn't keep showing them as assigned.
 2. **Sanity-check the policies.** Sign up a second test account and
    confirm it can only ever see its own `learners` row — not yours —
    until you promote it to admin too.
@@ -152,12 +160,13 @@ this phase as your privacy checkpoint under South Africa's **POPIA**
   checkout, integrate a South African payment gateway (e.g. PayFast,
   Yoco, Peach Payments) through a **Supabase Edge Function**, never by
   handling card details in the browser.
-- **Admin invites:** right now, promoting someone to admin means editing
-  the `profiles` table by hand (Phase 2, step 1). Once you have more
-  than one or two admins, replace that with a Supabase Edge Function
-  (using the `service_role` key, which only ever lives server-side
-  inside the function, never in this repo) that checks an invite code
-  before flipping `role` to `'admin'`.
+- **Admin invites:** assigning a *class admin* is already self-service
+  (Classes & Licences, by email) — but promoting someone to full *super
+  admin* still means editing the `profiles` table by hand (Phase 2,
+  step 1). Once you have more than one or two super admins, replace that
+  with a Supabase Edge Function (using the `service_role` key, which only
+  ever lives server-side inside the function, never in this repo) that
+  checks an invite code before flipping `role` to `'admin'`.
 - **Backups:** Supabase takes automatic daily backups on paid plans; on
   the free tier, schedule your own periodic export (Database →
   Backups shows connection details) so a bad migration can't
