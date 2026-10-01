@@ -23,13 +23,16 @@
 -- an account with no real provenance to track.
 alter table public.learners add column if not exists "licenseSource" text check ("licenseSource" in ('admin','class'));
 
--- Replaces the existing protect_license_status() (same trigger binding,
--- no change needed to the trigger itself). Two responsibilities in one
--- function, deliberately not two separate triggers, to avoid a
--- BEFORE-UPDATE multi-trigger ordering hazard: if the revert rule and the
--- protection rule lived in separate triggers, whichever ran second could
--- undo what the first one just decided, depending purely on trigger-name
--- alphabetical order.
+-- Replaces protect_license_status() and (re)creates the trigger that
+-- calls it -- written defensively to not assume an earlier migration
+-- (add_license_status_protection.sql) already created either one, since
+-- `alter table ... disable trigger <name>` errors outright (SQLSTATE
+-- 42704) if that exact trigger doesn't already exist, unlike `drop
+-- trigger if exists`. Two responsibilities in one function, deliberately
+-- not two separate triggers, to avoid a BEFORE-UPDATE multi-trigger
+-- ordering hazard: if the revert rule and the protection rule lived in
+-- separate triggers, whichever ran second could undo what the first one
+-- just decided, depending purely on trigger-name alphabetical order.
 create or replace function public.protect_license_status()
 returns trigger
 language plpgsql
@@ -67,6 +70,11 @@ begin
   return new;
 end;
 $$;
+
+drop trigger if exists protect_license_status_trigger on public.learners;
+create trigger protect_license_status_trigger
+  before update on public.learners
+  for each row execute function public.protect_license_status();
 
 -- Replaces the existing join_class_by_code(): now enforces the seat
 -- limit and activates the learner in the same transaction.
