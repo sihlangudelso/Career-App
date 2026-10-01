@@ -2,7 +2,10 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   "displayName" text,
-  role text not null default 'learner' check (role in ('learner','admin')),
+  -- 'admin' is the "super admin" tier (creates classes, assigns class
+  -- admins); 'class_admin' is a narrower tier scoped to the class(es)
+  -- they're assigned via classes.classAdminId -- see owns_class() below.
+  role text not null default 'learner' check (role in ('learner','admin','class_admin')),
   "createdAt" timestamptz not null default now()
 );
 
@@ -13,6 +16,11 @@ create table if not exists public.classes (
   code text not null unique,
   "seatLimit" int,
   "createdBy" uuid references auth.users(id),
+  -- The class_admin who manages this class (nullable -- an unassigned
+  -- class is visible only to super admins, which is safe-by-default for
+  -- both pre-existing and newly-created classes). Set only by a super
+  -- admin, via App.assignClassAdmin().
+  "classAdminId" uuid references auth.users(id),
   "createdAt" timestamptz not null default now()
 );
 
@@ -96,6 +104,23 @@ as $$
   );
 $$;
 
+-- A class admin's access is live, not a cached pointer: it requires BOTH
+-- classAdminId = them AND their role still being class_admin right now, so
+-- a manual demotion (Table Editor) revokes access immediately even if
+-- nobody remembers to also clear classAdminId on their old class.
+create or replace function public.owns_class(class_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.classes c
+    join public.profiles p on p.id = auth.uid()
+    where c.id = class_id and c."classAdminId" = auth.uid() and p.role = 'class_admin'
+  );
+$$;
+
 -- ---------- profiles policies ----------
 create policy "profiles_select_own_or_admin"
   on public.profiles for select
@@ -146,7 +171,7 @@ create policy "dashboard_snapshots_delete_admin"
 -- ---------- learners policies ----------
 create policy "learners_select_own_or_admin"
   on public.learners for select
-  using (auth.uid() = id or public.is_admin());
+  using (auth.uid() = id or public.is_admin() or public.owns_class("classId"));
 
 create policy "learners_insert_own"
   on public.learners for insert
