@@ -16,6 +16,26 @@ create table if not exists public.classes (
   "createdAt" timestamptz not null default now()
 );
 
+-- ---------- dashboard_snapshots ----------
+-- A point-in-time copy of the Grade 9 Dashboard's aggregate numbers,
+-- saved only when an admin deliberately clicks "Save Snapshot" (e.g. at
+-- the end of a term) -- mirrors how apsLast/subjectGuidance on `learners`
+-- are deliberate user-triggered snapshots, never a silent background
+-- cache. `data` holds only cohort-level aggregates (overview counts,
+-- pathway distribution, subject demand) -- never per-learner records, so
+-- this table carries no additional learner PII beyond what `learners`
+-- itself already has. snake_case, unquoted, matching profiles/classes/
+-- learners' own table-naming style (Postgres folds an unquoted camelCase
+-- name to all-lowercase, which would silently break a JS sb.from() call
+-- expecting the camelCase spelling back).
+create table if not exists public.dashboard_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  label text,
+  data jsonb not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
 -- ---------- learners ----------
 -- One row per learner, keyed by their auth user id. displayName/email
 -- are mirrored here from auth at save-time purely so the admin cohort
@@ -59,6 +79,7 @@ create table if not exists public.learners (
 alter table public.profiles enable row level security;
 alter table public.classes  enable row level security;
 alter table public.learners enable row level security;
+alter table public.dashboard_snapshots enable row level security;
 
 -- Helper: is the currently authenticated person an admin? SECURITY
 -- DEFINER lets this function read the profiles table even though the
@@ -104,6 +125,22 @@ create policy "classes_update_admin"
 
 create policy "classes_delete_admin"
   on public.classes for delete
+  using (public.is_admin());
+
+-- ---------- dashboard_snapshots policies ----------
+-- Admin-only in every direction (unlike classes, which any authenticated
+-- user can read) -- this is aggregate cohort data with no reason for a
+-- learner account to ever see it.
+create policy "dashboard_snapshots_select_admin"
+  on public.dashboard_snapshots for select
+  using (public.is_admin());
+
+create policy "dashboard_snapshots_insert_admin"
+  on public.dashboard_snapshots for insert
+  with check (public.is_admin());
+
+create policy "dashboard_snapshots_delete_admin"
+  on public.dashboard_snapshots for delete
   using (public.is_admin());
 
 -- ---------- learners policies ----------

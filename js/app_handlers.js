@@ -420,6 +420,58 @@ const App = {
     if(error){ toast('Could not update licence — check your admin role.'); console.error(error); }
     render();
   },
+  // One combined CSV for the whole Grade 9 Dashboard (overview numbers,
+  // pathway distribution, subject demand, readiness cross-tab, guidance
+  // table) as a single file with a header row per section -- mirrors
+  // exportCohortCSV's own Blob/download pattern exactly, just with
+  // several small tables instead of one.
+  exportDashboardCSV(){
+    const d = buildSchoolDashboardData();
+    const lines = [];
+    const section = (title, headers, rows)=>{
+      lines.push(csvEscape(title));
+      lines.push(headers.map(csvEscape).join(','));
+      rows.forEach(r=>lines.push(r.map(csvEscape).join(',')));
+      lines.push('');
+    };
+    section('Grade 9 Dashboard Overview', ['Metric','Value'], [
+      ['Grade 9 learners', d.overview.totalLearners],
+      ['Assessment completion', d.overview.completionRate+'%'],
+      ['Learners requiring guidance', d.overview.guidanceRequired],
+      ['Subject-career conflicts', d.overview.conflictCount],
+    ]);
+    section('Career Pathway Distribution', ['Pathway','Learner Count','Percentage'],
+      d.pathwayDistribution.map(p=>[p.name, p.count, p.pct+'%']));
+    section('Grade 10 Subject Demand', ['Subject','Learner Count','Percentage'],
+      d.subjectDemand.list.map(s=>[s.subject, s.count, s.pct+'%']));
+    section('Academic Readiness by Pathway', ['Pathway','Key Subject','Interested','>=70%','50-69%','<50%'],
+      d.readinessByPathway.map(r=>[r.pathwayName, r.subject, r.interested, r.above70, r.mid, r.below50]));
+    section('Learners Requiring Guidance', ['Learner','Career Pathway','Career Interest','Current Academic Concern','Planned Subject','Potential Conflict','Recommended Action'],
+      d.guidanceRows.map(r=>[r.learnerName, r.pathway, r.interest, r.concern, r.planned, r.conflict, r.action]));
+
+    const csv = lines.join('\r\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'iroli-grade9-dashboard-export.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Dashboard export downloaded.');
+  },
+  // A deliberate, admin-triggered point-in-time copy of the dashboard's
+  // aggregate numbers -- never a silent background snapshot, mirroring
+  // how apsLast/subjectGuidance are saved elsewhere in this app. Only
+  // cohort-level aggregates are stored, never per-learner rows.
+  async saveDashboardSnapshot(){
+    const d = buildSchoolDashboardData();
+    const label = (prompt('Label this snapshot (e.g. "Term 3 2026") -- optional:') || '').trim() || null;
+    const payload = { overview: d.overview, pathwayDistribution: d.pathwayDistribution, subjectDemand: d.subjectDemand.list };
+    const { error } = await sb.from('dashboard_snapshots').insert({ label, data: payload, created_by: ME.id });
+    if(error){ toast('Could not save snapshot — check your connection.'); console.error(error); return; }
+    await loadDashboardSnapshots();
+    toast('Snapshot saved.');
+    render();
+  },
   exportCohortCSV(filterClass){
     let rows = COHORT.slice();
     if(filterClass && filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);

@@ -137,6 +137,7 @@ function reportPathwaysHTML(l){
     const why = pathwayReasoningHTML(l, p.faculty);
     const subject = keySubjectFor(p.faculty.id);
     const careers = CAREERS.filter(c=>c.faculty===p.faculty.id).slice(0,3);
+    const cluster = clustersForFaculty(p.faculty.id, 1)[0];
     return `
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
@@ -154,7 +155,8 @@ function reportPathwaysHTML(l){
       <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Why this appears for you</div>
       <ul style="margin:0 0 10px;">${why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>
       ${subject?`<p class="page-sub" style="margin-bottom:10px;">Relevant subject: <b>${esc(subject)}</b></p>`:''}
-      ${careers.length?`<div class="pill-list">${careers.map(c=>`<span class="tag" style="cursor:pointer;" onclick="navigate('career',{id:'${c.id}',from:'report'})">${esc(c.name)}</span>`).join('')}</div>`:''}
+      ${careers.length?`<div class="pill-list" style="margin-bottom:${cluster?'10px':'0'};">${careers.map(c=>`<span class="tag" style="cursor:pointer;" onclick="navigate('career',{id:'${c.id}',from:'report'})">${esc(c.name)}</span>`).join('')}</div>`:''}
+      ${cluster?`<button class="btn btn-ghost btn-sm" onclick="navigate('cluster','${cluster.id}')">${icon('compass')} Explore ${esc(cluster.name)} in more depth</button>`:''}
     </div>`;
   }).join('')}
   `;

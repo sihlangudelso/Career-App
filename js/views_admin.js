@@ -325,12 +325,18 @@ function viewAdminDashboard(){
   const d = buildSchoolDashboardData();
   return `
   ${pageHeadHTML('Grade 9 Dashboard', 'An aggregate view of your Grade 9 cohort — patterns and learners who may benefit from extra guidance, never final decisions.')}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+    <button class="btn btn-amber" onclick="App.exportDashboardCSV()">${icon('download')} Export CSV</button>
+    <button class="btn btn-ghost" onclick="App.saveDashboardSnapshot()">${icon('check')} Save Snapshot</button>
+  </div>
   <div class="grid grid-4" style="margin-bottom:26px;">
     <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${d.overview.totalLearners}</div><div class="l">Grade 9 learners</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--grass)"></div><div><div class="n">${d.overview.completionRate}%</div><div class="l">Assessment completion</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--amber)"></div><div><div class="n">${d.overview.guidanceRequired}</div><div class="l">Learners requiring guidance</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--coral)"></div><div><div class="n">${d.overview.conflictCount}</div><div class="l">Subject-career conflicts</div></div></div>
   </div>
+
+  ${snapshotComparisonHTML(d.overview)}
 
   ${d.insights.length ? `
   <div class="section-title" style="margin-top:0;"><h2>School Insights</h2></div>
@@ -387,5 +393,38 @@ function viewAdminDashboard(){
     </tbody>
   </table></div>
   ${disclaimerHTML('This view surfaces support opportunities based on current results and stated interests — it never makes final career or subject decisions for a learner.')}
+
+  ${SNAPSHOTS.length ? `
+  <div class="section-title"><h2>Snapshot History</h2></div>
+  <div class="card">
+    ${SNAPSHOTS.map(s=>`<div class="kv"><b>${s.label?esc(s.label):'Untitled snapshot'}</b><span>${esc(new Date(s.created_at).toLocaleDateString('en-ZA',{year:'numeric',month:'long',day:'numeric'}))} — ${s.data.overview.totalLearners} learners, ${s.data.overview.conflictCount} conflicts</span></div>`).join('')}
+  </div>` : ''}
   `;
+}
+
+// Compares the live overview numbers against the most recent saved
+// snapshot (SNAPSHOTS is sorted newest-first by loadDashboardSnapshots'
+// own query). Renders nothing until at least one snapshot exists --
+// there's nothing to compare yet otherwise.
+function snapshotComparisonHTML(current){
+  if(!SNAPSHOTS.length) return '';
+  const prev = SNAPSHOTS[0];
+  const po = prev.data.overview || {};
+  const delta = (curr, old)=>{
+    if(old==null) return '';
+    const diff = curr - old;
+    if(diff===0) return ' (no change)';
+    return ` (${diff>0?'+':''}${diff} since last snapshot)`;
+  };
+  const dateStr = new Date(prev.created_at).toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
+  return `
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Compared to your last snapshot${prev.label?` — "${esc(prev.label)}"`:''} (${esc(dateStr)})</h3>
+    <div class="grid grid-2">
+      <div class="kv"><b>Grade 9 learners</b><span>${current.totalLearners}${delta(current.totalLearners, po.totalLearners)}</span></div>
+      <div class="kv"><b>Assessment completion</b><span>${current.completionRate}%${delta(current.completionRate, po.completionRate)}</span></div>
+      <div class="kv"><b>Learners requiring guidance</b><span>${current.guidanceRequired}${delta(current.guidanceRequired, po.guidanceRequired)}</span></div>
+      <div class="kv"><b>Subject-career conflicts</b><span>${current.conflictCount}${delta(current.conflictCount, po.conflictCount)}</span></div>
+    </div>
+  </div>`;
 }

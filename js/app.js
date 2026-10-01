@@ -12,6 +12,7 @@ let EXPLORE_SEARCH = '';
 let EXPLORE_FILTERS = {};
 let CLASSES = [];
 let COHORT = [];
+let SNAPSHOTS = [];
 let ASSESSMENT_DRAFT = null;
 let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
@@ -120,7 +121,7 @@ async function handleSession(session){
   IS_ADMIN = profile.role === 'admin';
   renderShell();
   await loadClasses();
-  if(IS_ADMIN){ ROUTE='admin-home'; await loadCohort(); }
+  if(IS_ADMIN){ ROUTE='admin-home'; await loadCohort(); await loadDashboardSnapshots(); }
   else { ROUTE='home'; await loadLearner(); }
   render();
 }
@@ -192,6 +193,11 @@ async function loadClasses(){
 async function loadCohort(){
   const { data, error } = await sb.from('learners').select('*');
   COHORT = error ? [] : (data || []);
+}
+
+async function loadDashboardSnapshots(){
+  const { data, error } = await sb.from('dashboard_snapshots').select('*').order('created_at', { ascending:false });
+  SNAPSHOTS = error ? [] : (data || []);
 }
 
 function cohortLearnerName(id){
@@ -554,6 +560,24 @@ function relatedCareersFor(career, limit){
     .sort((a,b)=>b.score-a.score)
     .slice(0,limit)
     .map(x=>x.career);
+}
+// Faculties (used for pathway alignment/readiness) and CLUSTERS (the
+// Subject Choice Guidance tool's richer, more-detailed field groupings)
+// are two separate taxonomies with no declared mapping between them --
+// derived here, not hand-authored, by finding which cluster's own
+// exampleCareerIds overlap most with a faculty's real careers. Lets a
+// Career Pathway card link into a cluster's richer detail page (study
+// routes, qualification options) without maintaining a second, parallel
+// 15-to-20 mapping table that could silently drift out of date.
+function clustersForFaculty(facultyId, limit){
+  limit = limit || 1;
+  const facultyCareerIds = new Set(CAREERS.filter(c=>c.faculty===facultyId).map(c=>c.id));
+  return CLUSTERS
+    .map(cl=>({ cluster:cl, overlap: cl.exampleCareerIds.filter(id=>facultyCareerIds.has(id)).length }))
+    .filter(x=>x.overlap>0)
+    .sort((a,b)=>b.overlap-a.overlap)
+    .slice(0,limit)
+    .map(x=>x.cluster);
 }
 function computeMatches(learner){
   return CAREERS.map(c=>{
