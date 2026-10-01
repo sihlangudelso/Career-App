@@ -186,6 +186,31 @@ create policy "learners_delete_admin"
   on public.learners for delete
   using (public.is_admin());
 
+-- RLS above is row-scoped only (auth.uid()=id), not column-scoped --
+-- Postgres has no per-column RLS, so without this trigger a learner
+-- could self-grant licenseStatus='active' on their own row via a direct
+-- Supabase call. A non-admin update silently keeps the old value instead
+-- of erroring, so every other legitimate self-update (favourites,
+-- subjects, assessment results, joining a class) is unaffected.
+create or replace function public.protect_license_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    new."licenseStatus" := old."licenseStatus";
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_license_status_trigger on public.learners;
+create trigger protect_license_status_trigger
+  before update on public.learners
+  for each row execute function public.protect_license_status();
+
 -- ============================================================
 -- Auto-create a profile row the moment someone signs up, always as
 -- role = 'learner'. This runs as the Postgres superuser (SECURITY
