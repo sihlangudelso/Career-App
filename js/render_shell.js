@@ -34,8 +34,45 @@ function currentNav(){
 function navigate(route, param){
   ROUTE = route; ROUTE_PARAM = param || null;
   window.scrollTo(0,0);
+  pushRouteHistory();
   render();
 }
+
+// Browser back/forward support. Every navigate() call pushes a history
+// entry carrying {route, param}, so pressing the browser's own Back
+// button steps back through the app's own screens -- same mental model
+// as any normal multi-page site -- instead of leaving the whole SPA
+// (which is what happened before: this app never touched `history` at
+// all, so there was nothing on the stack for Back to do anything with).
+// State lives on the URL *hash* only, never the path: this is hosted on
+// GitHub Pages with no server-side routing fallback, so a path change
+// would 404 on refresh, while a hash change never triggers a server
+// request at all.
+function routeHash(route, param){
+  let h = '#r=' + encodeURIComponent(route);
+  if(param!=null) h += '&p=' + encodeURIComponent(JSON.stringify(param));
+  return h;
+}
+function pushRouteHistory(){
+  try { history.pushState({ route:ROUTE, param:ROUTE_PARAM }, '', routeHash(ROUTE, ROUTE_PARAM)); } catch(e){}
+}
+function replaceRouteHistory(){
+  try { history.replaceState({ route:ROUTE, param:ROUTE_PARAM }, '', routeHash(ROUTE, ROUTE_PARAM)); } catch(e){}
+}
+window.addEventListener('popstate', function(e){
+  if(!ME.id) return; // signed out -- no in-app screens to restore yet
+  if(e.state && e.state.route){
+    ROUTE = e.state.route; ROUTE_PARAM = e.state.param!=null ? e.state.param : null;
+  } else {
+    // An entry from before the user ever navigated in-app (or from before
+    // this feature existed) -- land on that account type's home screen
+    // rather than leaving ROUTE pointing at whatever it last happened to be.
+    ROUTE = (IS_ADMIN && !PREVIEW_MODE) ? 'admin-home' : 'home';
+    ROUTE_PARAM = null;
+  }
+  window.scrollTo(0,0);
+  render();
+});
 
 function renderShell(){
   document.getElementById('root').innerHTML = `

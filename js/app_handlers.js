@@ -375,14 +375,9 @@ const App = {
   // ---- admin: preview mode ----
   togglePreview(){
     PREVIEW_MODE = !PREVIEW_MODE;
-    if(PREVIEW_MODE){
-      LEARNER = { id:'preview', exists:false, licenseStatus:'active' };
-      ROUTE = 'home';
-    } else {
-      LEARNER = null;
-      ROUTE = 'admin-home';
-    }
-    render();
+    if(PREVIEW_MODE){ LEARNER = { id:'preview', exists:false, licenseStatus:'active' }; }
+    else { LEARNER = null; }
+    navigate(PREVIEW_MODE ? 'home' : 'admin-home');
   },
 
   // ---- admin: classes ----

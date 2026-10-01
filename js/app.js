@@ -134,6 +134,7 @@ async function handleSession(session){
     if(IS_SUPER_ADMIN) await loadClassAdmins();
   }
   else { ROUTE='home'; await loadLearner(); }
+  replaceRouteHistory();
   render();
 }
 
