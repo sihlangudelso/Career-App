@@ -174,8 +174,18 @@ function render(){
   const l = ensureLearnerObj();
   const needsOnboarding = !l.exploringOnly && (!l.grade || !l.school);
   if(needsOnboarding && ROUTE!=='onboarding'){ ROUTE='onboarding'; }
+  // Applies uniformly to every learner, including "just exploring" --
+  // licenseStatus used to be purely cosmetic (a badge, nothing blocked on
+  // it); this is the actual payment gate. Re-evaluated on every render
+  // (including after a back/forward navigation), so there's no route-hash
+  // trick that escapes it for longer than one render cycle. PREVIEW_MODE's
+  // synthetic learner already hardcodes licenseStatus:'active', so admin
+  // preview is unaffected automatically.
+  const needsActivation = !needsOnboarding && l.licenseStatus!=='active';
+  if(needsActivation && ROUTE!=='activate'){ ROUTE='activate'; }
 
   if(ROUTE==='onboarding') app.innerHTML = viewOnboarding();
+  else if(ROUTE==='activate') app.innerHTML = viewActivateAccount();
   else if(ROUTE==='home') app.innerHTML = viewHome();
   else if(ROUTE==='report') app.innerHTML = viewReport();
   else if(ROUTE==='guidance') app.innerHTML = viewGuidance();

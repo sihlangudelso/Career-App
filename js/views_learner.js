@@ -1112,7 +1112,38 @@ function viewClass(){
     <div class="card">
       <h3>Licence status</h3>
       <span class="badge ${l.licenseStatus==='active'?'badge-strong':'badge-good'}">${l.licenseStatus==='active'?'Active licence':'Trial access'}</span>
-      <p class="page-sub" style="margin-top:12px;">Full Iroli Career Pathway access is provided through your school or institute\u2019s licence. If your access shows as trial, ask your school\u2019s admin to activate your licence.</p>
+      <p class="page-sub" style="margin-top:12px;">Full Iroli Career Pathway access comes from either your school's class code or an individually activated account. If your access shows as trial, join a class above, or see <a href="pricing.html" target="_blank" rel="noopener">pricing</a> to activate individually.</p>
     </div>
   </div>`;
+}
+
+// Forced landing screen for any learner past onboarding whose
+// licenseStatus isn't 'active' yet (see render()'s needsActivation gate)
+// -- offers both activation paths side by side: joining a class (the
+// code itself is the payment proof, see join_class_by_code()) or
+// individual activation via the super admin, matching pricing.html's own
+// "Contact us to activate" pattern exactly.
+function viewActivateAccount(){
+  const firstName = (ME.name||'there').split(' ')[0];
+  return `
+  ${pageHeadHTML('Activate your account')}
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Hi ${esc(firstName)}, you're almost ready</h3>
+    <p class="page-sub" style="margin:0;">Access to the assessment, career matches and your full report needs an active licence first. There are two ways to get activated:</p>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Have a class code?</h3>
+      <p class="page-sub">Your school hands out a class code once they've arranged payment for their learners' seats. Enter it below to join your class and activate your account.</p>
+      <div class="form-row"><input type="text" id="joinCode" placeholder="e.g. 7F3KQ" style="text-transform:uppercase;"/></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="App.joinClass()">Join class</button>
+    </div>
+    <div class="card">
+      <h3>No class code?</h3>
+      <p class="page-sub">Individual access is available too \u2014 see <a href="pricing.html" target="_blank" rel="noopener">pricing</a>, then contact us to activate your account.</p>
+      <a href="mailto:sihlangudelso@gmail.com?subject=Iroli%20Career%20Pathway%20-%20Activate%20my%20account&body=My%20account%20email%3A%20${encodeURIComponent(ME.email||'')}" class="btn btn-ghost" style="width:100%;text-align:center;">Contact us to activate</a>
+    </div>
+  </div>
+  <p class="page-sub" style="text-align:center;margin-top:18px;">Already arranged payment? It can take a short while to activate \u2014 check back soon.</p>
+  `;
 }

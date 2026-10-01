@@ -375,14 +375,30 @@ const App = {
     // signed-in user the full table, by design, so CLASSES.find() alone
     // never actually verified anything).
     const { data, error } = await sb.rpc('join_class_by_code', { p_code: code });
-    if(error){ toast('No class found with that code.'); console.error(error); return; }
+    if(error){
+      // join_class_by_code() raises two distinct messages server-side --
+      // tell them apart so "this class is full" doesn't look identical
+      // to "that code doesn't exist".
+      const msg = (error.message||'').toLowerCase();
+      toast(msg.includes('seat limit') ? 'This class has reached its seat limit — ask your school admin for help.' : 'No class found with that code.');
+      console.error(error);
+      return;
+    }
     const row = Array.isArray(data) ? data[0] : data;
     if(!row){ toast('No class found with that code.'); return; }
+    // Mirrors what join_class_by_code() just did server-side, so the UI
+    // reflects activation immediately instead of waiting for a reload.
     LEARNER.classId = row.class_id;
-    toast('Joined '+row.class_name+'.');
+    LEARNER.licenseStatus = 'active';
+    LEARNER.licenseSource = 'class';
+    toast('Joined '+row.class_name+' — your account is now active!');
     render();
   },
   async leaveClass(){
+    // Mirrors what the server-side trigger will enforce regardless (a
+    // class-granted licence always reverts when classId changes) -- this
+    // is immediate-UI-feedback polish, not the real enforcement point.
+    if(LEARNER && LEARNER.licenseSource==='class'){ LEARNER.licenseStatus='trial'; LEARNER.licenseSource=null; }
     await saveLearner({ classId: null });
     render();
   },
@@ -408,7 +424,12 @@ const App = {
   // ---- admin: classes ----
   async createClass(){
     const name = (document.getElementById('newClassName')||{}).value || '';
-    const seats = Number((document.getElementById('newClassSeats')||{}).value) || 0;
+    // ||null, not ||0: a blank/0 seat count means "unlimited" everywhere
+    // else (the admin UI already displays a falsy seatLimit as '∞'), and
+    // join_class_by_code()'s seat-limit check now matches that same
+    // convention -- inserting a literal 0 here would silently create a
+    // class no one could ever join.
+    const seats = Number((document.getElementById('newClassSeats')||{}).value) || null;
     if(!name.trim()){ toast('Give the class a name.'); return; }
     let code = genCode();
     while(CLASSES.some(c=>c.code===code)) code = genCode();
@@ -460,13 +481,19 @@ const App = {
     if(!l) return;
     const prev = l.licenseStatus;
     const next = prev==='active' ? 'trial' : 'active';
-    const { error } = await sb.from('learners').update({ licenseStatus: next, updatedAt: todayISO() }).eq('id', id);
+    // licenseSource:'admin' marks this as persisting regardless of class
+    // changes (unlike a 'class'-sourced activation, which auto-reverts if
+    // the learner later leaves/loses that class -- see
+    // protect_license_status() in supabase/schema.sql).
+    const nextSource = next==='active' ? 'admin' : null;
+    const { error } = await sb.from('learners').update({ licenseStatus: next, licenseSource: nextSource, updatedAt: todayISO() }).eq('id', id);
     // Only reflect the change locally once it's actually confirmed saved --
     // flipping the badge first and leaving it flipped on error (found in
     // the pre-launch audit) showed a success state in the same breath as
     // the failure toast.
     if(error){ toast('Could not update licence — check your connection and try again.'); console.error(error); return; }
     l.licenseStatus = next;
+    l.licenseSource = nextSource;
     render();
   },
   // One combined CSV for the whole Grade 9 Dashboard (overview numbers,
