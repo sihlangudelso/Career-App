@@ -12,6 +12,7 @@ const LEARNER_NAV = [
 ];
 const ADMIN_NAV = [
   { r:'admin-home', label:'Overview', ic:'home' },
+  { r:'admin-dashboard', label:'Grade 9 Dashboard', short:'Dashboard', ic:'target' },
   { r:'admin-classes', label:'Classes & Licences', ic:'users' },
   { r:'admin-cohort', label:'Cohort & Export', ic:'chart' },
   { r:'admin-careers', label:'Career Library', ic:'book' },
@@ -113,6 +114,7 @@ function render(){
   if(effectiveAdmin){
     if(ROUTE.indexOf('admin')!==0) ROUTE='admin-home';
     if(ROUTE==='admin-home') app.innerHTML = viewAdminHome();
+    else if(ROUTE==='admin-dashboard') app.innerHTML = viewAdminDashboard();
     else if(ROUTE==='admin-classes') app.innerHTML = viewAdminClasses();
     else if(ROUTE==='admin-cohort') app.innerHTML = viewAdminCohort();
     else if(ROUTE==='admin-careers') app.innerHTML = viewAdminCareers();

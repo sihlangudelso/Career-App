@@ -738,6 +738,19 @@ function buildAcademicProfile(learner){
   return { entries, strongest, toStrengthen, areasOfStrength, primaryDomain: showDomains?domains[0]:null, secondaryDomain: showDomains?domains[1]:null };
 }
 
+// A learner's current result in whatever single subject is most
+// representative of a faculty (see keySubjectFor) -- the school
+// dashboard's readiness cross-tab buckets learners by this; returns null
+// when the faculty has no derivable key subject (the cross-tab correctly
+// omits those faculties rather than showing a bogus one) or the learner
+// hasn't entered a mark for it yet.
+function academicReadinessFor(learner, facultyId){
+  const subject = keySubjectFor(facultyId);
+  if(!subject) return null;
+  const pct = subjectMarkPct(learner, subject);
+  return { subject, pct };
+}
+
 /* ---------------- subject-career conflict detection + report helpers ---------------- */
 // One shared conflict-detection function, used both by the learner's own
 // report (checked across their own top aligned pathways) and the school

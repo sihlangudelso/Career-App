@@ -86,16 +86,27 @@ function viewAdminClasses(){
 }
 
 function viewAdminCohort(){
-  const filterClass = ROUTE_PARAM || 'all';
+  // Accepts a plain classId/'all' (every existing call site) or {fac}
+  // (the Grade 9 Dashboard's pathway-bar drill-through) -- same
+  // object-ROUTE_PARAM convention viewExplore/viewCareerDetail already use.
+  const facFilter = (ROUTE_PARAM && typeof ROUTE_PARAM==='object') ? ROUTE_PARAM.fac : null;
+  const filterClass = facFilter ? 'all' : (ROUTE_PARAM || 'all');
   const search = (window.__cohortSearch||'').toLowerCase();
   let rows = COHORT.slice();
-  if(filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);
+  if(facFilter){
+    rows = rows.filter(l=>{
+      if(l.grade!==9 || !l.assessmentCompletedAt) return false;
+      const top = computeMatches(l)[0];
+      return top && top.career.faculty===facFilter;
+    });
+  } else if(filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);
   if(search) rows = rows.filter(l=> cohortLearnerName(l.id).toLowerCase().includes(search));
   return `
   ${pageHeadHTML('Cohort data', 'Every learner\u2019s profile, personality, career matches and licence status — export any time.')}
+  ${facFilter ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('info','ic')}<div>Showing learners whose top career match is in <b>${esc(facultyById(facFilter).name)}</b>. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="navigate('admin-cohort','all')">Clear filter</button></div></div>` : ''}
   <div class="filter-bar" style="justify-content:space-between;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="chip-select ${filterClass==='all'?'on':''}" onclick="navigate('admin-cohort','all')">All classes</button>
+      <button class="chip-select ${filterClass==='all'&&!facFilter?'on':''}" onclick="navigate('admin-cohort','all')">All classes</button>
       ${CLASSES.map(c=>`<button class="chip-select ${filterClass===c.id?'on':''}" onclick="navigate('admin-cohort','${c.id}')">${esc(c.name)}</button>`).join('')}
     </div>
     <button class="btn btn-amber" onclick="App.exportCohortCSV('${filterClass}')">${icon('download')} Export CSV</button>
@@ -169,5 +180,212 @@ function viewAdminCareers(){
     return `<div class="section-title"><h2>${f.name} <span class="tag" style="background:${f.color};color:#fff;">${list.length}</span></h2></div>
     ${list.map(c=>careerRowHTML(c,null,{favourites:[]})).join('') || '<p class="page-sub">No careers yet in this faculty — add some in the data model.</p>'}`;
   }).join('')}
+  `;
+}
+
+/* ---------------- Grade 9 school dashboard ---------------- */
+// One aggregation pass over the Grade 9 slice of COHORT, computed fresh
+// on every render (same convention as cohortStats() above and the
+// existing CSV export -- nothing here is persisted; guidance_required/
+// subject_conflict/academic_readiness are always-live computed values,
+// never cached columns). Every dashboard section reads from this SAME
+// object, so the overview tiles, the pathway bars, and the guidance table
+// can never disagree with each other.
+function buildSchoolDashboardData(){
+  const rows = COHORT.filter(l=>l.grade===9);
+  const assessed = rows.filter(l=>l.assessmentCompletedAt);
+
+  const enriched = assessed.map(l=>{
+    const top = computeMatches(l)[0];
+    const faculty = top ? facultyById(top.career.faculty) : null;
+    if(!faculty) return null;
+    return {
+      learner: l, top, faculty,
+      readiness: academicReadinessFor(l, faculty.id),
+      conflict: subjectConflictForFaculty(l, faculty.id),
+    };
+  }).filter(Boolean);
+
+  const pathwayDistribution = pathwayDistributionFrom(enriched, assessed.length);
+  const subjectDemand = subjectDemandFrom(rows);
+  const guidanceRows = guidanceRowsFrom(enriched);
+  const readinessByPathway = readinessCrossTabFrom(enriched);
+
+  const overview = {
+    totalLearners: rows.length,
+    learnersAssessed: assessed.length,
+    completionRate: rows.length ? Math.round(100*assessed.length/rows.length) : 0,
+    guidanceRequired: rows.filter(l=>isGuidanceRequired(l)).length,
+    conflictCount: enriched.filter(e=>e.conflict && e.conflict.hasConflict).length,
+  };
+
+  const insights = generateSchoolInsights({ overview, pathwayDistribution, subjectDemand, readinessByPathway, enriched });
+
+  return { rows, assessed, enriched, overview, pathwayDistribution, subjectDemand, guidanceRows, readinessByPathway, insights };
+}
+
+function pathwayDistributionFrom(enriched, assessedCount){
+  const counts = {};
+  enriched.forEach(e=>{ counts[e.faculty.id] = (counts[e.faculty.id]||0)+1; });
+  const total = assessedCount || 1;
+  return FACULTIES.map(f=>({ id:f.id, name:f.name, color:f.color, count: counts[f.id]||0 }))
+    .filter(p=>p.count>0)
+    .map(p=>({ ...p, pct: Math.round(100*p.count/total) }))
+    .sort((a,b)=>b.count-a.count);
+}
+
+function subjectDemandFrom(rows){
+  const withIntended = rows.filter(l=>l.intendedSubjects && l.intendedSubjects.length);
+  const freq = {};
+  withIntended.forEach(l=>l.intendedSubjects.forEach(s=>{ freq[s]=(freq[s]||0)+1; }));
+  const list = Object.entries(freq).map(([subject,count])=>({
+    subject, count, pct: withIntended.length ? Math.round(100*count/withIntended.length) : 0,
+  }));
+  // Maths track is tracked separately from intendedSubjects (mirroring
+  // mathType's own split from `subjects`), but belongs in the same
+  // "what are learners leaning toward" list the user asked for.
+  const withMathIntent = rows.filter(l=>l.intendedMathType).length;
+  const mathCounts = { Mathematics:0, 'Mathematical Literacy':0 };
+  rows.forEach(l=>{ if(l.intendedMathType==='Mathematics') mathCounts.Mathematics++; else if(l.intendedMathType==='MathLit') mathCounts['Mathematical Literacy']++; });
+  Object.entries(mathCounts).forEach(([subject,count])=>{
+    if(count>0) list.push({ subject, count, pct: withMathIntent ? Math.round(100*count/withMathIntent) : 0 });
+  });
+  list.sort((a,b)=>b.count-a.count);
+  const notYetSpecifiedCount = rows.filter(l=>(!l.intendedSubjects || !l.intendedSubjects.length) && !l.intendedMathType).length;
+  return { list, withIntendedCount: withIntended.length, notYetSpecifiedCount };
+}
+
+function guidanceRowsFrom(enriched){
+  return enriched.map(e=>{
+    const concern = (e.readiness && e.readiness.pct!=null && e.readiness.pct<50)
+      ? `${e.readiness.subject} currently ${markBandLabel(e.readiness.pct)} (${e.readiness.pct}%)` : null;
+    const hasIntended = e.learner.intendedSubjects && e.learner.intendedSubjects.length;
+    const action = (e.conflict && e.conflict.hasConflict) ? 'Discuss subject choice vs. stated career interest'
+      : concern ? 'Consider additional academic support'
+      : !hasIntended ? 'Confirm Grade 10 subject choices'
+      : null;
+    if(!action) return null;
+    return {
+      learnerId: e.learner.id,
+      learnerName: cohortLearnerName(e.learner.id),
+      pathway: e.faculty.name,
+      interest: e.top.career.name,
+      concern: concern || '—',
+      planned: (e.conflict && e.conflict.hasConflict) ? e.conflict.plannedSubject : (hasIntended ? e.learner.intendedSubjects.join(', ') : 'Not yet specified'),
+      conflict: (e.conflict && e.conflict.hasConflict) ? e.conflict.reason : '—',
+      action,
+    };
+  }).filter(Boolean);
+}
+
+function readinessCrossTabFrom(enriched){
+  const byFaculty = {};
+  enriched.forEach(e=>{ (byFaculty[e.faculty.id] = byFaculty[e.faculty.id]||[]).push(e); });
+  return FACULTIES.map(f=>{
+    const subject = keySubjectFor(f.id);
+    const list = byFaculty[f.id] || [];
+    if(!subject || !list.length) return null; // no single representative subject, or no interested learners -- correctly omitted, not shown with a bogus row
+    const withMark = list.map(e=>subjectMarkPct(e.learner, subject)).filter(p=>p!=null);
+    return {
+      pathwayName: f.name, subject, interested: list.length,
+      above70: withMark.filter(p=>p>=70).length,
+      mid: withMark.filter(p=>p>=50 && p<70).length,
+      below50: withMark.filter(p=>p<50).length,
+    };
+  }).filter(Boolean);
+}
+
+// Every sentence here is built from the live `d` object computed above --
+// never a hard-coded statement. A minimum-count guard (>=5) on the
+// pathway-specific readiness insight avoids a dignity-sensitive "1
+// learner has weak marks" sentence in a small cohort.
+function generateSchoolInsights(d){
+  const out = [];
+  if(d.pathwayDistribution.length){
+    const top = d.pathwayDistribution[0];
+    out.push(`${esc(top.name)} is the most common career pathway among assessed Grade 9 learners, matching ${top.count} learner${top.count===1?'':'s'} (${top.pct}%).`);
+  }
+  if(d.overview.conflictCount>0){
+    const byFacultyName = {};
+    d.enriched.forEach(e=>{ if(e.conflict && e.conflict.hasConflict) byFacultyName[e.faculty.name] = (byFacultyName[e.faculty.name]||0)+1; });
+    const worst = Object.entries(byFacultyName).sort((a,b)=>b[1]-a[1])[0];
+    out.push(`${d.overview.conflictCount} learner${d.overview.conflictCount===1?'':'s'} currently show a potential subject-career conflict${worst?` — most concentrated in ${esc(worst[0])} (${worst[1]} learner${worst[1]===1?'':'s'})`:''}.`);
+  }
+  if(d.subjectDemand.list.length){
+    const top = d.subjectDemand.list[0];
+    out.push(`${esc(top.subject)} is the most in-demand Grade 10 subject choice among learners who have specified their subjects, selected by ${top.count} (${top.pct}%).`);
+  }
+  d.readinessByPathway.forEach(r=>{
+    if(r.below50>=5) out.push(`${r.below50} learners interested in ${esc(r.pathwayName)} currently have ${esc(r.subject)} results below 50% and may benefit from targeted support.`);
+  });
+  return out;
+}
+
+function viewAdminDashboard(){
+  const d = buildSchoolDashboardData();
+  return `
+  ${pageHeadHTML('Grade 9 Dashboard', 'An aggregate view of your Grade 9 cohort — patterns and learners who may benefit from extra guidance, never final decisions.')}
+  <div class="grid grid-4" style="margin-bottom:26px;">
+    <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${d.overview.totalLearners}</div><div class="l">Grade 9 learners</div></div></div>
+    <div class="stat-pill"><div class="dot" style="background:var(--grass)"></div><div><div class="n">${d.overview.completionRate}%</div><div class="l">Assessment completion</div></div></div>
+    <div class="stat-pill"><div class="dot" style="background:var(--amber)"></div><div><div class="n">${d.overview.guidanceRequired}</div><div class="l">Learners requiring guidance</div></div></div>
+    <div class="stat-pill"><div class="dot" style="background:var(--coral)"></div><div><div class="n">${d.overview.conflictCount}</div><div class="l">Subject-career conflicts</div></div></div>
+  </div>
+
+  ${d.insights.length ? `
+  <div class="section-title" style="margin-top:0;"><h2>School Insights</h2></div>
+  ${d.insights.map(txt=>`<div class="disclaimer" style="margin-bottom:12px;">${icon('info','ic')}<div>${txt}</div></div>`).join('')}
+  ` : ''}
+
+  <div class="grid grid-2" style="margin-bottom:20px;">
+    <div class="card">
+      <h3>Career Pathway Distribution</h3>
+      <p class="page-sub">Click a pathway to see its learners.</p>
+      ${d.pathwayDistribution.length ? d.pathwayDistribution.map(p=>`
+        <div style="margin-bottom:10px;cursor:pointer;" onclick="navigate('admin-cohort',{fac:'${p.id}'})">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;"><span>${esc(p.name)}</span><span>${p.count} (${p.pct}%)</span></div>
+          <div class="aps-bar"><div style="width:${p.pct}%;background:${p.color};"></div></div>
+        </div>`).join('') : `<p class="page-sub">No assessed Grade 9 learners yet.</p>`}
+    </div>
+    <div class="card">
+      <h3>Grade 10 Subject Demand</h3>
+      <p class="page-sub">${d.subjectDemand.withIntendedCount} of ${d.overview.totalLearners} learners have specified intended subjects${d.subjectDemand.notYetSpecifiedCount?` — ${d.subjectDemand.notYetSpecifiedCount} not yet`:''}.</p>
+      ${d.subjectDemand.list.length ? d.subjectDemand.list.slice(0,10).map(s=>`
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;"><span>${esc(s.subject)}</span><span>${s.count} (${s.pct}%)</span></div>
+          <div class="aps-bar"><div style="width:${s.pct}%"></div></div>
+        </div>`).join('') : `<p class="page-sub">No subject intentions recorded yet.</p>`}
+    </div>
+  </div>
+
+  ${d.readinessByPathway.length ? `
+  <div class="card" style="margin-bottom:20px;">
+    <h3>Academic Readiness by Pathway</h3>
+    <p class="page-sub">How interested learners’ current results in each pathway’s key subject break down. Pathways with no single representative subject are omitted here, not shown with a misleading one.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Pathway</th><th>Key subject</th><th>Interested</th><th>≥70%</th><th>50–69%</th><th>&lt;50%</th></tr></thead>
+      <tbody>
+        ${d.readinessByPathway.map(r=>`<tr><td>${esc(r.pathwayName)}</td><td>${esc(r.subject)}</td><td>${r.interested}</td><td>${r.above70}</td><td>${r.mid}</td><td>${r.below50}</td></tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>` : ''}
+
+  <div class="section-title"><h2>Learners Requiring Guidance</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Learner</th><th>Career Pathway</th><th>Career Interest</th><th>Current Academic Concern</th><th>Planned Subject</th><th>Potential Conflict</th><th>Recommended Action</th></tr></thead>
+    <tbody>
+      ${d.guidanceRows.length ? d.guidanceRows.map(r=>`
+        <tr style="cursor:pointer;" onclick="navigate('admin-learner','${r.learnerId}')">
+          <td><a href="#" onclick="event.preventDefault();navigate('admin-learner','${r.learnerId}');"><b>${esc(r.learnerName)}</b></a></td>
+          <td>${esc(r.pathway)}</td>
+          <td>${esc(r.interest)}</td>
+          <td>${esc(r.concern)}</td>
+          <td>${esc(r.planned)}</td>
+          <td>${esc(r.conflict)}</td>
+          <td>${esc(r.action)}</td>
+        </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">No learners currently flagged for guidance.</td></tr>`}
+    </tbody>
+  </table></div>
+  ${disclaimerHTML('This view surfaces support opportunities based on current results and stated interests — it never makes final career or subject decisions for a learner.')}
   `;
 }
