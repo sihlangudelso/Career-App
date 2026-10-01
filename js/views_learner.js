@@ -9,7 +9,12 @@ function viewOnboarding(isEdit){
   const mathType = l.mathType || '';
   const subjects = l.subjects || [];
   const marks = l.subjectMarks || {};
-  const pathChosen = l.exploringOnly === true || l.exploringOnly === false;
+  // Also true for a pre-exploringOnly-column record that already has
+  // grade+school set -- otherwise such a learner got an unwanted "are you
+  // a school learner?" re-prompt specifically on the 'profile' edit route
+  // (found in the pre-launch audit), since exploringOnly is undefined on
+  // their record, not false.
+  const pathChosen = l.exploringOnly === true || l.exploringOnly === false || !!(l.grade && l.school);
   return `
   <div style="max-width:640px;margin:0 auto;">
     <div style="text-align:center;margin-bottom:26px;">
@@ -156,7 +161,7 @@ function viewHome(){
   </div>
 
   <div class="section-title"><h2>Your top career matches</h2><button class="btn btn-ghost btn-sm" onclick="navigate('matches')">See all</button></div>
-  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l, m.category)).join('') : `<div class="empty-state">${icon('target')}<p>Complete the assessment to see personalised matches.</p></div>`}
+  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l, m.category, {route:'home'})).join('') : `<div class="empty-state">${icon('target')}<p>Complete the assessment to see personalised matches.</p></div>`}
 
   ${cls ? `<div class="section-title"><h2>Your class</h2></div><div class="card"><b>${esc(cls.name)}</b><div class="page-sub">Class code: <span class="class-code">${esc(cls.code)}</span></div></div>` : ''}
   `;
@@ -281,7 +286,7 @@ function learnerProfileBodyHTML(l){
 
   ${topMatches.length ? `
   <div class="section-title" style="margin-top:0;"><h2>Top career matches right now</h2></div>
-  ${topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('')}
+  ${topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category,{route:'learner-profile'})).join('')}
   ` : ''}
 
   <div class="card" style="margin:18px 0;">
@@ -704,7 +709,7 @@ function assessmentResultsHTML(l){
     <p class="page-sub" style="margin-bottom:0;">This comes from your two strongest RIASEC dimensions below — a starting point for exploring careers, not a fixed label.</p>
   </div>
   <div class="section-title" style="margin-top:0;"><h2>Your top career matches</h2></div>
-  ${topMatches.length ? topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('') : `<div class="empty-state">${icon('target')}<p>Complete your profile for personalised matches.</p></div>`}
+  ${topMatches.length ? topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category,{route:'assessment'})).join('') : `<div class="empty-state">${icon('target')}<p>Complete your profile for personalised matches.</p></div>`}
   <div class="card" style="margin:18px 0;">
     <h3>Interest profile</h3>
     ${dims.map(d=>`
@@ -726,11 +731,28 @@ function assessmentResultsHTML(l){
 }
 
 /* ---------------- Career list / matches / explore ---------------- */
-function careerRowHTML(career, score, l, category){
+// Serializes a navigate()-style param (string, object, or nested object)
+// as a literal JS expression for embedding in an onclick="..." attribute
+// -- single-quoted strings, matching this codebase's existing hand-written
+// object-param calls (e.g. navigate('admin-cohort',{fac:'ict'})), so it
+// composes safely inside a double-quoted HTML attribute.
+function paramLiteral(v){
+  if(v==null) return 'null';
+  if(typeof v==='object') return '{'+Object.entries(v).map(([k,val])=>`${k}:${paramLiteral(val)}`).join(',')+'}';
+  return `'${String(v).replace(/'/g,"\\'")}'`;
+}
+// `origin` ({route, param}) is where the View button's Back button should
+// return to -- defaults to Explore Careers when the caller doesn't know/
+// care where it is (found in the pre-launch audit: every call site except
+// the Report tabs omitted this, so Back always landed on Explore no
+// matter where the learner actually came from -- Favourites, Matches,
+// Home, Learner Profile, Assessment Results, a Cluster, the APS tool).
+function careerRowHTML(career, score, l, category, origin){
   const fac = facultyById(career.faculty);
   const isFav = (l.favourites||[]).includes(career.id);
   const meta = category ? MATCH_CATEGORIES[category] : null;
   const label = meta ? {t:meta.label, c:meta.badge} : (score!=null ? matchLabel(score) : null);
+  const target = { id: career.id, from: origin || { route:'explore' } };
   return `
   <div class="career-row">
     <div class="left">
@@ -743,7 +765,7 @@ function careerRowHTML(career, score, l, category){
     <div class="right">
       ${label?`<span class="badge ${label.c}">${score}% · ${label.t}</span>`:''}
       <button class="btn btn-ghost btn-sm" title="${isFav?'Remove from favourites':'Save'}" onclick="App.toggleFav('${career.id}',event)">${icon('heart', isFav?'ic fav-on':'ic')}</button>
-      <button class="btn btn-primary btn-sm" onclick="navigate('career','${career.id}')">View</button>
+      <button class="btn btn-primary btn-sm" onclick="navigate('career',${paramLiteral(target)})">View</button>
     </div>
   </div>`;
 }
@@ -763,7 +785,10 @@ function viewMatches(){
   return `
   ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Grouped by how your interests, strengths, subjects and marks line up.':'Complete the assessment for personalised ranking — showing subject-based fit for now.')}
   <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
-    <p style="font-size:15px;">Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths, subjects and marks. Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
+    <p style="font-size:15px;">${l.assessmentCompletedAt
+      ? `Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths, subjects and marks.`
+      : `Every one of the ${CAREERS.length} seeded careers, ordered by subject fit for now — complete the assessment below for a ranking based on your interests and strengths too.`
+    } Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
   ${!l.assessmentCompletedAt?`<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>Your matches will be far more accurate once you <a href="#" onclick="navigate('assessment');return false;">complete the assessment</a>.</div></div>`:''}
   <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>A match score reflects <b>fit</b> with your interests, strengths, subjects and marks — it is not a guarantee of admission. Meeting a programme’s minimum requirements doesn’t guarantee acceptance, especially for competitive programmes — always confirm on the institution’s own site.</div></div>
@@ -775,9 +800,9 @@ function viewMatches(){
     ? MATCH_GROUP_ORDER.map(([key,title,sub])=>{
         const list = matches.filter(m=>m.category===key);
         if(!list.length) return '';
-        return `<div class="section-title"><h2>${title}</h2></div><p class="page-sub" style="margin-top:-10px;margin-bottom:12px;">${sub}</p>${list.map(m=>careerRowHTML(m.career,m.score,l,m.category)).join('')}`;
+        return `<div class="section-title"><h2>${title}</h2></div><p class="page-sub" style="margin-top:-10px;margin-bottom:12px;">${sub}</p>${list.map(m=>careerRowHTML(m.career,m.score,l,m.category,{route:'matches'})).join('')}`;
       }).join('')
-    : matches.map(m=>careerRowHTML(m.career,m.score,l)).join('')}
+    : matches.map(m=>careerRowHTML(m.career,m.score,l,null,{route:'matches'})).join('')}
   `;
 }
 function viewExplore(){
@@ -849,7 +874,7 @@ function viewClusterDetail(id){
     </div>
   </div>
   <div class="section-title"><h2>Example careers</h2></div>
-  ${careers.map(c=>careerRowHTML(c,null,l)).join('')}
+  ${careers.map(c=>careerRowHTML(c,null,l,null,{route:'cluster',param:id})).join('')}
   `;
 }
 function exploreResultsHTML(fac, l){
@@ -868,13 +893,15 @@ function exploreResultsHTML(fac, l){
 }
 
 function viewCareerDetail(param){
-  // Accepts a plain id (every existing call site: careerRowHTML, related
-  // careers) or {id, from} (the report's own "View Career" links), same
-  // object-param convention viewExplore already uses for its faculty
-  // filter -- so the Back button returns to wherever the visit actually
-  // came from instead of always assuming Explore Careers.
+  // Accepts a plain id (a bare career id, falls back to Explore Careers)
+  // or {id, from:{route, param}} -- every careerRowHTML row and the
+  // Report tabs' own "View Career" links pass the real origin now, so
+  // Back returns to wherever the visit actually came from (found
+  // defaulting to Explore for every non-Report origin in the pre-launch
+  // audit -- Favourites, Matches, Home, Profile, Assessment, a Cluster,
+  // the APS tool).
   const id = (param && typeof param==='object') ? param.id : param;
-  const from = (param && typeof param==='object' && param.from) ? param.from : 'explore';
+  const from = (param && typeof param==='object' && param.from) ? param.from : { route:'explore' };
   const career = CAREERS.find(c=>c.id===id);
   const l = ensureLearnerObj();
   if(!career) return `${pageHeadHTML('Career not found')}<div class="empty-state">${icon('search')}<p>That career couldn\u2019t be found.</p></div>`;
@@ -887,7 +914,7 @@ function viewCareerDetail(param){
   const inCompare = (l.compare||[]).includes(career.id);
   const ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(career.videoQuery);
   return `
-  <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="${from==='report' ? "navigate('report','careers')" : "navigate('explore')"}">${icon('chevron')} Back</button>
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="navigate(${paramLiteral(from.route)}${from.param!=null?`,${paramLiteral(from.param)}`:''})">${icon('chevron')} Back</button>
   <div class="detail-hero" style="background:linear-gradient(135deg, ${fac.color}, #14172A);">
     <span class="badge badge-faculty" style="background:rgba(255,255,255,.18);">${fac.name}</span>
     <h1>${esc(career.name)}</h1>
@@ -978,8 +1005,15 @@ function ensureApsDraft(){
     const subs = ['Life Orientation', l.mathType || 'Mathematics', 'English Home Language', ...(l.subjects||[])];
     const uniq = [...new Set(subs)].slice(0,7);
     const marks = {};
-    (l.apsLast?.marksMap ? Object.keys(l.apsLast.marksMap) : uniq).forEach(s=> marks[s] = l.apsLast?.marksMap?.[s] ?? '');
-    APS_DRAFT = { subjects: l.apsLast?.marksMap ? Object.keys(l.apsLast.marksMap) : uniq, marks, extra:'' };
+    // Plain &&-guards, not ?./?? -- this was the only optional-chaining/
+    // nullish-coalescing usage anywhere in the app (found in the
+    // pre-launch audit); with no build/transpile step, a syntax error
+    // here would fail this whole file to parse on any pre-2020 browser,
+    // breaking every learner route, not just the APS calculator.
+    const priorMarks = l.apsLast && l.apsLast.marksMap;
+    const subjectsList = priorMarks ? Object.keys(priorMarks) : uniq;
+    subjectsList.forEach(s=> marks[s] = (priorMarks && priorMarks[s]!=null) ? priorMarks[s] : '');
+    APS_DRAFT = { subjects: subjectsList, marks, extra:'' };
   }
   return APS_DRAFT;
 }
@@ -1020,7 +1054,7 @@ function viewAPS(){
     <h4 style="margin-top:16px;">Careers your APS estimate may support</h4>
     ${CAREERS.filter(c=>{
       const lo = parseInt(c.apsGuidance.typical); return !isNaN(lo) && result.aps >= lo-4;
-    }).slice(0,6).map(c=>careerRowHTML(c,null,l)).join('') || '<p class="page-sub">Add more subject marks to see suggestions.</p>'}
+    }).slice(0,6).map(c=>careerRowHTML(c,null,l,null,{route:'aps'})).join('') || '<p class="page-sub">Add more subject marks to see suggestions.</p>'}
   </div>` : ''}
   `;
 }
@@ -1031,7 +1065,7 @@ function viewFavourites(){
   const favs = (l.favourites||[]).map(id=>CAREERS.find(c=>c.id===id)).filter(Boolean);
   return `
   ${pageHeadHTML('Favourites', 'Careers you\u2019ve saved for later.')}
-  ${favs.length? favs.map(c=>{const ev=evaluateCareer(l,c); return careerRowHTML(c, ev.score, l, ev.category);}).join('') : `<div class="empty-state">${icon('heart')}<p>No saved careers yet. Explore careers and tap the heart icon to save them here.</p></div>`}
+  ${favs.length? favs.map(c=>{const ev=evaluateCareer(l,c); return careerRowHTML(c, ev.score, l, ev.category, {route:'favourites'});}).join('') : `<div class="empty-state">${icon('heart')}<p>No saved careers yet. Explore careers and tap the heart icon to save them here.</p></div>`}
   ${favs.length? `<button class="btn btn-primary" style="margin-top:10px;" onclick="App.compareFromFavs()">${icon('layers')} Compare all saved</button>`:''}
   `;
 }

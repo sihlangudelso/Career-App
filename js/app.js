@@ -75,11 +75,30 @@ function boot(){
 
 async function handleSession(session){
   AUTH_READY = true;
+  // Found in the pre-launch audit: this function's call graph covers
+  // every data load and the first render() of a session, with no
+  // try/catch anywhere above it (neither onAuthStateChange's callback nor
+  // getSession().then attach one) -- any thrown error here used to become
+  // a silent unhandled rejection, leaving a blank/stuck screen with no
+  // indication anything went wrong.
+  try {
   const user = session && session.user;
   if(!user){
     if(learnerChannel){ sb.removeChannel(learnerChannel); learnerChannel = null; }
     ME = { id:null, name:'', email:'', avatarUrl:'' };
     IS_ADMIN = false; IS_SUPER_ADMIN = false; LEARNER = null;
+    // Found in the pre-launch audit: on a shared/lab computer, none of this
+    // was being cleared on sign-out, so the next person signing into the
+    // same tab could inherit the previous account's state -- an admin's
+    // full cohort (names, marks, riasec) sitting in COHORT/SNAPSHOTS/
+    // CLASS_ADMINS for a signed-out tab, a stuck PREVIEW_MODE silently
+    // no-oping every save for whoever signs in next, or being dropped into
+    // someone else's half-finished assessment/guidance/APS/Grade-9 draft.
+    PREVIEW_MODE = false;
+    CLASSES = []; COHORT = []; SNAPSHOTS = []; CLASS_ADMINS = [];
+    ASSESSMENT_DRAFT = null; GUIDE_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null;
+    EXPLORE_SEARCH = ''; EXPLORE_FILTERS = {};
+    window.__cohortSearch = '';
     // Decide the anonymous mini-assessment's state once, the same way
     // AUTH_RECOVERY_MODE is decided once -- but only if it isn't already
     // set, so a re-fire of this listener (e.g. on tab refocus, same as the
@@ -136,6 +155,11 @@ async function handleSession(session){
   else { ROUTE='home'; await loadLearner(); }
   replaceRouteHistory();
   render();
+  } catch(err){
+    console.error('handleSession failed:', err);
+    toast('Something went wrong loading your account — please refresh the page.');
+    if(!document.getElementById('sidebarEl')) renderAuthGateOnly();
+  }
 }
 
 function renderAuthGateOnly(){
@@ -154,7 +178,13 @@ function renderRecoveryOnly(){
 }
 
 async function ensureProfile(user){
-  const { data } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  // Thrown rather than swallowed: a real query/network error is not the
+  // same fact as "this row doesn't exist yet", and silently treating it
+  // as the latter could demote a real admin to the learner view for the
+  // rest of that session with no explanation (found in the pre-launch
+  // audit) -- handleSession's own try/catch below turns this into a toast.
+  if(error) throw error;
   if(data) return data;
   // The profiles row should already exist via the on_auth_user_created
   // trigger (see supabase/schema.sql). If it's missing, the trigger
@@ -166,7 +196,12 @@ async function ensureProfile(user){
 /* ---------------- data loading ---------------- */
 async function loadLearner(){
   if(!ME.id){ LEARNER = null; return; }
-  const { data } = await sb.from('learners').select('*').eq('id', ME.id).maybeSingle();
+  const { data, error } = await sb.from('learners').select('*').eq('id', ME.id).maybeSingle();
+  // Same reasoning as ensureProfile above: a dropped connection must not
+  // be mistaken for "this is a brand-new account" -- that would force a
+  // returning learner into onboarding and, on save, overwrite their real
+  // original createdAt (found in the pre-launch audit).
+  if(error) throw error;
   LEARNER = data ? { ...data, exists:true } : { id: ME.id, exists:false };
 
   // Carry a completed pre-registration mini-assessment into a genuinely
@@ -627,13 +662,28 @@ function facultyAlignmentFit(learner, facultyId){
   const careers = CAREERS.filter(c=>c.faculty===facultyId);
   if(!careers.length) return { alignment:null, readiness:null };
   const evals = careers.map(c=>evaluateCareer(learner, c));
-  const alignment = avg(evals.map(e=>e.interestFit));
+  // Found in the pre-launch audit: interestFit defaults to a neutral 50
+  // for every career pre-assessment (evaluateCareer's own correct
+  // degradation), so averaging it across a faculty used to always
+  // produce a real-looking number -- never null -- even with zero
+  // genuine interest signal. Every FACULTIES entry has careers, so the
+  // array-length guard above never caught this; the real gate is whether
+  // the learner has actually completed the assessment. Every consumer of
+  // this (reportOverviewHTML/reportPathwaysHTML/reportCareersHTML/
+  // reportAcademicHTML/reportSubjectsHTML) already correctly filters on
+  // `alignment!=null` -- they just never saw a real null to filter on.
+  const alignment = learner.assessmentCompletedAt ? avg(evals.map(e=>e.interestFit)) : null;
+  // Readiness is left as-is: subjectFit/academicFit carry real signal
+  // from a learner's chosen subjects or entered marks independent of
+  // whether they've finished the separate interest assessment.
   const readiness = avg(evals.map(e=>e.academicFit==null ? e.subjectFit : Math.max(e.subjectFit, e.academicFit)));
   return { alignment, readiness };
 }
-// Same 65/50 thresholds evaluateCareer's own category already uses for
-// "strong" -- these are a presentation split of that existing logic, not
-// a new scoring model. Never "badge-low" for either axis: low
+// The 65 "strong" threshold matches evaluateCareer's own category
+// threshold (comment corrected in the pre-launch audit -- evaluateCareer
+// uses 65/40, never 50; the 50 "good" cutoff here is this presentation
+// layer's own, coarser 3-band split, not a re-derivation of that logic).
+// Never "badge-low" for either axis: low
 // alignment/readiness should read as "worth exploring further", not as a
 // dead end (this pathway is never hidden just because one axis is weak).
 function alignmentLabel(score){

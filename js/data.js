@@ -351,6 +351,11 @@ const GRADE9_TO_FET = {
   'History': ['History'],
   'Economic and Management Sciences': ['Accounting', 'Business Studies', 'Economics'],
   'Technology': ['Information Technology', 'Computer Applications Technology', 'Engineering Graphics and Design'],
+  // Missing entry found in the pre-launch audit: without this, a Grade 9
+  // learner's Creative Arts mark never reached academic-fit scoring for
+  // ANY creative career (musician, dancer, graphic/fashion designer,
+  // photographer, animator), regardless of how strong that mark was.
+  'Creative Arts': ['Visual Arts', 'Design', 'Dramatic Arts', 'Dance Studies', 'Music'],
   'Home Language': ['Home Language'],
   'First Additional Language': ['First Additional Language'],
   'Life Orientation': ['Life Orientation'],

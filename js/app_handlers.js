@@ -143,8 +143,19 @@ const App = {
   },
 
   // ---- onboarding ----
-  setGrade(g){ ensureLearnerObj(); LEARNER.grade = g; if(g===9){ LEARNER.mathType=null; LEARNER.subjects=[]; } render(); },
-  setMathType(t){ ensureLearnerObj(); LEARNER.mathType = t; render(); },
+  setGrade(g){
+    const l = ensureLearnerObj();
+    captureOnboardingForm(l.grade);
+    LEARNER.grade = g;
+    if(g===9){ LEARNER.mathType=null; LEARNER.subjects=[]; }
+    render();
+  },
+  setMathType(t){
+    const l = ensureLearnerObj();
+    captureOnboardingForm(l.grade);
+    LEARNER.mathType = t;
+    render();
+  },
   chooseOnboardingPath(isExploring){
     ensureLearnerObj();
     LEARNER.exploringOnly = isExploring;
@@ -174,16 +185,9 @@ const App = {
       return;
     }
     if(!l.grade){ toast('Please select your grade.'); return; }
-    const school = (document.getElementById('ob_school')||{}).value || '';
-    if(!school.trim()){ toast('Please add your school name.'); return; }
-    const subjects = l.grade>9 ? Array.from(document.querySelectorAll('.subject-check:checked')).map(el=>el.value) : [];
-    const subjectMarks = {};
-    if(l.grade>9){
-      document.querySelectorAll('.subject-mark:not(:disabled)').forEach(el=>{
-        if(el.value!=='') subjectMarks[el.dataset.subject] = { pct: Number(el.value), term: todayISO() };
-      });
-    }
-    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects, subjectMarks: l.grade>9?subjectMarks:null, licenseStatus: l.licenseStatus||'trial' });
+    const { school, subjects, subjectMarks } = readOnboardingForm(l.grade);
+    if(!school || !school.trim()){ toast('Please add your school name.'); return; }
+    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects: subjects||[], subjectMarks: l.grade>9?(subjectMarks||{}):null, licenseStatus: l.licenseStatus||'trial' });
     toast('Profile saved.');
     navigate(l.miniAssessment ? 'assessment' : 'home');
   },
@@ -375,8 +379,18 @@ const App = {
   // ---- admin: preview mode ----
   togglePreview(){
     PREVIEW_MODE = !PREVIEW_MODE;
-    if(PREVIEW_MODE){ LEARNER = { id:'preview', exists:false, licenseStatus:'active' }; }
-    else { LEARNER = null; }
+    if(PREVIEW_MODE){
+      // Needs grade+school set, or render()'s needsOnboarding check (it
+      // can't tell this object apart from a real new signup) force-routes
+      // straight to the onboarding wizard instead of the dashboard this
+      // feature exists to preview -- found in the pre-launch audit.
+      LEARNER = {
+        id:'preview', exists:false, grade:9, school:'Preview School',
+        exploringOnly:false, licenseStatus:'active',
+        subjects:[], subjectMarks:{}, intendedSubjects:[],
+        favourites:[], compare:[], viewedMatches:false,
+      };
+    } else { LEARNER = null; }
     navigate(PREVIEW_MODE ? 'home' : 'admin-home');
   },
 
@@ -399,7 +413,7 @@ const App = {
   async deleteClass(id){
     if(!confirm('Delete this class? Learners already assigned will keep their data but lose the class link.')) return;
     const { error } = await sb.from('classes').delete().eq('id', id);
-    if(error) console.error(error);
+    if(error){ toast('Could not delete class — check your connection and try again.'); console.error(error); return; }
     CLASSES = CLASSES.filter(c=>c.id!==id);
     render();
   },
@@ -433,10 +447,15 @@ const App = {
   async toggleLicense(id){
     const l = COHORT.find(c=>c.id===id);
     if(!l) return;
-    const next = l.licenseStatus==='active' ? 'trial' : 'active';
-    l.licenseStatus = next;
+    const prev = l.licenseStatus;
+    const next = prev==='active' ? 'trial' : 'active';
     const { error } = await sb.from('learners').update({ licenseStatus: next, updatedAt: todayISO() }).eq('id', id);
-    if(error){ toast('Could not update licence — check your admin role.'); console.error(error); }
+    // Only reflect the change locally once it's actually confirmed saved --
+    // flipping the badge first and leaving it flipped on error (found in
+    // the pre-launch audit) showed a success state in the same breath as
+    // the failure toast.
+    if(error){ toast('Could not update licence — check your connection and try again.'); console.error(error); return; }
+    l.licenseStatus = next;
     render();
   },
   // One combined CSV for the whole Grade 9 Dashboard (overview numbers,
@@ -469,7 +488,7 @@ const App = {
       d.guidanceRows.map(r=>[r.learnerName, r.pathway, r.interest, r.concern, r.planned, r.conflict, r.action]));
 
     const csv = lines.join('\r\n');
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'iroli-grade9-dashboard-export.csv';
@@ -495,9 +514,9 @@ const App = {
     toast('Snapshot saved.');
     render();
   },
-  exportCohortCSV(filterClass){
-    let rows = COHORT.slice();
-    if(filterClass && filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);
+  exportCohortCSV(filterClass, facFilter){
+    const search = (window.__cohortSearch||'').toLowerCase();
+    const rows = cohortRowsFiltered(facFilter||null, filterClass||'all', search);
     const headers = ['Name','Grade','School','Class','Maths Track','Subjects','Personality (Holland code)','Assessment Completed','Top 3 Career Matches','Favourites Count','APS Estimate','Licence Status','Last Updated'];
     const lines = [headers.join(',')];
     rows.forEach(l=>{
@@ -511,7 +530,7 @@ const App = {
       lines.push(line);
     });
     const csv = lines.join('\r\n');
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'iroli-cohort-export.csv';
@@ -540,8 +559,43 @@ const App = {
   closeMobileMenu(){ const el = document.getElementById('mobileMenuSheet'); if(el) el.remove(); },
 };
 
+// Reads the onboarding form's live DOM values (school name, and for
+// Grade 10+ the checked subjects/marks) given the grade whose form shape
+// is currently on screen -- shared by saveOnboarding's final submit and
+// captureOnboardingForm below, so there's exactly one place that knows
+// how to read this form.
+function readOnboardingForm(gradeOnScreen){
+  const schoolEl = document.getElementById('ob_school');
+  const school = schoolEl ? schoolEl.value : undefined;
+  let subjects, subjectMarks;
+  if(gradeOnScreen>9){
+    subjects = Array.from(document.querySelectorAll('.subject-check:checked')).map(el=>el.value);
+    subjectMarks = {};
+    document.querySelectorAll('.subject-mark:not(:disabled)').forEach(el=>{
+      if(el.value!=='') subjectMarks[el.dataset.subject] = { pct: Number(el.value), term: todayISO() };
+    });
+  }
+  return { school, subjects, subjectMarks };
+}
+// Commits the onboarding form's live DOM values into LEARNER before a
+// Grade/Maths chip click re-renders viewOnboarding() from LEARNER's
+// fields -- otherwise a school name already typed, or subjects/marks
+// already checked in, was silently wiped on every such click (found in
+// the pre-launch audit). Takes the grade whose form is CURRENTLY on
+// screen (i.e. the old grade, read before it's changed).
+function captureOnboardingForm(gradeOnScreen){
+  if(!LEARNER || LEARNER.exploringOnly) return;
+  const { school, subjects, subjectMarks } = readOnboardingForm(gradeOnScreen);
+  if(school!==undefined) LEARNER.school = school;
+  if(gradeOnScreen>9){ LEARNER.subjects = subjects; LEARNER.subjectMarks = subjectMarks; }
+}
+
 function csvEscape(v){
-  const s = v==null ? '' : String(v);
+  let s = v==null ? '' : String(v);
+  // A free-text field (learner name, school) starting with =/+/-/@ opens
+  // as a live formula in Excel/Sheets -- prefix a guard quote so it's
+  // read back as plain text instead (classic CSV/formula injection).
+  if(/^[=+\-@\t\r]/.test(s)) s = "'"+s;
   if(/[",\r\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
   return s;
 }

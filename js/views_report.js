@@ -155,7 +155,7 @@ function reportPathwaysHTML(l){
       <div style="font-size:12.5px;font-weight:700;margin:12px 0 4px;">Why this appears for you</div>
       <ul style="margin:0 0 10px;">${why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>
       ${subject?`<p class="page-sub" style="margin-bottom:10px;">Relevant subject: <b>${esc(subject)}</b></p>`:''}
-      ${careers.length?`<div class="pill-list" style="margin-bottom:${cluster?'10px':'0'};">${careers.map(c=>`<span class="tag" style="cursor:pointer;" onclick="navigate('career',{id:'${c.id}',from:'report'})">${esc(c.name)}</span>`).join('')}</div>`:''}
+      ${careers.length?`<div class="pill-list" style="margin-bottom:${cluster?'10px':'0'};">${careers.map(c=>`<span class="tag" style="cursor:pointer;" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'careers'}})">${esc(c.name)}</span>`).join('')}</div>`:''}
       ${cluster?`<button class="btn btn-ghost btn-sm" onclick="navigate('cluster','${cluster.id}')">${icon('compass')} Explore ${esc(cluster.name)} in more depth</button>`:''}
     </div>`;
   }).join('')}
@@ -196,7 +196,7 @@ function reportCareersHTML(l){
         ${c.requiredSubjects.map(s=>`<span class="pill req">${esc(s)}</span>`).join('')}
         ${c.recommendedSubjects.map(s=>`<span class="pill rec">${esc(s)}</span>`).join('')}
       </div>
-      <button class="btn btn-primary btn-sm" onclick="navigate('career',{id:'${c.id}',from:'report'})">${icon('chevron')} View Career</button>
+      <button class="btn btn-primary btn-sm" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'careers'}})">${icon('chevron')} View Career</button>
     </div>`;
   }).join('')}
   `;

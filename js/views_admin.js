@@ -96,13 +96,11 @@ function viewAdminClasses(){
   `;
 }
 
-function viewAdminCohort(){
-  // Accepts a plain classId/'all' (every existing call site) or {fac}
-  // (the Grade 9 Dashboard's pathway-bar drill-through) -- same
-  // object-ROUTE_PARAM convention viewExplore/viewCareerDetail already use.
-  const facFilter = (ROUTE_PARAM && typeof ROUTE_PARAM==='object') ? ROUTE_PARAM.fac : null;
-  const filterClass = facFilter ? 'all' : (ROUTE_PARAM || 'all');
-  const search = (window.__cohortSearch||'').toLowerCase();
+// Shared by viewAdminCohort() and App.exportCohortCSV() so the export can
+// never drift from whatever's actually narrowed on screen (found in the
+// pre-launch audit: the export used to ignore the search box and the
+// faculty drill-through filter entirely).
+function cohortRowsFiltered(facFilter, filterClass, search){
   let rows = COHORT.slice();
   if(facFilter){
     rows = rows.filter(l=>{
@@ -110,8 +108,24 @@ function viewAdminCohort(){
       const top = computeMatches(l)[0];
       return top && top.career.faculty===facFilter;
     });
-  } else if(filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);
+  }
+  // Composes with the faculty filter above rather than replacing it, so a
+  // drill-through from an already class-filtered Dashboard stays scoped
+  // to that class (found dropping it silently in the pre-launch audit).
+  if(filterClass && filterClass!=='all') rows = rows.filter(l=>l.classId===filterClass);
   if(search) rows = rows.filter(l=> cohortLearnerName(l.id).toLowerCase().includes(search));
+  return rows;
+}
+
+function viewAdminCohort(){
+  // Accepts a plain classId/'all' (every existing call site) or an object
+  // {fac, classId?} (the Grade 9 Dashboard's pathway-bar drill-through,
+  // which carries its own active class filter alongside the faculty) --
+  // same object-ROUTE_PARAM convention viewExplore/viewCareerDetail use.
+  const facFilter = (ROUTE_PARAM && typeof ROUTE_PARAM==='object') ? ROUTE_PARAM.fac : null;
+  const filterClass = (ROUTE_PARAM && typeof ROUTE_PARAM==='object') ? (ROUTE_PARAM.classId || 'all') : (ROUTE_PARAM || 'all');
+  const search = (window.__cohortSearch||'').toLowerCase();
+  let rows = cohortRowsFiltered(facFilter, filterClass, search);
   return `
   ${pageHeadHTML('Cohort data', 'Every learner\u2019s profile, personality, career matches and licence status — export any time.')}
   ${facFilter ? `<div class="disclaimer" style="margin-bottom:14px;">${icon('info','ic')}<div>Showing learners whose top career match is in <b>${esc(facultyById(facFilter).name)}</b>. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="navigate('admin-cohort','all')">Clear filter</button></div></div>` : ''}
@@ -120,7 +134,7 @@ function viewAdminCohort(){
       <button class="chip-select ${filterClass==='all'&&!facFilter?'on':''}" onclick="navigate('admin-cohort','all')">All classes</button>
       ${myClasses().map(c=>`<button class="chip-select ${filterClass===c.id?'on':''}" onclick="navigate('admin-cohort','${c.id}')">${esc(c.name)}</button>`).join('')}
     </div>
-    <button class="btn btn-amber" onclick="App.exportCohortCSV('${filterClass}')">${icon('download')} Export CSV</button>
+    <button class="btn btn-amber" onclick="App.exportCohortCSV('${filterClass}', ${facFilter?`'${facFilter}'`:'null'})">${icon('download')} Export CSV</button>
   </div>
   <div class="form-row" style="max-width:280px;"><input type="text" placeholder="Search learner name… (press Enter)" value="${esc(window.__cohortSearch||'')}" onchange="App.setCohortSearch(this.value)"/></div>
   <div class="table-wrap"><table>
@@ -137,7 +151,7 @@ function viewAdminCohort(){
           <td>${esc(l.school||'—')}</td>
           <td>${cls?esc(cls.name):'—'}</td>
           <td>${l.mathType==='Mathematics'?'Maths':(l.mathType==='MathLit'?'Maths Lit':'—')}</td>
-          <td>${hollandCode(l.riasec)}</td>
+          <td>${esc(hollandCode(l.riasec))}</td>
           <td style="max-width:220px;">${esc(top)}</td>
           <td>${(l.favourites||[]).length}</td>
           <td><span class="badge ${l.licenseStatus==='active'?'badge-strong':'badge-good'}">${l.licenseStatus==='active'?'Active':'Trial'}</span></td>
@@ -161,9 +175,9 @@ function viewAdminLearnerDetail(id){
     <div class="card">
       <h3>Profile</h3>
       <div class="kv"><b>Class</b><span>${cls?esc(cls.name):'Not in a class'}</span></div>
-      <div class="kv"><b>Maths track</b><span>${l.mathType||'—'}</span></div>
-      <div class="kv"><b>Subjects</b><span>${(l.subjects||[]).join(', ')||'—'}</span></div>
-      <div class="kv"><b>Personality (Holland code)</b><span>${hollandCode(l.riasec)}</span></div>
+      <div class="kv"><b>Maths track</b><span>${esc(l.mathType)||'—'}</span></div>
+      <div class="kv"><b>Subjects</b><span>${esc((l.subjects||[]).join(', '))||'—'}</span></div>
+      <div class="kv"><b>Personality (Holland code)</b><span>${esc(hollandCode(l.riasec))}</span></div>
       <div class="kv"><b>Licence</b><span>${l.licenseStatus==='active'?'Active':'Trial'}</span></div>
       ${IS_SUPER_ADMIN? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="App.toggleLicense('${l.id}')">${l.licenseStatus==='active'?'Deactivate licence':'Activate licence'}</button>` : ''}
     </div>
@@ -370,7 +384,7 @@ function viewAdminDashboard(){
       <h3>Career Pathway Distribution</h3>
       <p class="page-sub">Click a pathway to see its learners.</p>
       ${d.pathwayDistribution.length ? d.pathwayDistribution.map(p=>`
-        <div style="margin-bottom:10px;cursor:pointer;" onclick="navigate('admin-cohort',{fac:'${p.id}'})">
+        <div style="margin-bottom:10px;cursor:pointer;" onclick="navigate('admin-cohort',{fac:'${p.id}', classId:'${filterClass}'})">
           <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;"><span>${esc(p.name)}</span><span>${p.count} (${p.pct}%)</span></div>
           <div class="aps-bar"><div style="width:${p.pct}%;background:${p.color};"></div></div>
         </div>`).join('') : `<p class="page-sub">No assessed Grade 9 learners yet.</p>`}
@@ -419,7 +433,7 @@ function viewAdminDashboard(){
   ${SNAPSHOTS.length ? `
   <div class="section-title"><h2>Snapshot History</h2></div>
   <div class="card">
-    ${SNAPSHOTS.map(s=>`<div class="kv"><b>${s.label?esc(s.label):'Untitled snapshot'}</b><span>${esc(new Date(s.created_at).toLocaleDateString('en-ZA',{year:'numeric',month:'long',day:'numeric'}))} — ${s.data.overview.totalLearners} learners, ${s.data.overview.conflictCount} conflicts</span></div>`).join('')}
+    ${SNAPSHOTS.map(s=>{ const so = (s.data && s.data.overview) || {}; return `<div class="kv"><b>${s.label?esc(s.label):'Untitled snapshot'}</b><span>${esc(new Date(s.created_at).toLocaleDateString('en-ZA',{year:'numeric',month:'long',day:'numeric'}))} — ${so.totalLearners||0} learners, ${so.conflictCount||0} conflicts</span></div>`; }).join('')}
   </div>` : ''}
   `;
 }
