@@ -2,6 +2,9 @@ let AUTH_MODE = 'signin'; // 'signin' | 'signup' | 'reset'
 let AUTH_ERROR = '';
 let AUTH_BUSY = false;
 let AUTH_SHOW_RESET = false;
+// Hidden for now, per request -- flip back to true to bring "Continue
+// with Google" back. App.authGoogle() itself is untouched.
+const SHOW_GOOGLE_AUTH = false;
 
 function friendlyAuthError(err){
   const msg = (err && err.message) || '';
@@ -54,10 +57,12 @@ function viewAuthGate(){
         <div style="text-align:center;margin-top:12px;font-size:12.5px;"><a href="#" onclick="App.setAuthMode('signin');return false;">Back to sign in</a></div>
       `}
 
+      ${SHOW_GOOGLE_AUTH ? `
       <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--muted);font-size:12px;">
         <div style="flex:1;height:1px;background:var(--line);"></div>or<div style="flex:1;height:1px;background:var(--line);"></div>
       </div>
       <button class="btn btn-ghost" style="width:100%;" ${AUTH_BUSY?'disabled':''} onclick="App.authGoogle()">Continue with Google</button>
+      ` : ''}
 
       ${AUTH_MODE==='signin' ? `<a href="#" onclick="App.showAnonFlow();return false;" style="display:block;text-align:center;margin-top:16px;font-size:12.5px;">New here? Discover your career direction in 60 seconds</a>` : ''}
       <p style="font-size:11.5px;color:var(--muted);margin-top:18px;text-align:center;">By continuing you agree this tool provides career guidance only — always verify admission requirements with the institution directly. See our <a href="privacy.html" target="_blank" rel="noopener">Privacy Notice</a> and <a href="pricing.html" target="_blank" rel="noopener">Pricing</a>.</p>
