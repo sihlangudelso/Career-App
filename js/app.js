@@ -19,6 +19,7 @@ let EXPLORE_FILTERS = {};
 let CLASSES = [];
 let COHORT = [];
 let SNAPSHOTS = [];
+let CLASS_ADMINS = [];
 let ASSESSMENT_DRAFT = null;
 let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
@@ -128,7 +129,10 @@ async function handleSession(session){
   IS_ADMIN = IS_SUPER_ADMIN || profile.role === 'class_admin';
   renderShell();
   await loadClasses();
-  if(IS_ADMIN){ ROUTE='admin-home'; await loadCohort(); await loadDashboardSnapshots(); }
+  if(IS_ADMIN){
+    ROUTE='admin-home'; await loadCohort(); await loadDashboardSnapshots();
+    if(IS_SUPER_ADMIN) await loadClassAdmins();
+  }
   else { ROUTE='home'; await loadLearner(); }
   render();
 }
@@ -208,6 +212,14 @@ function myClasses(){
 async function loadCohort(){
   const { data, error } = await sb.from('learners').select('*');
   COHORT = error ? [] : (data || []);
+}
+
+// Only loaded for super admins, so Classes & Licences can show who already
+// manages each class without an extra query per card (same reasoning as
+// mirroring displayName/email onto `learners` itself -- see schema.sql).
+async function loadClassAdmins(){
+  const { data, error } = await sb.from('profiles').select('id,email,role').eq('role', 'class_admin');
+  CLASS_ADMINS = error ? [] : (data || []);
 }
 
 async function loadDashboardSnapshots(){

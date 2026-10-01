@@ -18,12 +18,12 @@ function viewAdminHome(){
   const s = cohortStats();
   const maxFac = Math.max(1,...Object.values(s.facCount));
   return `
-  ${pageHeadHTML('Institute overview', 'A snapshot of every learner using this Iroli Career Pathway workspace.')}
+  ${pageHeadHTML(IS_SUPER_ADMIN?'Institute overview':'Class overview', IS_SUPER_ADMIN?'A snapshot of every learner using this Iroli Career Pathway workspace.':'A snapshot of the learners in your class(es).')}
   <div class="grid grid-4" style="margin-bottom:26px;">
     <div class="stat-pill"><div class="dot" style="background:var(--indigo)"></div><div><div class="n">${s.total}</div><div class="l">Total learners</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--grass)"></div><div><div class="n">${s.active}</div><div class="l">Active licences</div></div></div>
     <div class="stat-pill"><div class="dot" style="background:var(--coral)"></div><div><div class="n">${s.trial}</div><div class="l">Trial access</div></div></div>
-    <div class="stat-pill"><div class="dot" style="background:var(--amber)"></div><div><div class="n">${CLASSES.length}</div><div class="l">Classes</div></div></div>
+    <div class="stat-pill"><div class="dot" style="background:var(--amber)"></div><div><div class="n">${myClasses().length}</div><div class="l">${IS_SUPER_ADMIN?'Classes':'Your classes'}</div></div></div>
   </div>
   <div class="grid grid-2">
     <div class="card">
@@ -45,7 +45,7 @@ function viewAdminHome(){
   </div>
   <div class="section-title"><h2>Get started</h2></div>
   <div class="grid grid-3">
-    <button class="tile" style="border-top-color:var(--amber)" onclick="navigate('admin-classes')">${icon('users','tico')}<h3>Create a class</h3><p>Set up classes and licence seats for your learners.</p></button>
+    <button class="tile" style="border-top-color:var(--amber)" onclick="navigate('admin-classes')">${icon('users','tico')}<h3>${IS_SUPER_ADMIN?'Create a class':'Your classes'}</h3><p>${IS_SUPER_ADMIN?'Set up classes and licence seats for your learners.':'View your class codes and learner counts.'}</p></button>
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('admin-cohort')">${icon('chart','tico')}<h3>View cohort data</h3><p>See every learner\u2019s profile, matches and personality — export anytime.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="App.togglePreview()">${icon('spark','tico')}<h3>Preview learner view</h3><p>See exactly what your learners experience.</p></button>
   </div>
@@ -54,8 +54,10 @@ function viewAdminHome(){
 }
 
 function viewAdminClasses(){
+  const mine = myClasses();
   return `
-  ${pageHeadHTML('Classes & licences', 'Create classes, generate join codes, and manage licence seats.')}
+  ${pageHeadHTML('Classes & licences', IS_SUPER_ADMIN?'Create classes, generate join codes, manage licence seats, and assign class admins.':'Your classes, join codes, and licence seats.')}
+  ${IS_SUPER_ADMIN? `
   <div class="card" style="margin-bottom:20px;">
     <h3>Create a new class</h3>
     <div class="grid grid-3">
@@ -63,10 +65,11 @@ function viewAdminClasses(){
       <div class="form-row"><label>Licence seats</label><input type="number" id="newClassSeats" value="35" min="1"/></div>
       <div class="form-row" style="display:flex;align-items:flex-end;"><button class="btn btn-primary" onclick="App.createClass()">${icon('plus')} Create class</button></div>
     </div>
-  </div>
-  ${CLASSES.length? CLASSES.map(c=>{
+  </div>` : ''}
+  ${mine.length? mine.map(c=>{
     const members = COHORT.filter(l=>l.classId===c.id);
     const licensed = members.filter(l=>l.licenseStatus==='active').length;
+    const classAdmin = CLASS_ADMINS.find(a=>a.id===c.classAdminId);
     return `
     <div class="card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
@@ -76,11 +79,19 @@ function viewAdminClasses(){
         </div>
         <div style="display:flex;gap:8px;align-self:flex-start;">
           <button class="btn btn-ghost btn-sm" onclick="navigate('admin-cohort','${c.id}')">View learners</button>
-          <button class="btn btn-ghost btn-sm" onclick="App.deleteClass('${c.id}')">${icon('trash')}</button>
+          ${IS_SUPER_ADMIN? `<button class="btn btn-ghost btn-sm" onclick="App.deleteClass('${c.id}')">${icon('trash')}</button>` : ''}
         </div>
       </div>
+      ${IS_SUPER_ADMIN? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#eee);">
+        <div class="page-sub" style="margin-bottom:6px;">${classAdmin? `Class admin: <b>${esc(classAdmin.email)}</b>` : 'No class admin assigned yet.'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="email" id="assignEmail-${c.id}" placeholder="teacher@school.co.za" style="flex:1;min-width:200px;"/>
+          <button class="btn btn-ghost btn-sm" onclick="App.assignClassAdmin('${c.id}', (document.getElementById('assignEmail-${c.id}')||{}).value)">${classAdmin?'Reassign':'Assign'} class admin</button>
+        </div>
+      </div>` : ''}
     </div>`;
-  }).join('') : `<div class="empty-state">${icon('users')}<p>No classes yet — create your first class above.</p></div>`}
+  }).join('') : `<div class="empty-state">${icon('users')}<p>${IS_SUPER_ADMIN?'No classes yet — create your first class above.':'No classes assigned to you yet — ask your Institute Admin.'}</p></div>`}
   <div style="margin-top:10px;">${disclaimerHTML('Licence seats are tracked here for planning; Iroli Career Pathway does not process payments in-app. Activate a learner\u2019s seat from the Cohort tab once payment/invoicing has been arranged with your Iroli account manager.')}</div>
   `;
 }
@@ -107,7 +118,7 @@ function viewAdminCohort(){
   <div class="filter-bar" style="justify-content:space-between;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="chip-select ${filterClass==='all'&&!facFilter?'on':''}" onclick="navigate('admin-cohort','all')">All classes</button>
-      ${CLASSES.map(c=>`<button class="chip-select ${filterClass===c.id?'on':''}" onclick="navigate('admin-cohort','${c.id}')">${esc(c.name)}</button>`).join('')}
+      ${myClasses().map(c=>`<button class="chip-select ${filterClass===c.id?'on':''}" onclick="navigate('admin-cohort','${c.id}')">${esc(c.name)}</button>`).join('')}
     </div>
     <button class="btn btn-amber" onclick="App.exportCohortCSV('${filterClass}')">${icon('download')} Export CSV</button>
   </div>
@@ -130,7 +141,7 @@ function viewAdminCohort(){
           <td style="max-width:220px;">${esc(top)}</td>
           <td>${(l.favourites||[]).length}</td>
           <td><span class="badge ${l.licenseStatus==='active'?'badge-strong':'badge-good'}">${l.licenseStatus==='active'?'Active':'Trial'}</span></td>
-          <td><button class="btn btn-ghost btn-sm" onclick="App.toggleLicense('${l.id}')">${l.licenseStatus==='active'?'Deactivate':'Activate'}</button></td>
+          <td>${IS_SUPER_ADMIN? `<button class="btn btn-ghost btn-sm" onclick="App.toggleLicense('${l.id}')">${l.licenseStatus==='active'?'Deactivate':'Activate'}</button>` : ''}</td>
         </tr>`;
       }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:30px;">No learners match yet.</td></tr>`}
     </tbody>
@@ -154,7 +165,7 @@ function viewAdminLearnerDetail(id){
       <div class="kv"><b>Subjects</b><span>${(l.subjects||[]).join(', ')||'—'}</span></div>
       <div class="kv"><b>Personality (Holland code)</b><span>${hollandCode(l.riasec)}</span></div>
       <div class="kv"><b>Licence</b><span>${l.licenseStatus==='active'?'Active':'Trial'}</span></div>
-      <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="App.toggleLicense('${l.id}')">${l.licenseStatus==='active'?'Deactivate licence':'Activate licence'}</button>
+      ${IS_SUPER_ADMIN? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="App.toggleLicense('${l.id}')">${l.licenseStatus==='active'?'Deactivate licence':'Activate licence'}</button>` : ''}
     </div>
     <div class="card">
       <h3>Interest profile</h3>

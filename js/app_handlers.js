@@ -408,6 +408,30 @@ const App = {
     CLASSES = CLASSES.filter(c=>c.id!==id);
     render();
   },
+  // Assigns an existing account as the class admin for one class, by email
+  // -- mirrors this app's existing "promote by hand" assumption (README
+  // Phase 2/5): the target must already have signed up. Refuses to
+  // silently demote an existing super admin to class_admin.
+  async assignClassAdmin(classId, email){
+    const trimmed = (email||'').trim().toLowerCase();
+    if(!trimmed){ toast('Enter the class admin’s email.'); return; }
+    const { data: found, error: lookupError } = await sb.from('profiles')
+      .select('id,email,role').eq('email', trimmed).maybeSingle();
+    if(lookupError){ toast('Could not look up that account.'); console.error(lookupError); return; }
+    if(!found){ toast('No account found with that email — ask them to sign up first, then try again.'); return; }
+    if(found.role==='admin'){ toast(found.email+' is already an Institute Admin — not changing their role.'); return; }
+    if(found.role!=='class_admin'){
+      const { error } = await sb.from('profiles').update({ role:'class_admin' }).eq('id', found.id);
+      if(error){ toast('Could not update that account’s role.'); console.error(error); return; }
+      CLASS_ADMINS.push({ id:found.id, email:found.email, role:'class_admin' });
+    }
+    const { error } = await sb.from('classes').update({ classAdminId: found.id }).eq('id', classId);
+    if(error){ toast('Could not assign class admin — check you’re a super admin.'); console.error(error); return; }
+    const cls = CLASSES.find(c=>c.id===classId);
+    if(cls) cls.classAdminId = found.id;
+    toast(found.email+' is now the class admin for this class.');
+    render();
+  },
 
   // ---- admin: cohort ----
   setCohortSearch(v){ window.__cohortSearch = v; render(); },
