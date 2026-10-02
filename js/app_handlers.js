@@ -314,7 +314,13 @@ const App = {
     else { toast('Pick up to 2 focus areas.'); return; }
     render();
   },
-  grade9Step(n){ ensureGrade9Draft().step = n; render(); },
+  grade9Step(n){
+    const d = ensureGrade9Draft();
+    // The marks are the point of this form (the Subject Choice Assessment and
+    // the academic profile both read them), so one is needed to move on.
+    if(n === 2 && !grade9HasMark(d)){ toast('Add at least one subject mark to continue — you can leave the others blank.'); return; }
+    d.step = n; render();
+  },
   grade9SetWorkStyle(key, val, el){
     const d = ensureGrade9Draft();
     d.workStyle[key] = Number(val);
@@ -331,6 +337,9 @@ const App = {
     // clamp(...,0,100): found accepting out-of-range input (150, -20) in
     // the pre-launch audit -- this feeds academic-fit scoring directly.
     Object.keys(d.marks).forEach(k=>{ if(d.marks[k]!=null && d.marks[k]!=='') subjects[k] = { pct: clamp(Number(d.marks[k]),0,100) }; });
+    // Saving no marks at all would leave Subject Choice asking for results
+    // again -- send them back to add one instead.
+    if(!Object.keys(subjects).length){ d.step = 1; render(); toast('Add at least one subject mark so we can use your results.'); return; }
     const workStyle = {};
     WORK_STYLE_QUESTIONS.forEach(q=>{ workStyle[q.key] = clamp((d.workStyle[q.key]-1)/4*100, 0, 100); });
     const done = busyButton('button[onclick="App.grade9Submit()"]', 'Saving…');
@@ -341,7 +350,8 @@ const App = {
     if(!ok){ done(); return; }
     GRADE9_DRAFT = null;
     toast('Grade 9 report results saved.');
-    navigate('learner-profile');
+    // Sent here from the Subject Choice Assessment? Take them back to it.
+    navigate(ROUTE_PARAM === 'subject-choice' ? 'subject-choice' : 'learner-profile');
   },
 
   // ---- assessment ----
@@ -472,6 +482,8 @@ const App = {
 
   // ---- class & licence ----
   async joinClass(){
+    // An admin previewing the learner view must never use a real class seat.
+    if(PREVIEW_MODE){ toast('Joining a class is switched off while you preview.'); return; }
     const code = ((document.getElementById('joinCode')||{}).value||'').trim().toUpperCase();
     if(!code){ toast('Enter a class code.'); return; }
     // Resolved server-side by join_class_by_code(), not by matching
@@ -502,6 +514,13 @@ const App = {
     navigate('home');
   },
   async leaveClass(){
+    if(PREVIEW_MODE){ toast('Leaving a class is switched off while you preview.'); return; }
+    // Leaving the class that granted the licence ends that access, which sends
+    // the learner back to the activation screen -- so ask first.
+    const fromClass = !!(LEARNER && LEARNER.licenseSource==='class');
+    if(!confirm(fromClass
+      ? 'Leave this class? Your access comes from the class, so you will need a class code or an activated account to use Iroli again.'
+      : 'Leave this class?')) return;
     // Mirrors what the server-side trigger will enforce regardless (a
     // class-granted licence always reverts when classId changes) -- this
     // is immediate-UI-feedback polish, not the real enforcement point.

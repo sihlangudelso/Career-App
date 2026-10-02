@@ -56,6 +56,7 @@ function newSubjectChoiceDraft(){
 
 function viewSubjectChoice(){
   const l = ensureLearnerObj();
+  if(!subjectChoiceAvailable(l)) return subjectChoiceNotAvailableHTML(l);
   if(SUBJECT_CHOICE_DRAFT) return subjectChoiceQuestionsHTML(scSanitizeDraft(SUBJECT_CHOICE_DRAFT), l);
   if(scHasSavedAnswers(l)) return subjectChoiceReportHTML(l);
   if(!hasEnteredResults(l)) return subjectChoicePrerequisiteHTML(l);
@@ -63,16 +64,32 @@ function viewSubjectChoice(){
 }
 
 /* ---------------- before the questions ---------------- */
+// Reached only by a link or a typed address: the navigation and the pages
+// that offer this assessment all check subjectChoiceAvailable() first.
+function subjectChoiceNotAvailableHTML(l){
+  const done = !!(l && l.assessmentCompletedAt);
+  return `
+  ${pageHeadHTML('Subject Choice Assessment', 'For Grade 9 learners choosing their Grade 10 subjects.')}
+  <div class="card">
+    <h3>This assessment is for Grade 9 learners</h3>
+    <p class="page-sub">It helps a Grade 9 learner choose their Grade 10 subjects. You can still ${done ? 'see your best-suited careers and the subjects they rely on in your report.' : 'take the personality assessment, then see your best-suited careers and the subjects they rely on in your report.'}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${done ? '' : `<button class="btn btn-primary" onclick="navigate('assessment')">Take the personality assessment</button>`}
+      <button class="btn ${done ? 'btn-primary' : 'btn-ghost'}" onclick="navigate('report')">See your report</button>
+    </div>
+  </div>`;
+}
+
+// Only Grade 9 learners reach this (see subjectChoiceAvailable), and their
+// marks go in the Grade 9 report form. The 'subject-choice' parameter brings
+// them straight back here when they save.
 function subjectChoicePrerequisiteHTML(l){
-  const isG9 = l.grade === 9;
-  const route = isG9 ? 'grade9-report' : 'profile';
-  const label = isG9 ? 'Enter my Grade 9 report results' : 'Add my subject marks';
   return `
   ${pageHeadHTML('Subject Choice Assessment', 'A personalised look at which Grade 10 subjects fit you.')}
   <div class="card">
     <h3>Add your results first</h3>
-    <p class="page-sub">We look at three things together — what you enjoy, how you naturally work, and how you are currently performing. Add your ${isG9 ? 'Grade 9 report' : 'subject'} marks first so we can see how ready you are for each subject, then come back to answer the questions.</p>
-    <button class="btn btn-primary" onclick="navigate('${route}')">${label}</button>
+    <p class="page-sub">We look at three things together — what you enjoy, how you naturally work, and how you are currently performing. Add your Grade 9 report marks first so we can see how ready you are for each subject, then come back to answer the questions.</p>
+    <button class="btn btn-primary" onclick="navigate('grade9-report','subject-choice')">Enter my Grade 9 report results</button>
   </div>`;
 }
 

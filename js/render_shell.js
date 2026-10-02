@@ -28,9 +28,21 @@ function roleLabel(){
   return 'Learner';
 }
 
+// A learner still held on the onboarding or activation screen has nowhere
+// else to go yet -- every other tap would just bounce back to it -- so the
+// navigation shows only the screen they are on.
+const GATED_NAV = {
+  onboarding: [{ r:'onboarding', label:'Set up your profile', short:'Profile', ic:'person' }],
+  activate: [{ r:'activate', label:'Activate your account', short:'Activate', ic:'shield' }],
+};
+
 function currentNav(){
   if(IS_ADMIN && !PREVIEW_MODE) return ADMIN_NAV;
-  if(LEARNER && LEARNER.exploringOnly) return LEARNER_NAV.filter(n=>n.r!=='subject-choice');
+  const gate = learnerGate(LEARNER);
+  if(gate) return GATED_NAV[gate];
+  // The Subject Choice Assessment is for Grade 9 learners (and anyone who
+  // already has a saved report) -- nobody else is offered it.
+  if(LEARNER && !subjectChoiceAvailable(LEARNER)) return LEARNER_NAV.filter(n=>n.r!=='subject-choice');
   return LEARNER_NAV;
 }
 
@@ -146,6 +158,13 @@ function disclaimerHTML(text){
   return `<div class="disclaimer">${icon('info','ic')} <div>${text || 'Admission requirements, APS/points systems and subject rules vary by university, TVET college and year, and change over time. Always confirm current requirements on the institution\'s official website or prospectus before making decisions.'}</div></div>`;
 }
 
+// Refresh the nav highlight without a full teardown.
+function refreshNav(){
+  document.getElementById('sidebarEl').innerHTML = sidebarHTML();
+  document.getElementById('topbarEl').innerHTML = topbarHTML();
+  document.getElementById('bottomNavEl').innerHTML = bottomNavHTML();
+}
+
 function render(){
   if(AUTH_RECOVERY_MODE){ renderRecoveryOnly(); return; }
   if(!ME.id){ (MINI_DRAFT ? renderAnonymousOnly() : renderAuthGateOnly()); return; }
@@ -153,10 +172,7 @@ function render(){
   // handler caused it, rather than hooking each one individually --
   // render() is already the universal post-mutation call in this app.
   persistDrafts();
-  // refresh nav highlight without full teardown
-  document.getElementById('sidebarEl').innerHTML = sidebarHTML();
-  document.getElementById('topbarEl').innerHTML = topbarHTML();
-  document.getElementById('bottomNavEl').innerHTML = bottomNavHTML();
+  refreshNav();
   const app = document.getElementById('app');
 
   const effectiveAdmin = IS_ADMIN && !PREVIEW_MODE;
@@ -175,8 +191,8 @@ function render(){
 
   // learner (or preview) flow
   const l = ensureLearnerObj();
-  const needsOnboarding = !l.exploringOnly && (!l.grade || !l.school);
-  if(needsOnboarding && ROUTE!=='onboarding'){ ROUTE='onboarding'; }
+  const gate = learnerGate(l);
+  if(gate==='onboarding' && ROUTE!=='onboarding'){ ROUTE='onboarding'; }
   // Applies uniformly to every learner, including "just exploring" --
   // licenseStatus used to be purely cosmetic (a badge, nothing blocked on
   // it); this is the actual payment gate. Re-evaluated on every render
@@ -184,8 +200,10 @@ function render(){
   // trick that escapes it for longer than one render cycle. PREVIEW_MODE's
   // synthetic learner already hardcodes licenseStatus:'active', so admin
   // preview is unaffected automatically.
-  const needsActivation = !needsOnboarding && l.licenseStatus!=='active';
-  if(needsActivation && ROUTE!=='activate'){ ROUTE='activate'; }
+  if(gate==='activate' && ROUTE!=='activate'){ ROUTE='activate'; }
+  // The nav above was built before the gate moved ROUTE, so redraw it to
+  // highlight the screen they are really on.
+  if(gate) refreshNav();
 
   if(ROUTE==='onboarding') app.innerHTML = viewOnboarding();
   else if(ROUTE==='activate') app.innerHTML = viewActivateAccount();

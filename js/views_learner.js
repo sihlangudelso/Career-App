@@ -44,7 +44,7 @@ function viewOnboarding(isEdit){
     ` : l.exploringOnly ? `
     <div class="card">
       <h3>You’re all set</h3>
-      <p class="page-sub" style="margin-bottom:14px;">No school details needed — jump straight into the personality assessment or start exploring careers. You can add a school later from your dashboard if that changes.</p>
+      <p class="page-sub" style="margin-bottom:14px;">No school details needed — jump straight into the personality assessment or start exploring careers. You can add a school later from My Profile if that changes.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(false)">Actually, I’m a school learner</button>
         <button class="btn btn-primary" onclick="App.saveOnboarding()">${icon('check')} Continue</button>
@@ -131,10 +131,7 @@ function viewHome(){
       <div style="flex:1;">
         <h3 style="margin-bottom:10px;">Pathway progress</h3>
         <div class="grid grid-2" style="gap:8px;">
-          ${labelStep('Profile complete', steps[0].done)}
-          ${labelStep('Subjects locked in', steps[1].done)}
-          ${labelStep('Personality assessment done', steps[2].done)}
-          ${labelStep('Explored matches', steps[3].done)}
+          ${steps.map(s=>labelStep(s.label, s.done)).join('')}
         </div>
       </div>
     </div>
@@ -151,7 +148,8 @@ function viewHome(){
   <div class="section-title"><h2>Quick actions</h2></div>
   <div class="grid grid-3">
     ${!l.exploringOnly && l.grade===9 ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('grade9-report')">${icon('chart','tico')}<h3>${l.grade9Report?'Update your Grade 9 report':'Enter your Grade 9 report results'}</h3><p>Add your latest marks and a few work-style questions to sharpen your profile.</p></button>` : ''}
-    ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('subject-choice')">${icon('book','tico')}<h3>${l.subjectChoice&&l.subjectChoice.completedAt?'Your subject choice report':'Subject Choice Assessment'}</h3><p>A personalised look at which Grade 10 subjects fit what you enjoy, how you work and how you are doing.</p></button>` : ''}
+    ${!l.exploringOnly && Number(l.grade) > 9 ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('profile')">${icon('chart','tico')}<h3>Update your subjects & marks</h3><p>Keep your subjects and latest marks up to date so your matches and report stay accurate.</p></button>` : ''}
+    ${subjectChoiceAvailable(l) ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('subject-choice')">${icon('book','tico')}<h3>${l.subjectChoice&&l.subjectChoice.completedAt?'Your subject choice report':'Subject Choice Assessment'}</h3><p>A personalised look at which Grade 10 subjects fit what you enjoy, how you work and how you are doing.</p></button>` : ''}
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake personality assessment':'Take your personality assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="navigate('matches')">${icon('target','tico')}<h3>Career Matches</h3><p>See careers ranked by fit with your profile.</p></button>
     <button class="tile" style="border-top-color:var(--sky)" onclick="navigate('explore')">${icon('search','tico')}<h3>Explore Careers</h3><p>Browse all seeded careers across every faculty.</p></button>
@@ -160,7 +158,7 @@ function viewHome(){
   </div>
 
   <div class="section-title"><h2>Your top career matches</h2><button class="btn btn-ghost btn-sm" onclick="navigate('matches')">See all</button></div>
-  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l, m.category, {route:'home'})).join('') : `<div class="empty-state">${icon('target')}<p>Complete the assessment to see personalised matches.</p></div>`}
+  ${matches.length ? matches.map(m=>careerRowHTML(m.career, m.score, l, m.category, {route:'home'})).join('') : `<div class="empty-state">${icon('target')}<p>Take the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to see your best-suited careers.</p></div>`}
 
   ${cls ? `<div class="section-title"><h2>Your class</h2></div><div class="card"><b>${esc(cls.name)}</b><div class="page-sub">Class code: <span class="class-code">${esc(cls.code)}</span></div></div>` : ''}
   `;
@@ -215,7 +213,8 @@ function viewLearnerProfile(){
 function learnerProfileBodyHTML(l){
   const p = buildAcademicProfile(l);
   if(!p || !p.primaryDomain){
-    return `<div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to build your profile.</p></div>`;
+    const entry = resultsEntryLinkHTML(l);
+    return `<div class="empty-state">${icon('target')}<p>Not enough information yet — ${entry ? 'enter your ' + entry + ' or complete' : 'complete'} the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to build your profile.</p></div>`;
   }
   const riasec = l.riasec || {};
   const topInterests = RIASEC.filter(d=>(riasec[d.id]||0)>=65);
@@ -274,17 +273,18 @@ function learnerProfileBodyHTML(l){
 
   ${(function(){
     const src = reportSubjectSource(l);
+    const heading = isGrade9Learner(l) ? 'Grade 10 subjects that may suit you' : 'Subjects that may suit you';
     if(src.kind === 'assessment'){
       return `<div class="card" style="margin:18px 0;">
-        <h3>Grade 10 subjects that may suit you</h3>
+        <h3>${heading}</h3>
         <p class="page-sub">From your Subject Choice Assessment.</p>
         <div class="pill-list" style="margin-bottom:12px;">${src.report.top.slice(0, 3).map(r=>`<span class="pill rec">${esc(r.label)}</span>`).join('')}</div>
         <button class="btn btn-primary" onclick="navigate('subject-choice')">${icon('compass')} See your full subject report</button>
       </div>`;
     }
-    if(l.exploringOnly) return '';
+    if(!subjectChoiceAvailable(l)) return '';
     return `<div class="card" style="margin:18px 0;">
-      <h3>Grade 10 subjects that may suit you</h3>
+      <h3>${heading}</h3>
       <p class="page-sub">The Subject Choice Assessment looks at what you enjoy, how you naturally work and how you are performing.</p>
       <button class="btn btn-primary" onclick="navigate('subject-choice')">${icon('compass')} Open the Subject Choice Assessment</button>
     </div>`;
@@ -314,6 +314,10 @@ function ensureGrade9Draft(){
     };
   }
   return GRADE9_DRAFT;
+}
+// Has at least one mark been typed in? (A blank box doesn't count.)
+function grade9HasMark(d){
+  return Object.keys(d.marks).some(k=>d.marks[k]!=null && d.marks[k]!=='');
 }
 function grade9MarkInputHTML(d, subjectLabel){
   const v = d.marks[subjectLabel];
@@ -937,6 +941,14 @@ function viewMyProfile(){
       <p class="page-sub" style="margin-top:10px;margin-bottom:0;">We'll send a confirmation link to your new address — this doesn't take effect until you click it (and depending on your account's security settings, you may need to confirm from your current email too).</p>
     </div>
   </div>
+  <div class="card" style="max-width:480px;margin-bottom:18px;">
+    <h3>School profile</h3>
+    ${l.exploringOnly
+      ? `<p class="page-sub">You’re using Iroli to explore, without a school profile.</p>
+         <button class="btn btn-ghost" onclick="navigate('profile')">Set up a school-learner profile</button>`
+      : `<p class="page-sub">${esc('Grade ' + (l.grade || '—'))} · ${esc(l.school || 'No school set')}</p>
+         <button class="btn btn-ghost" onclick="navigate('profile')">Update profile</button>`}
+  </div>
   <div class="card" style="max-width:480px;">
     <h3>Change password</h3>
     <div class="form-row"><label>Current password</label><input type="password" id="curPass" placeholder="Your current password"/></div>
@@ -959,12 +971,14 @@ function viewClass(){
       ${cls ? `
         <p><b>${esc(cls.name)}</b></p>
         <div class="page-sub" style="margin-bottom:14px;">Class code: <span class="class-code">${esc(cls.code)}</span></div>
-        <button class="btn btn-ghost btn-sm" onclick="App.leaveClass()">Leave class</button>
+        ${PREVIEW_MODE ? '' : `<button class="btn btn-ghost btn-sm" onclick="App.leaveClass()">Leave class</button>`}
+      ` : (PREVIEW_MODE ? `
+        <p class="page-sub">Joining a class is switched off while you preview, so no real class seat is used.</p>
       ` : `
         <p class="page-sub">Ask your teacher or Iroli admin for your class code.</p>
         <div class="form-row"><input type="text" id="joinCode" placeholder="e.g. 7F3KQ" style="text-transform:uppercase;"/></div>
         <button class="btn btn-primary" onclick="App.joinClass()">Join class</button>
-      `}
+      `)}
     </div>
     <div class="card">
       <h3>Licence status</h3>

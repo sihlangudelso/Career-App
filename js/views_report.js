@@ -35,7 +35,7 @@ function viewReport(){
     tab==='next-steps' ? reportNextStepsHTML(l) :
     reportOverviewHTML(l);
   return `
-  ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and Grade 10 subjects — not a prediction of your future.')}
+  ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and ' + nextSubjectsPhrase(l) + ' — not a prediction of your future.')}
   <div class="filter-bar" style="margin-bottom:10px;">
     ${REPORT_TABS.map(t=>`<button class="chip-select ${tab===t.id?'on':''}" onclick="navigate('report','${t.id}')">${esc(t.label)}</button>`).join('')}
   </div>
@@ -60,7 +60,7 @@ function reportHeaderHTML(l){
       <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">School</div><div style="font-weight:700;">${esc(l.school||'—')}</div></div>
     </div>
     ${dateStr?`<div class="page-sub" style="margin-top:10px;">Personality assessment completed ${esc(dateStr)}</div>`:''}
-    <p style="margin:12px 0 0;">Your results combine your interests, working style and academic performance to help you explore career pathways and make more informed Grade 10 subject choices.</p>
+    <p style="margin:12px 0 0;">Your results combine your interests, working style and academic performance to help you explore career pathways and make more informed ${isGrade9Learner(l) ? 'Grade 10 ' : ''}subject choices.</p>
   </div>`;
 }
 
@@ -122,7 +122,13 @@ function recommendedSubjectRowsHTML(rep){
 }
 
 function overviewSubjectsHTML(l, src){
-  const title = (badge)=>`<div class="section-title" style="margin-top:0;"><h2>Grade 10 subject recommendations</h2>${badge}</div>`;
+  const g9 = isGrade9Learner(l);
+  // A Grade 9 learner's Grade 10 recommendations. For anyone else, before they
+  // have a saved Subject Choice report, this block is the subjects their best
+  // careers rely on -- named as that, not as a personal recommendation.
+  const generic = (src.kind === 'provisional' || src.kind === 'none') && !g9;
+  const heading = generic ? 'Subjects your top careers rely on' : (g9 ? 'Grade 10 subject recommendations' : 'Subject recommendations');
+  const title = (badge)=>`<div class="section-title" style="margin-top:0;"><h2>${heading}</h2>${badge}</div>`;
   if(src.kind === 'assessment'){
     const rep = src.report;
     return `${title('<span class="badge badge-good">From your Subject Choice Assessment</span>')}
@@ -134,24 +140,32 @@ function overviewSubjectsHTML(l, src){
   }
   if(src.kind === 'needsPersonality'){
     return `${title('')}
-    <div class="card"><p>Your Subject Choice answers are saved. Take the personality assessment to see your Grade 10 subject recommendations — it only takes a few minutes.</p>
+    <div class="card"><p>Your Subject Choice answers are saved. Take the personality assessment to see your ${g9 ? 'Grade 10 subject' : 'subject'} recommendations — it only takes a few minutes.</p>
       <button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button></div>`;
   }
   if(src.kind === 'provisional'){
-    return `${title('<span class="badge badge-explore">Based on your career pathways so far</span>')}
+    const canTake = subjectChoiceAvailable(l);
+    const extra = canTake
+      ? ' The Subject Choice Assessment gives a personalised recommendation based on what you enjoy, how you work and how you are performing.'
+      : (l.exploringOnly ? ' The Subject Choice Assessment is for Grade 9 learners choosing Grade 10 subjects.' : '');
+    const action = canTake
+      ? `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Take the Subject Choice Assessment</button>`
+      : (l.exploringOnly ? `<button class="btn btn-ghost btn-sm" onclick="navigate('profile')">Set up a school-learner profile</button>` : '');
+    return `${title('<span class="badge badge-explore">' + (g9 ? 'Based on your career pathways so far' : 'From your career pathways') + '</span>')}
     <div class="card">
       ${src.list.slice(0, 5).map(s=>`<div class="ov-item"><div><b>${esc(s.subject)}</b><div class="ov-sub page-sub">${esc(SUBJECT_TIER_META[s.tier].label)}</div></div></div>`).join('')}
-      <p class="page-sub" style="margin:10px 0;">${l.exploringOnly ? 'These are the subjects your strongest career pathways lean on. The Subject Choice Assessment is for school learners choosing Grade 10 subjects.' : 'These are the subjects your strongest career pathways lean on. The Subject Choice Assessment gives a personalised recommendation based on what you enjoy, how you work and how you are performing.'}</p>
-      ${l.exploringOnly
-        ? `<button class="btn btn-ghost btn-sm" onclick="navigate('profile')">Set up a school-learner profile</button>`
-        : `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Take the Subject Choice Assessment</button>`}
+      <p class="page-sub" style="margin:10px 0;">These are the subjects your strongest career pathways lean on.${extra}</p>
+      ${action}
     </div>`;
   }
+  // nothing to base a list on yet
   return `${title('')}
-  <div class="card"><p class="page-sub" style="margin:0 0 10px;">${l.exploringOnly ? 'Grade 10 subject recommendations are for school learners — set up a school-learner profile to get yours.' : 'Your Grade 10 subject recommendations will appear here once you have added your results and taken the Subject Choice Assessment.'}</p>
-    ${l.exploringOnly
-      ? `<button class="btn btn-ghost btn-sm" onclick="navigate('profile')">Set up a school-learner profile</button>`
-      : `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Start the Subject Choice Assessment</button>`}</div>`;
+  <div class="card"><p class="page-sub" style="margin:0 0 10px;">${g9
+      ? 'Your Grade 10 subject recommendations will appear here once you have added your results and taken the Subject Choice Assessment.'
+      : 'The subjects your best-suited careers rely on will appear here once you have taken the personality assessment.'}</p>
+    ${g9
+      ? `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Start the Subject Choice Assessment</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button>`}</div>`;
 }
 
 function overviewPersonalityHTML(l){
@@ -210,19 +224,24 @@ function reportOverviewHTML(l){
   const identity = reportIdentityHTML(l);
   const topDomains = computeStrengthDomains(l).filter(d=>d.hasEvidence).slice(0,3);
   if(!topDomains.length && !scHasSavedAnswers(l)){
-    return `${identity}<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> or enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> to build your report.</p></div>`;
+    const entry = resultsEntryLinkHTML(l);
+    return `${identity}<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a>${entry ? ' or enter your ' + entry : ''} to build your report.</p></div>`;
   }
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null).slice(0,3);
   const guidanceNeeded = isGuidanceRequired(l);
 
-  let attentionMsg = '';
+  let attentionMsg = '', attentionAction = '';
   if(guidanceNeeded){
     const top = pathways[0];
     const conflict = top && subjectConflictForFaculty(l, top.faculty.id);
-    attentionMsg = (conflict && conflict.hasConflict) ? conflict.reason
-      : (!l.intendedSubjects || !l.intendedSubjects.length)
-        ? 'You haven’t noted which Grade 10 subjects you’re leaning toward yet — add them in the Subjects section so we can check they support your strongest pathways.'
-        : 'Your current results suggest one of your strongest pathways could use some academic support — see the Subjects and Academic Strengths sections for details.';
+    if(conflict && conflict.hasConflict){
+      attentionMsg = conflict.reason;
+    } else if(!l.intendedSubjects || !l.intendedSubjects.length){
+      attentionMsg = 'You haven’t noted which Grade 10 subjects you’re leaning toward yet — add them in the Subjects tab of this report so we can check they support your strongest pathways.';
+      attentionAction = `<br/><button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="navigate('report','subjects')">Add my subjects</button>`;
+    } else {
+      attentionMsg = 'Your current results suggest one of your strongest pathways could use some academic support — see the Subjects and Academic Strengths sections for details.';
+    }
   }
 
   return `
@@ -245,7 +264,7 @@ function reportOverviewHTML(l){
   </div>` : ''}
 
   ${guidanceNeeded ? `
-  <div class="disclaimer warn" style="margin-bottom:18px;">${icon('warn','ic')}<div><b>1 area needs your attention</b><br/>${esc(attentionMsg)}</div></div>` : ''}
+  <div class="disclaimer warn" style="margin-bottom:18px;">${icon('warn','ic')}<div><b>1 area needs your attention</b><br/>${esc(attentionMsg)}${attentionAction}</div></div>` : ''}
 
   <button class="btn btn-primary" onclick="navigate('report','profile')">${icon('chevron')} View Full Report</button>
   `;
@@ -302,18 +321,24 @@ function reportPathwaysHTML(l){
 function reportCareersHTML(l){
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null).slice(0,5);
   const facultyIds = new Set(pathways.map(p=>p.faculty.id));
+  const assessed = !!l.assessmentCompletedAt;
+  // Before the assessment the only evidence is school marks or chosen subjects
+  // (the same subject-based ordering the Career Matches page shows). With
+  // neither, every career ties -- show nothing rather than an arbitrary six.
+  const hasSignal = hasEnteredResults(l) || !!(l.subjects && l.subjects.length);
   const matches = facultyIds.size
     ? bestSuitedCareers(l, CAREERS.length).filter(m=>facultyIds.has(m.career.faculty)).slice(0,10)
-    : computeMatches(l).slice(0,6); // pre-assessment fallback, same subject-based ordering viewMatches already uses
+    : ((assessed || hasSignal) ? computeMatches(l).slice(0,6) : []);
   if(!matches.length){
-    return `<div class="empty-state">${icon('search')}<p>No careers to show yet.</p></div>`;
+    return `<div class="empty-state">${icon('search')}<p>Take the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to see careers worth exploring.</p></div>`;
   }
   return `
   <p class="page-sub" style="margin-bottom:16px;">Several careers worth a look — not a single "best" answer. Open any one for the full picture.</p>
   ${matches.map(m=>{
     const c = m.career;
     const fac = facultyById(c.faculty);
-    const al = alignmentLabel(m.eval.interestFit);
+    // interestFit is a neutral 50 until the assessment is done -- not "Good Alignment".
+    const al = alignmentLabel(assessed ? m.eval.interestFit : null);
     return `
     <div class="card" style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
@@ -341,7 +366,8 @@ function reportCareersHTML(l){
 function reportAcademicHTML(l){
   const p = buildAcademicProfile(l);
   if(!p || !p.entries.length){
-    return `<div class="empty-state">${icon('chart')}<p>Enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> to see your academic strengths here.</p></div>`;
+    const entry = resultsEntryLinkHTML(l);
+    return `<div class="empty-state">${icon('chart')}<p>${entry ? 'Enter your ' + entry + ' to see your academic strengths here.' : 'This section uses school marks, which aren’t needed to explore careers.'}</p></div>`;
   }
   const pathways = computePathwayMatches(l).filter(pw=>pw.alignment!=null && pw.alignment>=65).slice(0,3);
   return `
@@ -407,7 +433,7 @@ function reportSubjectsHTML(l){
   <div class="disclaimer warn" style="margin-bottom:16px;">${icon('warn','ic')}<div><b>Subject Choice Needs Attention</b><br/>${esc(x.conflict.reason)}<br/><br/><b>Discuss this with your teacher, parent or career adviser before finalising your subjects.</b></div></div>`).join('')}
 
   <div class="section-title" style="margin-top:${recCard ? 24 : 0}px;"><h2>What your top pathways rely on</h2></div>
-  <p class="page-sub" style="margin-bottom:14px;">These describe the careers in your strongest pathways — they are not a personal ranking. ${src.kind === 'assessment' ? 'Your personal recommendation is above.' : 'For a personal recommendation, <a href="#" onclick="navigate(\'subject-choice\');return false;">take the Subject Choice Assessment</a>.'}</p>
+  <p class="page-sub" style="margin-bottom:14px;">These describe the careers in your strongest pathways — they are not a personal ranking. ${src.kind === 'assessment' ? 'Your personal recommendation is above.' : (subjectChoiceAvailable(l) ? 'For a personal recommendation, <a href="#" onclick="navigate(\'subject-choice\');return false;">take the Subject Choice Assessment</a>.' : '')}</p>
   ${['required','strongly','useful','complementary'].map(tier=>{
     const list = tiers[tier];
     if(!list.length) return '';
@@ -477,7 +503,7 @@ function reportPrintHTML(l){
     { title:'Career Pathways', html: reportPathwaysHTML(l) },
     { title:'Careers Worth Exploring', html: reportCareersHTML(l) },
     { title:'Your Academic Strengths', html: reportAcademicHTML(l) },
-    { title:'Subjects to Consider for Grade 10', html: reportSubjectsHTML(l) },
+    { title: isGrade9Learner(l) ? 'Subjects to Consider for Grade 10' : 'Subjects to Consider', html: reportSubjectsHTML(l) },
     { title:'Your Next Steps', html: reportNextStepsHTML(l) },
   ];
   return `

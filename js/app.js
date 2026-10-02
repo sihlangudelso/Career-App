@@ -719,15 +719,46 @@ function computeMatches(learner){
     return { career:c, score:ev.score, category:ev.category, eval:ev };
   }).sort((a,b)=>b.score-a.score);
 }
+// ---- Who sees what ------------------------------------------------------
+// "Grade 10 subjects" -- and the Subject Choice Assessment itself -- is for a
+// Grade 9 learner choosing for next year. Any other learner gets the same
+// ideas worded without it, and is never offered an assessment they can't use.
+function isGrade9Learner(l){ return !!l && !l.exploringOnly && Number(l.grade) === 9; }
+function nextSubjectsPhrase(l){ return isGrade9Learner(l) ? 'Grade 10 subjects' : 'subjects'; }
+// Grade 9 learners, plus anyone who already has saved answers (they keep
+// their report whatever grade they are in now).
+function subjectChoiceAvailable(l){
+  return !!l && !l.exploringOnly && (isGrade9Learner(l) || scHasSavedAnswers(l));
+}
+// The screen a learner is held on until they can use the app, or null.
+function learnerGate(l){
+  if(!l) return null;
+  if(!l.exploringOnly && (!l.grade || !l.school)) return 'onboarding';
+  if(l.licenseStatus !== 'active') return 'activate';
+  return null;
+}
+// Where a learner adds the marks that sharpen their results: the Grade 9
+// report form for Grade 9, their profile for Grades 10-12, nowhere for an
+// exploring learner (no school marks to add). Returns a ready-made link.
+function resultsEntryLinkHTML(l){
+  if(!l || l.exploringOnly) return '';
+  return isGrade9Learner(l)
+    ? `<a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a>`
+    : `<a href="#" onclick="navigate('profile');return false;">subject marks</a>`;
+}
+
 // A learner's best-suited careers, in the order the Career Matches page
 // presents them: strong matches first, then academic / interest / possible
-// / low, best score first within each group (before the assessment there
-// are no groups, just score order). Every learner-facing "top careers"
-// list goes through this, so no page can name a different top career than
-// the Career Matches page the learner can click through to.
+// / low, best score first within each group. Every learner-facing "top
+// careers" list goes through this, so no page can name a different top
+// career than the Career Matches page the learner can click through to.
+// Before the personality assessment there is no honest "best suited": every
+// career scores a neutral 50, so a "top three" would just be the first three
+// in the library. It returns nothing then, and callers show their "take the
+// assessment" state instead.
 function bestSuitedCareers(learner, n){
+  if(!learner.assessmentCompletedAt) return [];
   const all = computeMatches(learner);
-  if(!learner.assessmentCompletedAt) return all.slice(0, n);
   const order = MATCH_GROUP_ORDER.map(g=>g[0]);
   const rank = c=>{ const i = order.indexOf(c); return i<0 ? order.length : i; };
   return all.map((m,i)=>({ m, i }))
@@ -1032,7 +1063,8 @@ function isGuidanceRequired(learner){
   const conflict = subjectConflictForFaculty(learner, top.faculty.id);
   if(conflict && conflict.hasConflict) return true;
   if(top.alignment>=65 && top.readiness!=null && top.readiness<50) return true;
-  if(!learner.intendedSubjects || !learner.intendedSubjects.length) return true;
+  // Noting the Grade 10 subjects you lean toward is a Grade 9 task.
+  if(isGrade9Learner(learner) && (!learner.intendedSubjects || !learner.intendedSubjects.length)) return true;
   return false;
 }
 // Personalised, always-actionable "what should I do next" list -- built
@@ -1044,12 +1076,12 @@ function buildNextSteps(learner){
   if(pathways.length) steps.push(`Explore your top ${pathways.length===1?'pathway':'pathways'}: ${pathways.map(p=>p.faculty.name).join(', ')}.`);
   const matches = bestSuitedCareers(learner, 3);
   if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} — your best-suited careers on the Overview.`);
-  if(!learner.exploringOnly){
+  if(subjectChoiceAvailable(learner)){
     if(learner.subjectChoice && learner.subjectChoice.completedAt) steps.push('Read your Subject Choice report and talk it through with your Life Orientation teacher or subject counsellor.');
     else steps.push('Take the Subject Choice Assessment for a personalised look at which Grade 10 subjects fit you.');
   }
-  if(learner.intendedSubjects && learner.intendedSubjects.length) steps.push('Review your intended Grade 10 subjects against the pathways above.');
-  else steps.push('Note down which Grade 10 subjects you’re currently leaning toward, in the Subjects section.');
+  if(learner.intendedSubjects && learner.intendedSubjects.length) steps.push('Review your intended ' + nextSubjectsPhrase(learner) + ' against the pathways above.');
+  else steps.push('Note down which ' + nextSubjectsPhrase(learner) + ' you’re currently leaning toward, in the Subjects tab of your report.');
   const conflict = pathways[0] && subjectConflictForFaculty(learner, pathways[0].faculty.id);
   if(conflict && conflict.hasConflict) steps.push('Discuss your subject choice with a teacher, parent or career adviser before finalising it.');
   const profile = buildAcademicProfile(learner);
@@ -1071,13 +1103,19 @@ function computeAPSFromMarks(marks){
 }
 
 /* ---------------- progress ---------------- */
+// The dashboard's progress ring. School learners get the school steps; an
+// exploring learner has no profile or subjects to complete, so those two are
+// left out instead of being ticked from the start (which began the ring at 50%).
 function progressState(l){
-  const steps = [
-    { key:'profile', done: !!(l && (l.exploringOnly || (l.grade && l.school))) },
-    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && l.subjectChoice && l.subjectChoice.completedAt) || (l.grade>9 && l.subjects && l.subjects.length))) },
-    { key:'assessment', done: !!(l && l.assessmentCompletedAt) },
-    { key:'explore', done: !!(l && l.viewedMatches) },
-  ];
+  const steps = [];
+  if(!(l && l.exploringOnly)){
+    steps.push({ key:'profile', label:'Profile complete', done: !!(l && l.grade && l.school) });
+    steps.push(isGrade9Learner(l)
+      ? { key:'subjects', label:'Subject Choice done', done: !!(l.subjectChoice && l.subjectChoice.completedAt) }
+      : { key:'subjects', label:'Subjects added', done: !!(l && l.subjects && l.subjects.length) });
+  }
+  steps.push({ key:'assessment', label:'Personality assessment done', done: !!(l && l.assessmentCompletedAt) });
+  steps.push({ key:'explore', label:'Explored matches', done: !!(l && l.viewedMatches) });
   const pct = Math.round(100*steps.filter(s=>s.done).length/steps.length);
   return { steps, pct };
 }
