@@ -273,11 +273,23 @@ function learnerProfileBodyHTML(l){
   ${topMatches.map(m=>careerRowHTML(m.career,m.score,l,m.category,{route:'learner-profile'})).join('')}
   ` : ''}
 
-  <div class="card" style="margin:18px 0;">
-    <h3>Grade 10 subjects that may suit you</h3>
-    <p class="page-sub">Your Subject Choice Guidance results are built from this same profile.</p>
-    <button class="btn btn-primary" onclick="navigate('guidance')">${icon('compass')} Open Subject Choice Guidance</button>
-  </div>
+  ${(function(){
+    const src = reportSubjectSource(l);
+    if(src.kind === 'assessment'){
+      return `<div class="card" style="margin:18px 0;">
+        <h3>Grade 10 subjects that may suit you</h3>
+        <p class="page-sub">From your Subject Choice Assessment.</p>
+        <div class="pill-list" style="margin-bottom:12px;">${src.report.top.slice(0, 3).map(r=>`<span class="pill rec">${esc(r.label)}</span>`).join('')}</div>
+        <button class="btn btn-primary" onclick="navigate('subject-choice')">${icon('compass')} See your full subject report</button>
+      </div>`;
+    }
+    if(l.exploringOnly) return '';
+    return `<div class="card" style="margin:18px 0;">
+      <h3>Grade 10 subjects that may suit you</h3>
+      <p class="page-sub">The Subject Choice Assessment looks at what you enjoy, how you naturally work and how you are performing.</p>
+      <button class="btn btn-primary" onclick="navigate('subject-choice')">${icon('compass')} Open the Subject Choice Assessment</button>
+    </div>`;
+  })()}
   `;
 }
 
@@ -750,13 +762,14 @@ function viewAssessment(){
 }
 function assessmentResultsHTML(l){
   const dims = RIASEC.map(d=>({...d, val: l.riasec? l.riasec[d.id]:0}));
-  const top2 = hollandCode(l.riasec);
-  const topDims = [...dims].sort((a,b)=>b.val-a.val).slice(0,2);
+  const pti = personalityTypeInfo(l);
+  const top2 = pti ? pti.code : hollandCode(l.riasec);
+  const topDims = pti ? pti.top : [];
   const topMatches = computeMatches(l).slice(0,3);
   return `
   <div class="page-head" style="align-items:center;">
     <div>
-      <div style="font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Your interest type</div>
+      <div style="font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Your personality type</div>
       <h1 style="font-size:44px;margin:0 0 6px;color:var(--indigo);">${esc(top2)}</h1>
       <div class="page-sub">Here’s what that means, and a first look at where it points you.</div>
     </div>
@@ -764,7 +777,7 @@ function assessmentResultsHTML(l){
   </div>
   <div class="card" style="margin-bottom:18px;">
     <h3>What does ${esc(top2)} mean?</h3>
-    <p>${topDims.length===2 ? `People with this type tend to enjoy work that lets them ${esc(topDims[0].blend)}, and also ${esc(topDims[1].blend)}.` : ''}</p>
+    <p>${pti ? esc(pti.summary) : ''}</p>
     ${topDims.map(d=>`<p style="margin-bottom:10px;"><b>${esc(d.name)}</b> — ${esc(d.desc)}</p>`).join('')}
     <p class="page-sub" style="margin-bottom:0;">This comes from your two strongest RIASEC dimensions below — a starting point for exploring careers, not a fixed label.</p>
   </div>

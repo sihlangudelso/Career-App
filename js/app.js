@@ -834,7 +834,8 @@ function personalityTypeInfo(l){
     .filter(k=>k.val>=65).sort((a,b)=>b.val-a.val).slice(0,3);
   return {
     code, top, dims, strengths,
-    summary: 'People with this type tend to enjoy work that lets them '+top[0].blend+', and also '+top[1].blend+'.',
+    // The blend phrases are written in the second person ("...to your work"); this sentence is about "people", so switch to "their".
+    summary: 'People with this type tend to enjoy work that lets them '+top[0].blend.replace(/\byour\b/g,'their')+', and also '+top[1].blend.replace(/\byour\b/g,'their')+'.',
   };
 }
 
@@ -994,6 +995,10 @@ function buildNextSteps(learner){
   if(pathways.length) steps.push(`Explore your top ${pathways.length===1?'pathway':'pathways'}: ${pathways.map(p=>p.faculty.name).join(', ')}.`);
   const matches = computeMatches(learner).slice(0,3);
   if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} in Careers Worth Exploring.`);
+  if(!learner.exploringOnly){
+    if(learner.subjectChoice && learner.subjectChoice.completedAt) steps.push('Read your Subject Choice report and talk it through with your Life Orientation teacher or subject counsellor.');
+    else steps.push('Take the Subject Choice Assessment for a personalised look at which Grade 10 subjects fit you.');
+  }
   if(learner.intendedSubjects && learner.intendedSubjects.length) steps.push('Review your intended Grade 10 subjects against the pathways above.');
   else steps.push('Note down which Grade 10 subjects you’re currently leaning toward, in the Subjects section.');
   const conflict = pathways[0] && subjectConflictForFaculty(learner, pathways[0].faculty.id);

@@ -175,7 +175,7 @@ function subjectChoiceReportHTML(l){
   const pctOf = function(x){ return Math.round(x * 100); };
   const letter = function(i){ return String.fromCharCode(65 + i); };
   const m = rep.mathChoice;
-  const mathLean = m.recommended === 'mathematics' ? 'Leaning towards Mathematics' : (m.recommended === 'mathematicalLiteracy' ? 'Leaning towards Mathematical Literacy' : 'Worth talking through both');
+  const mathLean = scMathLeanLabel(m);
   return `
   ${pageHeadHTML('Your Subject Choice Report', 'Based on what you enjoy, how you naturally work and how you are currently performing.')}
   ${!rep.ready.complete ? `<p class="page-sub" style="margin-bottom:14px;">This report uses the ${rep.answered} of ${rep.total} questions you answered. The question set has grown since you took it — retake to include everything.</p>` : ''}

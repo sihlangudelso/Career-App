@@ -291,6 +291,23 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   .sc-grade .k{margin-bottom:0;}
 }
 
+/* ---------- Report overview ---------- */
+.ov-identity{margin:-8px 0 18px;font-size:13px;}
+.ov-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);}
+.ov-item b{font-size:15px;}
+.ov-sub{margin-top:4px;}
+.ov-pct{font-family:var(--font-head);font-size:22px;font-weight:800;flex-shrink:0;}
+.ov-math{margin:12px 0 10px;font-size:13.5px;}
+.ov-type{display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+.ov-code{font-family:var(--font-head);font-size:52px;font-weight:800;line-height:1;color:var(--indigo);}
+.ov-names{font-weight:700;margin-bottom:4px;}
+.ov-label{font-size:11.5px;font-weight:700;color:var(--muted);margin:14px 0 6px;}
+.ov-career{margin-bottom:12px;}
+.ov-career .career-row{margin-bottom:6px;}
+.ov-support{align-items:center;margin:0 0 0 58px;}
+.ov-k{font-size:11px;font-weight:700;color:var(--muted);}
+@media(max-width:640px){.ov-support{margin-left:0;}.ov-code{font-size:44px;}}
+
 /* ---------- Mobile ---------- */
 @media(max-width:900px){
   .app-shell{flex-direction:column;}

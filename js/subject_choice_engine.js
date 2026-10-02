@@ -425,6 +425,14 @@ function decideMathPathway(results, learner){
   };
 }
 
+// Short label for the Maths vs Mathematical Literacy decision (shared by
+// the subject report and the report overview, so both say the same thing).
+function scMathLeanLabel(m){
+  if(!m) return 'Worth talking through both';
+  return m.recommended === 'mathematics' ? 'Leaning towards Mathematics'
+    : (m.recommended === 'mathematicalLiteracy' ? 'Leaning towards Mathematical Literacy' : 'Worth talking through both');
+}
+
 /* ---------------- combinations ---------------- */
 function scComboWhy(subjectIds, byId){
   const traits = [];
