@@ -266,6 +266,12 @@ const App = {
   },
   async guideSubmit(){
     const d = ensureGuideDraft();
+    const l = ensureLearnerObj();
+    // Defence in depth: the Step 2 button already enforces this via
+    // disabled/relabeling, but guard the save path itself in case this
+    // is ever reached another way (e.g. a stale render).
+    if(!STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0)){ toast('Please rate every domain first.'); return; }
+    if(!l.assessmentCompletedAt){ navigate('assessment'); return; }
     const result = buildGuidanceResult(d);
     await saveLearner({ subjectGuidance: result });
     d.step = 3;

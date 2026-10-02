@@ -403,10 +403,33 @@ function ensureGuideDraft(){
   }
   return GUIDE_DRAFT;
 }
+function hasEnteredResults(l){
+  const fetCount = l.subjectMarks ? Object.keys(l.subjectMarks).length : 0;
+  const g9Count = (l.grade9Report && l.grade9Report.subjects) ? Object.keys(l.grade9Report.subjects).length : 0;
+  return fetCount>0 || g9Count>0;
+}
+function guidancePrerequisiteHTML(l){
+  const isG9 = l.grade===9;
+  const ctaRoute = isG9 ? 'grade9-report' : 'profile';
+  const ctaLabel = isG9 ? 'Enter my Grade 9 report results' : 'Add my subject marks';
+  return `
+  ${pageHeadHTML('Grade 10 Subject Guidance', 'A recommendation grounded in your real results and interests — not just a guess.')}
+  ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You already have a saved recommendation from before. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
+  <div class="card">
+    <h3>Add your results first</h3>
+    <p class="page-sub">Subject guidance works best once we know how you're actually doing, not just which fields excite you. Add your ${isG9?'Grade 9 report':'subject'} marks, then come back here to rate your confidence — and, if you haven't already, take the Career Interest Assessment — before we put together your recommendation.</p>
+    <button class="btn btn-primary" onclick="navigate('${ctaRoute}')">${ctaLabel}</button>
+  </div>`;
+}
 function viewGuidance(){
   const d = ensureGuideDraft();
   const l = ensureLearnerObj();
   if(d.step===3 || (l.subjectGuidance && d.step===1 && d.justViewing)) return guidanceResultsHTML(l.subjectGuidance || buildGuidanceResult(d));
+  if(!hasEnteredResults(l)) return guidancePrerequisiteHTML(l);
+  const allRated = STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0);
+  const assessmentDone = !!l.assessmentCompletedAt;
+  const step2Label = assessmentDone ? 'See my recommendation' : 'Take the Career Interest Assessment';
+  const step2Action = assessmentDone ? 'App.guideSubmit()' : "navigate('assessment')";
   return `
   ${pageHeadHTML('Grade 10 Subject Guidance', 'Mainly built for Grade 9 learners choosing subjects for Grade 10, but useful any time you’re weighing up a subject change — 2 quick steps.')}
   ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
@@ -424,7 +447,7 @@ function viewGuidance(){
       ${STRENGTH_DOMAINS.map(dm=>confSlider(dm.id, dm.name, d.conf[dm.id])).join('')}
       <div style="margin-top:10px;display:flex;gap:10px;">
         <button class="btn btn-ghost" onclick="App.guideStep(1)">Back</button>
-        <button class="btn btn-primary" ${STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0)?'':'disabled'} onclick="App.guideSubmit()">See my recommendation</button>
+        <button class="btn btn-primary" ${allRated?'':'disabled'} onclick="${step2Action}">${step2Label}</button>
       </div>
     `}
   </div>`;
