@@ -640,3 +640,120 @@ function buildSubjectChoiceReport(learner){
     traits: personality.traits,
   };
 }
+
+/* ---------------- careers <-> subjects reconciliation ----------------
+   The personality assessment ranks careers; the Subject Choice Assessment
+   ranks subjects. These helpers connect the two, so a learner is told how
+   they relate instead of being left to wonder why the lists differ. */
+
+// Career subject names -> Subject Choice subject ids, built from
+// SC_SUBJECTS[].fetNames. Entries with several names (the humanities
+// "pathway") are skipped so "Geography"/"History" map to the real
+// subjects. Languages and Life Orientation deliberately have no entry:
+// every learner takes them, so they are never a gap.
+const SC_CAREER_SUBJECT_IDS = {};
+Object.keys(SC_SUBJECTS).forEach(function(id){
+  const names = SC_SUBJECTS[id].fetNames;
+  if(names.length === 1) SC_CAREER_SUBJECT_IDS[names[0]] = id;
+});
+
+// Where a subject sits in the learner's Subject Choice results:
+// recommended (strongest matches) / explore / effort (lower alignment) /
+// possible (in the results but not highlighted). Mathematics follows the
+// Maths vs Mathematical Literacy decision instead of its own card.
+function scSubjectStatus(report, id){
+  if(id === 'mathematics'){
+    const rec = report.mathChoice ? report.mathChoice.recommended : 'either';
+    return rec === 'mathematics' ? 'recommended' : (rec === 'either' ? 'explore' : 'effort');
+  }
+  if(report.top.some(function(r){ return r.id === id; })) return 'recommended';
+  if(report.explore.some(function(r){ return r.id === id; })) return 'explore';
+  const r = report.results.find(function(x){ return x.id === id; });
+  if(r && r.category.key === 'lower') return 'effort';
+  return 'possible';
+}
+
+// How well the learner's recommended subjects cover one career: which of
+// its required / helpful subjects they have, and which required ones
+// aren't among their strongest matches (the "gaps" -- worth building up if
+// the career appeals, never a verdict on the career).
+function careerSubjectSupport(career, report){
+  function collect(names){
+    const out = [], seen = {};
+    (names || []).forEach(function(name){
+      const id = SC_CAREER_SUBJECT_IDS[name];
+      if(!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ subject: SC_SUBJECTS[id].label, id: id, status: scSubjectStatus(report, id) });
+    });
+    return out;
+  }
+  const required = collect(career.requiredSubjects);
+  const helpful = collect(career.recommendedSubjects).filter(function(h){
+    return !required.some(function(r){ return r.id === h.id; });
+  });
+  const gaps = required.filter(function(r){ return r.status !== 'recommended'; });
+  return { required: required, helpful: helpful, gaps: gaps, supported: gaps.length === 0 };
+}
+
+function scGapPhrase(subject, status){
+  if(subject === 'Mathematics' && status === 'effort') return 'is the subject your results currently lean away from (towards Mathematical Literacy)';
+  if(subject === 'Mathematics' && status === 'explore') return 'is still open for you — your subject results suggest talking through Mathematics and Mathematical Literacy';
+  if(status === 'explore') return 'sits under “subjects worth exploring” in your subject results';
+  if(status === 'effort') return 'currently shows lower natural alignment in your subject results';
+  return 'is not one of the subjects highlighted in your subject results';
+}
+function scNameList(names){
+  return names.length > 3 ? names.slice(0, 3).join(', ') + ' and ' + (names.length - 3) + ' more' : scJoin(names);
+}
+
+// A few gentle sentences explaining how the best-suited careers and the
+// recommended subjects relate: where interests and careers lean different
+// ways, which subjects connect them, what the recommended subjects already
+// support, and which subjects a career leans on that sit lower for now.
+// `matches` are computeMatches() items; `report` is a Subject Choice report.
+function reconcileCareersAndSubjects(matches, report){
+  if(!matches || !matches.length || !report) return [];
+  const gapMap = {}, gapOrder = [];
+  const recSubjects = [], exploreSubjects = [];
+  const famTally = {};
+  let famCount = 0, anyRequired = false;
+  matches.forEach(function(m){
+    const sup = careerSubjectSupport(m.career, report);
+    if(sup.required.length) anyRequired = true;
+    sup.gaps.forEach(function(g){
+      if(!gapMap[g.subject]){ gapMap[g.subject] = { status: g.status, careers: [] }; gapOrder.push(g.subject); }
+      gapMap[g.subject].careers.push(m.career.name);
+    });
+    sup.required.concat(sup.helpful).forEach(function(s){
+      const fam = SC_SUBJECTS[s.id].family;
+      famTally[fam] = (famTally[fam] || 0) + 1; famCount++;
+      if(s.status === 'recommended' && recSubjects.indexOf(s.subject) === -1) recSubjects.push(s.subject);
+      if(s.status === 'explore' && exploreSubjects.indexOf(s.subject) === -1) exploreSubjects.push(s.subject);
+    });
+  });
+
+  // 1. Do interests and careers lean different ways? Say so plainly.
+  let divergence = null;
+  const careerFam = Object.keys(famTally).sort(function(a, b){ return famTally[b] - famTally[a]; })[0];
+  const subjectFam = report.profile.families[0] ? report.profile.families[0].id : null;
+  if(careerFam && subjectFam && careerFam !== subjectFam && famCount >= 3){
+    divergence = 'Your subject interests lean towards ' + SC_FAMILIES[subjectFam].label + ', while your best-suited careers draw mostly on ' + SC_FAMILIES[careerFam].label + '. That is a normal mix of interests, not a contradiction.';
+  }
+  // 2. What the recommended subjects already support.
+  let coverage = null;
+  if(!gapOrder.length && anyRequired) coverage = 'Your recommended subjects cover everything these careers require' + (recSubjects.length ? ', including ' + scNameList(recSubjects.slice(0, 3)) : '') + '.';
+  else if(recSubjects.length) coverage = 'Your strongest subject matches already support these careers through ' + scNameList(recSubjects.slice(0, 3)) + '.';
+  // 3. Subjects that connect the two (not already covered by a gap sentence).
+  const bridgeNames = exploreSubjects.filter(function(n){ return !gapMap[n]; });
+  const bridge = bridgeNames.length
+    ? 'Subjects that could connect your interests to these careers: ' + scNameList(bridgeNames.slice(0, 3)) + ' — they appear under “subjects worth exploring”.'
+    : null;
+  // 4. Required subjects a career leans on that sit lower for now.
+  const maxGaps = (divergence && bridge) ? 1 : 2;
+  const gaps = gapOrder.slice(0, maxGaps).map(function(subject){
+    const g = gapMap[subject], many = g.careers.length > 1;
+    return scNameList(g.careers) + (many ? ' rely' : ' relies') + ' on ' + subject + ', which ' + scGapPhrase(subject, g.status) + '. If ' + (many ? 'one of these careers appeals' : 'this career appeals') + ' to you, it is a subject worth building up.';
+  });
+  return [divergence, coverage, bridge].concat(gaps).filter(Boolean);
+}

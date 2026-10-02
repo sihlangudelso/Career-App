@@ -809,7 +809,33 @@ function careerExplanationHTML(learner, career, ev){
 }
 function hollandCode(riasec){
   if(!riasec) return '—';
-  return Object.entries(riasec).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>e[0]).join('');
+  // Ties are common (each dimension is scored in coarse steps), and
+  // Postgres jsonb stores object keys in its own order -- so break ties by
+  // the fixed RIASEC order, never by key order, or the same learner's code
+  // could flip after a reload.
+  return RIASEC.map((d,i)=>({ id:d.id, v: riasec[d.id]!=null ? riasec[d.id] : 0, i }))
+    .sort((a,b)=> (b.v-a.v) || (a.i-b.i))
+    .slice(0,2).map(x=>x.id).join('');
+}
+// The learner's personality type, in one place: the two strongest RIASEC
+// dimensions from the personality assessment (their Holland code), with
+// plain-language names and their top strengths. Used by the report
+// overview, the assessment results page and the subject choice report so
+// they can never describe the same learner differently. Null until the
+// personality assessment is done.
+function personalityTypeInfo(l){
+  if(!l || !l.riasec || !l.assessmentCompletedAt) return null;
+  const code = hollandCode(l.riasec);
+  const dims = RIASEC.map(d=>({ id:d.id, name:d.name, desc:d.desc, blend:d.blend, val: l.riasec[d.id]!=null ? l.riasec[d.id] : 0 }));
+  // Taken from the code itself, so the names always match the letters shown.
+  const top = code.split('').map(id=>dims.find(d=>d.id===id));
+  const strengths = STRENGTH_KEYS
+    .map(k=>({ id:k.id, label:k.label, val: (l.strengths && l.strengths[k.id]) || 0 }))
+    .filter(k=>k.val>=65).sort((a,b)=>b.val-a.val).slice(0,3);
+  return {
+    code, top, dims, strengths,
+    summary: 'People with this type tend to enjoy work that lets them '+top[0].blend+', and also '+top[1].blend+'.',
+  };
 }
 
 // Turns raw entered marks into "strongest subjects / areas of strength /
