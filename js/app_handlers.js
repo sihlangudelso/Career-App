@@ -275,6 +275,10 @@ const App = {
     d.page = clamp(d.page + delta, 0, scPageCount(d) - 1);
     d.dir = delta < 0 ? 'back' : 'fwd';
     render(); window.scrollTo(0,0);
+    // The old Next/Back button is gone after the re-render; without this,
+    // keyboard focus falls back to the top of the whole document.
+    const heading = document.querySelector('#app h1');
+    if(heading){ heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll:true }); }
   },
   async subjectChoiceFinish(){
     const d = SUBJECT_CHOICE_DRAFT; if(!d) return;

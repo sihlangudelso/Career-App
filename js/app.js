@@ -60,7 +60,7 @@ function restoreDrafts(){
     if(d.ASSESSMENT_DRAFT) ASSESSMENT_DRAFT = d.ASSESSMENT_DRAFT;
     if(d.APS_DRAFT) APS_DRAFT = d.APS_DRAFT;
     if(d.GRADE9_DRAFT) GRADE9_DRAFT = d.GRADE9_DRAFT;
-    if(d.SUBJECT_CHOICE_DRAFT) SUBJECT_CHOICE_DRAFT = d.SUBJECT_CHOICE_DRAFT;
+    if(d.SUBJECT_CHOICE_DRAFT && typeof d.SUBJECT_CHOICE_DRAFT === 'object') SUBJECT_CHOICE_DRAFT = d.SUBJECT_CHOICE_DRAFT;
   }catch(e){ /* corrupt/unavailable storage -- just start fresh */ }
 }
 
@@ -308,6 +308,17 @@ function ensureLearnerObj(){
   return LEARNER;
 }
 
+// A request on a flaky mobile connection can hang without ever failing. Give
+// a save a fixed time to answer; after that treat it as failed, so the learner
+// gets the "still here, tap again" message instead of an endless "Saving…".
+// (If the request did get through, tapping again just saves the same data.)
+let SAVE_TIMEOUT_MS = 20000;
+function withTimeout(promise, ms){
+  return new Promise(function(resolve, reject){
+    const t = setTimeout(function(){ reject(new Error('Timed out after ' + ms + 'ms')); }, ms);
+    Promise.resolve(promise).then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
+  });
+}
 // Resolves true if the change is saved (or there is nothing to save to: preview
 // mode), false if the save failed -- callers that must not tell the learner
 // "saved" unless it really was check this (see saveLearnerOrRevert).
@@ -320,7 +331,7 @@ async function saveLearner(partial){
     if(!LEARNER.createdAt) LEARNER.createdAt = todayISO();
     const body = { ...LEARNER, id: ME.id, displayName: ME.name, email: ME.email };
     delete body.exists;
-    const { error } = await sb.from('learners').upsert(body, { onConflict:'id' });
+    const { error } = await withTimeout(sb.from('learners').upsert(body, { onConflict:'id' }), SAVE_TIMEOUT_MS);
     if(error) throw error;
     LEARNER.exists = true;
     return true;

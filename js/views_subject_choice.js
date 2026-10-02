@@ -33,13 +33,16 @@ function scPageIds(d){
 // A draft restored from storage may predate a change to the question bank:
 // drop questions that no longer exist, append new ones, and clamp the page.
 function scSanitizeDraft(d){
-  d.order = (d.order || []).filter(function(id){ return SC_Q_BY_ID[id]; });
+  // Field types are checked too, not just presence: a draft that came back
+  // from storage in an unexpected shape must be repaired, never crash the page.
+  d.order = (Array.isArray(d.order) ? d.order : []).filter(function(id){ return SC_Q_BY_ID[id]; });
   const inOrder = {};
   d.order.forEach(function(id){ inOrder[id] = true; });
   SC_QUESTIONS.forEach(function(q){ if(!inOrder[q.id]) d.order.push(q.id); });
   const clean = {};
-  Object.keys(d.answers || {}).forEach(function(id){
-    const v = Number(d.answers[id]);
+  const given = (d.answers && typeof d.answers === 'object' && !Array.isArray(d.answers)) ? d.answers : {};
+  Object.keys(given).forEach(function(id){
+    const v = Number(given[id]);
     if(SC_Q_BY_ID[id] && v >= 1 && v <= 5) clean[id] = v;
   });
   d.answers = clean;
