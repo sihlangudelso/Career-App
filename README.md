@@ -255,6 +255,26 @@ recomputed from those plus their latest marks and personality results.
 the Supabase SQL editor. The app saves a learner's whole row in one go, so
 finishing the assessment would show "Could not save" until that column exists.
 
+### One story across the app (please keep it that way)
+
+A learner is shown their personality type, best careers and Grade 10 subjects
+on several pages (report overview, subjects tab, My Profile, the subject
+report, assessment results, dashboard, and the teacher's views). They must
+never disagree, so each has exactly one definition — use these, don't
+re-derive them:
+
+| What | One definition | Lives in |
+|---|---|---|
+| Personality type (e.g. `IR`) | `personalityTypeInfo(l)` — top two RIASEC dimensions from the **Personality Assessment** | `js/app.js` |
+| Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first) | `js/app.js` |
+| Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list | `js/views_report.js` |
+| How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
+
+Two assessments, two names: **Personality Assessment** (interests + strengths,
+the `assessment` route) and **Subject Choice Assessment** (the `subject-choice`
+route). The older 2-step Subject Guidance tool was retired; its
+`learners."subjectGuidance"` column is unused but kept so old rows keep their data.
+
 ### Why the column names look like `"mathType"` in SQL
 
 The Postgres tables use quoted, camelCase column names (`"mathType"`,
