@@ -495,12 +495,42 @@ function buildGuidanceResult(d){
     const pct = subjectMarkPct(l, subject);
     return pct!=null ? (' Your results show '+subject+' at '+pct+'% — '+markBandLabel(pct)+'.') : '';
   }
+  // Blends self-rated confidence with real marks+RIASEC evidence
+  // (computeStrengthDomains already blends marks 50/50 with RIASEC-derived
+  // interest per domain, 0-100 scale), so a domain is never judged on the
+  // slider alone once real evidence exists.
+  const DOMAIN_EVIDENCE_STRONG_SCORE = 65;
+  const strengthDomains = computeStrengthDomains(l);
+  const domainById = {};
+  strengthDomains.forEach(function(x){ domainById[x.domain.id] = x; });
+  function domainIsStrong(domainId){
+    const conf = d.conf[domainId]||0;
+    const evidence = domainById[domainId];
+    return conf>=4 || (evidence && evidence.hasEvidence && evidence.score>=DOMAIN_EVIDENCE_STRONG_SCORE);
+  }
+  // A required subject the learner is genuinely struggling with gets a
+  // concrete caution, not just a silent "required" label. Mathematics has
+  // a real named alternative (Mathematical Literacy); no other subject has
+  // a modelled alternative in this codebase, so other subjects get a
+  // softer "discuss extra support" framing rather than an invented swap.
+  const WEAK_REQUIRED_MARK_PCT = 40;
+  // Assumes it's being appended right after reportCitation(subject), which
+  // already states the percentage and band -- this only adds the concrete
+  // next step, instead of restating the same number a second time.
+  function weakMarkCaution(subject){
+    const pct = subjectMarkPct(l, subject);
+    if(pct==null || pct>=WEAK_REQUIRED_MARK_PCT) return '';
+    if(subject==='Mathematics'){
+      return ' With results like this, it’s worth discussing with your teacher whether Mathematical Literacy may be the more realistic track, since Mathematics matters for several of your selected interests.';
+    }
+    return ' With results like this, it’s worth discussing extra support with your teacher, since this subject matters for your selected interests.';
+  }
 
   const math = subjectInfo['Mathematics'];
   if(math && math.required.size){
     rec.push('Mathematics');
-    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.'+reportCitation('Mathematics'));
-  } else if((math && math.recommended.size) || d.conf.quantitative>=4){
+    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.'+reportCitation('Mathematics')+weakMarkCaution('Mathematics'));
+  } else if((math && math.recommended.size) || domainIsStrong('quantitative')){
     rec.push('Mathematics');
     reasoning.push((math ? ('Mathematics isn’t strictly required for your selected interests, but it’s recommended for '+nameList(math.recommended)+' and generally keeps more doors open.') : 'Mathematics isn’t required by your selected interests specifically, but it keeps the widest range of future options open.')+reportCitation('Mathematics'));
   } else {
@@ -510,7 +540,7 @@ function buildGuidanceResult(d){
 
   Object.keys(subjectInfo).filter(function(s){ return s!=='Mathematics'; }).forEach(function(s){
     const info = subjectInfo[s];
-    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'+reportCitation(s)); }
+    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'+reportCitation(s)+weakMarkCaution(s)); }
     else if(info.recommended.size>=2){ rec.push(s); reasoning.push(s+' is recommended for '+nameList(info.recommended)+'.'+reportCitation(s)); }
   });
 
@@ -519,6 +549,22 @@ function buildGuidanceResult(d){
       rec.push(cl.usefulSubjects[0]);
       reasoning.push(cl.usefulSubjects[0]+' is a useful foundation subject for '+cl.name+'.'+reportCitation(cl.usefulSubjects[0]));
     }
+  });
+  // Generalizes the old Mathematics-only special case to the other 7
+  // domains: a strong domain (confidence OR real marks+assessment
+  // evidence) contributes at most one new, not-yet-covered subject from
+  // its own STRENGTH_DOMAINS "fet" list -- mirroring the "one
+  // representative subject per cluster" pattern just above
+  // (cl.usefulSubjects[0]) rather than dumping a whole domain's subject
+  // list at once. Quantitative is excluded -- Mathematics already has its
+  // own fully-handled branch above.
+  STRENGTH_DOMAINS.filter(function(dm){ return dm.id!=='quantitative'; }).forEach(function(dm){
+    if(!domainIsStrong(dm.id)) return;
+    const candidate = dm.fet.find(function(s){ return !rec.includes(s); });
+    if(!candidate) return;
+    const conf = d.conf[dm.id]||0;
+    rec.push(candidate);
+    reasoning.push(candidate+' lines up with your '+dm.name.toLowerCase()+' strength'+(conf>=4?' (you rated your confidence here highly)':' (your results and assessment point this way)')+'.'+reportCitation(candidate));
   });
   if(!selectedClusters.length) reasoning.push('Pick at least one field you’re curious about to get a grounded recommendation.');
 
