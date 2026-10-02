@@ -55,6 +55,12 @@ create table if not exists public.learners (
   "mathType" text,
   subjects text[] default '{}',
   "subjectGuidance" jsonb,
+  -- Grade 9 Subject Choice Assessment answers only:
+  -- { answers:{questionId:1-5}, completedAt, bankVersion }. The report is
+  -- computed in the browser from these + current marks + personality
+  -- results (see js/subject_choice_*.js). Added by
+  -- supabase/add_subject_choice_assessment.sql.
+  "subjectChoice" jsonb,
   riasec jsonb,
   strengths jsonb,
   "riasecRaw" jsonb,
