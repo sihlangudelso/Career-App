@@ -119,7 +119,10 @@ function viewHome(){
   const cls = CLASSES.find(c=>c.id===l.classId);
   return `
   ${pageHeadHTML('Your dashboard', `Welcome back, ${esc(ME.name)||'there'}. Here\u2019s where your career pathway stands.`)}
-  ${PREVIEW_MODE?`<div class="disclaimer" style="margin-bottom:18px;">${icon('info','ic')}<div>You\u2019re previewing the learner experience as an admin. Nothing here is saved to shared learner data.</div></div>`:''}
+  ${PREVIEW_MODE?`<div class="disclaimer" style="margin-bottom:18px;display:block;">
+    <div style="display:flex;gap:10px;align-items:flex-start;">${icon('info','ic')}<div>You are previewing the learner experience as an admin. Nothing here is saved to shared learner data, and joining or leaving a class is switched off.</div></div>
+    <div class="filter-bar" style="margin:12px 0 0;align-items:center;"><span class="page-sub" style="margin:0 4px 0 0;">Preview as:</span>${[['9','Grade 9'],['10','Grade 10'],['11','Grade 11'],['12','Grade 12'],['explore','Just exploring']].map(o=>`<button class="chip-select ${(l.exploringOnly?'explore':String(l.grade))===o[0]?'on':''}" onclick="App.previewAs('${o[0]}')">${o[1]}</button>`).join('')}</div>
+  </div>`:''}
   <div class="card" style="margin-bottom:20px;">
     <div class="progress-ring-wrap">
       <svg width="100" height="100" viewBox="0 0 100 100">

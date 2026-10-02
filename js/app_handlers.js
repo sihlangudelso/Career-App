@@ -569,19 +569,15 @@ const App = {
     PREVIEW_MODE = !PREVIEW_MODE;
     // Neither the learner view's drafts nor the admin's own carry across the switch.
     ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
-    if(PREVIEW_MODE){
-      // Needs grade+school set, or render()'s needsOnboarding check (it
-      // can't tell this object apart from a real new signup) force-routes
-      // straight to the onboarding wizard instead of the dashboard this
-      // feature exists to preview -- found in the pre-launch audit.
-      LEARNER = {
-        id:'preview', exists:false, grade:9, school:'Preview School',
-        exploringOnly:false, licenseStatus:'active',
-        subjects:[], subjectMarks:{}, intendedSubjects:[],
-        favourites:[], compare:[], viewedMatches:false,
-      };
-    } else { LEARNER = null; }
+    LEARNER = PREVIEW_MODE ? previewLearner('9') : null;
     navigate(PREVIEW_MODE ? 'home' : 'admin-home');
+  },
+  // Switch the preview to a different kind of learner (a fresh, empty one).
+  previewAs(kind){
+    if(!PREVIEW_MODE) return;
+    ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
+    LEARNER = previewLearner(kind);
+    navigate('home');
   },
 
   // ---- admin: classes ----

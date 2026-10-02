@@ -255,6 +255,21 @@ recomputed from those plus their latest marks and personality results.
 the Supabase SQL editor. The app saves a learner's whole row in one go, so
 finishing the assessment would show "Could not save" until that column exists.
 
+**Who gets it:** Grade 9 learners choosing their Grade 10 subjects, plus anyone
+who already has saved answers (they keep their report whatever grade they are in
+now) — `subjectChoiceAvailable(l)` in `js/app.js`. Grade 10–12 and "just
+exploring" learners are never offered it; their report words the same ideas
+without "Grade 10" (`nextSubjectsPhrase(l)`, `isGrade9Learner(l)`) and shows the
+subjects their best careers rely on instead. Reaching the route by address shows
+a short explainer, not the form.
+
+**Wording that is the owner's, not ours:** the example questions, the category
+names (e.g. "Lower natural alignment") and the fixed sentences in `SC_COPY` that
+came from the original specification are kept as written (see the comment above
+`SC_COPY`). An automated review once flagged "does not mean you cannot succeed"
+as breaking a "never say cannot" rule — it is the owner's own reassurance. Check
+the spec before rewording any of it.
+
 ### One story across the app (please keep it that way)
 
 A learner is shown their personality type, best careers and Grade 10 subjects
@@ -266,14 +281,38 @@ re-derive them:
 | What | One definition | Lives in |
 |---|---|---|
 | Personality type (e.g. `IR`) | `personalityTypeInfo(l)` — top two RIASEC dimensions from the **Personality Assessment** | `js/app.js` |
-| Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first) | `js/app.js` |
-| Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list | `js/views_report.js` |
+| Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first). **Empty until the personality assessment is done**: before it every career ties, so a "top three" would be arbitrary | `js/app.js` |
+| Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list ("the subjects your top careers rely on" for anyone who is not in Grade 9) | `js/views_report.js` |
+| Who sees what | `isGrade9Learner`, `subjectChoiceAvailable`, `learnerGate` (profile / activation screen), `resultsEntryLinkHTML` (where a learner adds marks) | `js/app.js` |
 | How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
 
 Two assessments, two names: **Personality Assessment** (interests + strengths,
 the `assessment` route) and **Subject Choice Assessment** (the `subject-choice`
 route). The older 2-step Subject Guidance tool was retired; its
 `learners."subjectGuidance"` column is unused but kept so old rows keep their data.
+
+### Saving, drafts and shared computers
+
+Learners often use school computers and patchy mobile data, so:
+
+- **Saves are guarded.** `saveLearnerOrRevert` puts the in-memory profile back if
+  a save fails (and `saveLearner` gives up after 20 s), the "Saving…" button
+  restores its real label, and while a save is in flight (`SAVING` in
+  `js/app.js`) taps that would change or repeat it are ignored.
+- **Drafts** of in-progress forms live in `localStorage` under
+  `iroli_drafts_v1_<learner id>` as `{ v:2, savedAt, drafts }`. They are dropped
+  after 14 days, never stored for an admin's preview, not stored for pages that
+  only pre-filled from saved data (nothing changed), validated on restore, and
+  **removed when the learner signs out**. If a screen still throws, `render()`
+  resets the drafts and returns home with a message instead of looping.
+- **The 4-question quick start** is kept on the device until the account has
+  saved it.
+
+### Admin preview
+
+An admin can preview the learner experience as Grade 9, 10, 11, 12 or "just
+exploring" (the chips on the preview dashboard). It is memory-only: nothing is
+saved, and joining or leaving a class is switched off so no real seat is used.
 
 ### Why the column names look like `"mathType"` in SQL
 

@@ -787,6 +787,22 @@ function computeMatches(learner){
     return { career:c, score:ev.score, category:ev.category, eval:ev };
   }).sort((a,b)=>b.score-a.score);
 }
+// The synthetic learner an admin sees in preview: 'explore', or a grade '9'-'12'.
+// It needs a grade and school set, or render()'s onboarding gate (which can't
+// tell it apart from a real new signup) would send the admin to the profile
+// wizard instead of the dashboard being previewed. Memory-only: saveLearner
+// never writes while PREVIEW_MODE is on.
+function previewLearner(kind){
+  const exploring = kind === 'explore';
+  return {
+    id:'preview', exists:false,
+    grade: exploring ? null : Number(kind), school: exploring ? null : 'Preview School',
+    exploringOnly: exploring, licenseStatus:'active',
+    subjects:[], subjectMarks:{}, intendedSubjects:[],
+    favourites:[], compare:[], viewedMatches:false,
+  };
+}
+
 // ---- Who sees what ------------------------------------------------------
 // "Grade 10 subjects" -- and the Subject Choice Assessment itself -- is for a
 // Grade 9 learner choosing for next year. Any other learner gets the same
