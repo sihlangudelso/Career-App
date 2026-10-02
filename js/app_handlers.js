@@ -281,6 +281,53 @@ const App = {
   guideRetake(){ GUIDE_DRAFT = null; ensureGuideDraft().step = 1; render(); },
   guideViewSaved(){ const d = ensureGuideDraft(); d.step = 3; render(); },
 
+  // ---- Grade 9 Subject Choice Assessment ----
+  subjectChoiceStart(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
+  subjectChoiceRetake(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
+  subjectChoiceStartOver(){
+    if(!confirm('Start over? The answers on this attempt will be cleared.')) return;
+    SUBJECT_CHOICE_DRAFT = null; render(); window.scrollTo(0,0);
+  },
+  // Patches the page in place (no full re-render) so the learner's scroll
+  // position doesn't jump after every tap -- same approach as guideConf.
+  subjectChoiceAnswer(qid, v, el){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    v = Number(v);
+    d.answers[qid] = v;
+    persistDrafts();
+    const row = el && el.closest('.sc-q');
+    if(row) row.querySelectorAll('.sc-scale button').forEach((b,i)=>{ b.classList.toggle('on', i+1===v); b.setAttribute('aria-pressed', i+1===v ? 'true' : 'false'); });
+    const total = d.order.length, answered = Object.keys(d.answers).length;
+    const bar = document.getElementById('scBar'); if(bar) bar.style.width = Math.round(answered/total*100)+'%';
+    const cnt = document.getElementById('scCount'); if(cnt) cnt.textContent = answered;
+    const btn = document.getElementById('scNext');
+    if(btn){
+      const isLast = d.page === scPageCount(d) - 1;
+      btn.disabled = isLast ? answered < total : !scPageIds(d).every(id=>d.answers[id]);
+    }
+  },
+  subjectChoicePage(delta){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    d.page = clamp(d.page + delta, 0, scPageCount(d) - 1);
+    d.dir = delta < 0 ? 'back' : 'fwd';
+    render(); window.scrollTo(0,0);
+  },
+  async subjectChoiceFinish(){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    scSanitizeDraft(d);
+    if(Object.keys(d.answers).length < SC_QUESTIONS.length){ toast('Please answer every question first.'); return; }
+    const l = ensureLearnerObj();
+    await saveLearner({ subjectChoice: { answers: d.answers, completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } });
+    SUBJECT_CHOICE_DRAFT = null;
+    if(!l.assessmentCompletedAt){
+      toast('Answers saved — now a quick look at how you naturally work.');
+      navigate('assessment');
+      return;
+    }
+    toast('Your subject results are ready!');
+    navigate('subject-choice');
+  },
+
   // ---- Grade 9 report results + work style ----
   grade9SetTerm(v){ ensureGrade9Draft().term = v; },
   grade9SetSocialSplit(v){ const d=ensureGrade9Draft(); d.socialSciencesSplit = v; render(); },
@@ -364,8 +411,16 @@ const App = {
     });
     const strengths = {};
     STRENGTH_KEYS.forEach((s,i)=>{ strengths[s.id] = clamp((d.strengths[i]-1)/4*100,0,100); });
+    const firstCompletion = !LEARNER || !LEARNER.assessmentCompletedAt;
     await saveLearner({ riasec, strengths, riasecRaw:d.answers, strengthsRaw:d.strengths, assessmentCompletedAt: todayISO() });
     ASSESSMENT_DRAFT = null;
+    // The Subject Choice report needs this assessment -- if they were sent
+    // here from it, take them straight back to their subject results.
+    if(firstCompletion && LEARNER && LEARNER.subjectChoice && LEARNER.subjectChoice.completedAt){
+      toast('Assessment complete — here are your subject results!');
+      navigate('subject-choice');
+      return;
+    }
     render();
     toast('Assessment complete!');
   },

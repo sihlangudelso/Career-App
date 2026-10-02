@@ -307,7 +307,10 @@ function scThrive(res){
   if(nf === 'High'){
     if(tier === 'Strong') explanation = 'Your interests and working style are well aligned with ' + label + ', and your current results suggest you are well placed to feel comfortable in it.';
     else if(tier === null) explanation = 'Your interests and working style are well aligned with ' + label + '. We do not yet have marks that map onto it, so we cannot say how ready you are yet.';
-    else explanation = (hi.length ? 'Your interest in ' + hi[0] + ' and your working style are' : 'Your interests and working style are') + ' well aligned with ' + label + '. However, your current ' + (weakNames ? weakNames + ' results' : 'results') + ' suggest some of the work may feel challenging at first. ' + s.foundationTip;
+    else {
+      const effort = band && band.key === 'reasonable' ? 'some of the work may need extra attention at first' : 'some of the work may feel challenging at first';
+      explanation = (hi.length ? 'Your interest in ' + hi[0] + ' and your working style are' : 'Your interests and working style are') + ' well aligned with ' + label + '. However, your current ' + (weakNames ? weakNames + ' results' : 'results') + ' suggest ' + effort + '. ' + s.foundationTip;
+    }
   } else if(nf === 'Moderate'){
     if(tier === 'Strong') explanation = 'Your results are strong for ' + label + '. Your interests and working style are only partly aligned with it, so it is worth finding out what the subject involves day to day.';
     else explanation = label + ' is a reasonable fit: some of your interests and your working style line up' + (band ? ', and your current results suggest ' + scFoundationPhrase(band) : '') + '.';
@@ -433,7 +436,7 @@ function scComboWhy(subjectIds, byId){
   traits.sort(function(a, b){ return b.score - a.score; });
   const phrases = traits.slice(0, 2).map(function(t){ return scPhrase(t.trait); });
   let why = phrases.length
-    ? 'Your answers show ' + scJoin(phrases) + ', which fits these subjects well.'
+    ? 'Your answers show a real interest in ' + scJoin(phrases) + ', which fits these subjects well.'
     : 'These subjects line up reasonably well with your interests and how you like to work.';
   const withMarks = subjectIds.filter(function(id){ return byId[id].academic.score != null; });
   if(withMarks.length){

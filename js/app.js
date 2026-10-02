@@ -24,6 +24,7 @@ let ASSESSMENT_DRAFT = null;
 let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
 let GRADE9_DRAFT = null;
+let SUBJECT_CHOICE_DRAFT = null;
 let MINI_DRAFT = null;
 let AUTH_READY = false;
 let learnerChannel = null;
@@ -46,7 +47,7 @@ function draftsLsKey(){ return 'iroli_drafts_v'+DRAFTS_LS_VERSION+'_'+ME.id; }
 function persistDrafts(){
   if(!ME.id) return;
   try{
-    const drafts = { ASSESSMENT_DRAFT, GUIDE_DRAFT, APS_DRAFT, GRADE9_DRAFT };
+    const drafts = { ASSESSMENT_DRAFT, GUIDE_DRAFT, APS_DRAFT, GRADE9_DRAFT, SUBJECT_CHOICE_DRAFT };
     if(Object.values(drafts).some(d=>d!=null)) localStorage.setItem(draftsLsKey(), JSON.stringify(drafts));
     else localStorage.removeItem(draftsLsKey());
   }catch(e){ /* private mode / storage disabled -- silently no-op */ }
@@ -61,6 +62,7 @@ function restoreDrafts(){
     if(d.GUIDE_DRAFT) GUIDE_DRAFT = d.GUIDE_DRAFT;
     if(d.APS_DRAFT) APS_DRAFT = d.APS_DRAFT;
     if(d.GRADE9_DRAFT) GRADE9_DRAFT = d.GRADE9_DRAFT;
+    if(d.SUBJECT_CHOICE_DRAFT) SUBJECT_CHOICE_DRAFT = d.SUBJECT_CHOICE_DRAFT;
   }catch(e){ /* corrupt/unavailable storage -- just start fresh */ }
 }
 
@@ -130,7 +132,7 @@ async function handleSession(session){
     // someone else's half-finished assessment/guidance/APS/Grade-9 draft.
     PREVIEW_MODE = false;
     CLASSES = []; COHORT = []; SNAPSHOTS = []; CLASS_ADMINS = [];
-    ASSESSMENT_DRAFT = null; GUIDE_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null;
+    ASSESSMENT_DRAFT = null; GUIDE_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
     EXPLORE_SEARCH = ''; EXPLORE_FILTERS = {};
     window.__cohortSearch = '';
     // Decide the anonymous mini-assessment's state once, the same way
@@ -992,7 +994,7 @@ function computeAPSFromMarks(marks){
 function progressState(l){
   const steps = [
     { key:'profile', done: !!(l && (l.exploringOnly || (l.grade && l.school))) },
-    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && l.subjectGuidance) || (l.grade>9 && l.subjects && l.subjects.length))) },
+    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && (l.subjectGuidance || (l.subjectChoice && l.subjectChoice.completedAt))) || (l.grade>9 && l.subjects && l.subjects.length))) },
     { key:'assessment', done: !!(l && l.assessmentCompletedAt) },
     { key:'explore', done: !!(l && l.viewedMatches) },
   ];
