@@ -78,6 +78,7 @@ const SC_CONFIG = {
     weakReadiness: 60,    // Maths result under this = "may need support"
     interestLow: 45, alignmentLow: 45,
     strongOverall: 65,
+    litMaxReadiness: 70,  // a Maths result at or above this is not a reason to lean to Maths Literacy
   },
   // How strongly a subject's usual study paths need Mathematics (not Maths
   // Lit) -- see `mathRequirement` on each subject below.
@@ -91,8 +92,12 @@ const SC_COPY = {
   lowerAlignment: 'This subject currently shows less alignment with your interests and preferred way of working. That does not mean you cannot succeed in it, but you may find it requires more deliberate effort than some of your stronger matches.',
   finalDecision: 'The final decision should also consider your school’s subject availability and future university requirements.',
   mathHighNeedWeak: 'Mathematics is important for several pathways you are interested in. Your current result suggests that you may need additional support rather than automatically switching to Mathematical Literacy.',
+  // Used instead of the two messages below when there is no Mathematics mark
+  // to base "your current results ..." on.
+  mathHighNeedNoMarks: 'Mathematics keeps the widest range of the pathways you are interested in open. Add a Mathematics mark to see how your current results compare.',
+  mathStrongFitNoMarks: 'Mathematics looks like a good fit for you — it matches how you like to think. Add a Mathematics mark to see how your current results compare.',
   mathHighNeedOk: 'Mathematics keeps the widest range of the pathways you are interested in open, and your current results suggest you are well placed to continue with it.',
-  mathLowNeed: 'Mathematical Literacy may suit your current strengths and interests, but review the admission requirements of careers you are considering before making the change.',
+  mathLowNeed: 'Mathematical Literacy may suit your interests and how you like to work, but review the admission requirements of careers you are considering before making the change.',
   mathStrongFit: 'Mathematics looks like a good fit for you — it matches how you like to think, and your current results support it.',
   mathInterestWeak: 'You show real interest in Mathematics, and your current result suggests that extra support and practice before Grade 10 could make a real difference — that is worth exploring rather than automatically switching to Mathematical Literacy.',
   mathEither: 'Both Mathematics and Mathematical Literacy are worth talking through with your teacher. Mathematical Literacy focuses on using mathematics in everyday life and work — a different, equally valuable route — so the right choice depends on the pathways you want to keep open.',
@@ -122,7 +127,7 @@ const SC_TRAITS = {
     { from: 'riasec', key: 'I', w: 0.30 }, { from: 'riasec', key: 'C', w: 0.10 },
     { from: 'strengths', key: 'problem', w: 0.30 }, { from: 'strengths', key: 'maths', w: 0.20 },
     { from: 'strengths', key: 'tech', w: 0.10 } ] },
-  investigative: { label: 'Curious & investigative', phrase: 'curiosity about how things work', sources: [
+  investigative: { label: 'Curious & investigative', phrase: 'finding out how things work', sources: [
     { from: 'riasec', key: 'I', w: 0.45 }, { from: 'strengths', key: 'sciences', w: 0.30 },
     { from: 'strengths', key: 'problem', w: 0.25 } ] },
   creative: { label: 'Creative', phrase: 'creative thinking', sources: [
@@ -186,7 +191,12 @@ const SC_AREA_TIPS = {
   'Social Sciences': 'Strengthen your Social Sciences skills — reading maps and sources and writing structured answers.',
   'Technology': 'Spend more time on practical Technology tasks — designing, drawing and solving problems with real materials or software.',
   'Creative Arts': 'Keep building your Creative Arts practice — regular creating or rehearsing makes a visible difference.',
+  'Overall': 'Steady, regular study across all your subjects builds the habits that subjects like this one rely on.',
 };
+// Traits that describe a person rather than an activity. Their phrases are
+// fine after "you enjoy ...", but are never used for the "less interest so far
+// in ..." sentence, where they would read as a verdict on the learner.
+const SC_CHARACTER_TRAITS = { 'Empathy': true, 'Confidence': true, 'Discipline': true, 'Teamwork': true, 'Language confidence': true };
 // Pseudo-areas: an area name that is really a blend of other marks.
 const SC_AREA_ALIASES = {
   'Language': ['Home Language', 'First Additional Language'],
@@ -219,7 +229,7 @@ const SC_TRAIT_PHRASES = {
   'Analytical reasoning': 'analysing why things change', 'Philosophy': 'exploring big questions about fairness and ideas',
   'Critical thinking': 'weighing up different sides', 'Society': 'understanding how societies work',
   'Human behaviour': 'understanding why people act the way they do', 'Historical curiosity': 'seeing how the past shapes the present',
-  'Spatial thinking': 'reading maps and places', 'Human geography': 'understanding how people and places interact',
+  'Spatial thinking': 'understanding maps and places', 'Human geography': 'understanding how people and places interact',
   'Map and data interpretation': 'interpreting maps and data', 'Travel interest': 'exploring places and travel',
   'Service orientation': 'helping people have a great experience', 'Planning': 'planning experiences',
   'Cultural curiosity': 'learning about different cultures', 'Digital productivity': 'getting things done efficiently on a computer',
@@ -274,7 +284,7 @@ const SC_SUBJECTS = {
     interestTraits: ['Everyday numeracy', 'Financial awareness', 'Data interpretation', 'Measurement and planning', 'Practical problem solving'],
     personalityTraits: { practical: 0.6, organised: 0.6, analytical: 0.5 },
     academicInputs: [{ area: 'Mathematics', w: 1 }],
-    pathwayTags: ['everyday', 'business', 'finance', 'trades', 'hospitality'],
+    pathwayTags: ['everyday', 'business', 'admin', 'trades', 'hospitality'],
     mathRequirement: null,
     note: 'Every learner takes either Mathematics or Mathematical Literacy.',
     foundationTip: 'Build confidence with everyday number work — percentages, budgets, measurement and reading tables and graphs.',
@@ -295,8 +305,8 @@ const SC_SUBJECTS = {
     interestTraits: ['Biological curiosity', 'Observation', 'Human health interest', 'Environmental interest'],
     personalityTraits: { investigative: 1, people: 0.5 },
     academicInputs: [{ area: 'Natural Sciences', w: 1 }, { area: 'Language', w: 0.5 }],
-    pathwayTags: ['health', 'lifeSciences', 'environment', 'research', 'agriculture'],
-    mathRequirement: 'none',
+    pathwayTags: ['healthSome', 'lifeSciences', 'environment', 'research', 'agriculture'],
+    mathRequirement: 'common',
     foundationTip: 'Revisit the Natural Sciences life-science topics and practise reading and explaining scientific text in your own words.',
   },
   accounting: {
@@ -336,7 +346,7 @@ const SC_SUBJECTS = {
     personalityTraits: { investigative: 1, reflective: 0.3 },
     academicInputs: [{ area: 'Social Sciences', w: 1 }, { area: 'Mathematics', w: 0.4 }, { area: 'Natural Sciences', w: 0.4 }],
     pathwayTags: ['environment', 'geography', 'builtEnvironment', 'tourism', 'research'],
-    mathRequirement: 'none',
+    mathRequirement: 'common',
     foundationTip: 'Practise reading maps and graphs, and revisit your Social Sciences geography topics.',
   },
   history: {
@@ -367,7 +377,7 @@ const SC_SUBJECTS = {
     academicInputs: [{ area: 'Technology', w: 1 }, { area: 'Overall', w: 0.6 }],
     pathwayTags: ['admin', 'business', 'technology'],
     mathRequirement: 'none',
-    foundationTip: 'Spend regular time on a computer practising word processing, spreadsheets and presentations.',
+    foundationTip: 'Spend regular time on a computer — at school or a library works well — practising word processing, spreadsheets and presentations.',
   },
   informationTechnology: {
     label: 'Information Technology', family: 'technology', fetNames: ['Information Technology'],
@@ -377,7 +387,7 @@ const SC_SUBJECTS = {
     academicInputs: [{ area: 'Mathematics', w: 1 }, { area: 'Technology', w: 1 }],
     pathwayTags: ['computing', 'data', 'technology', 'engineering'],
     mathRequirement: 'common',
-    foundationTip: 'Try a beginner coding or logic-puzzle site, and strengthen your Mathematics basics — they support programming.',
+    foundationTip: 'Try a beginner coding or logic-puzzle site (at school or a library works too), and strengthen your Mathematics basics — they support programming.',
   },
   engineeringGraphicsAndDesign: {
     label: 'Engineering Graphics and Design', family: 'technology', fetNames: ['Engineering Graphics and Design'],
@@ -407,7 +417,7 @@ const SC_SUBJECTS = {
     academicInputs: [{ area: 'Creative Arts', w: 1 }, { area: 'Language', w: 0.5 }],
     pathwayTags: ['performingArts', 'creativeArts', 'communication', 'education'],
     mathRequirement: 'none',
-    foundationTip: 'Look for chances to perform, read aloud or join a drama group — confidence grows with practice.',
+    foundationTip: 'Look for chances to perform, read aloud or join a drama group — confidence grows with practice, and many schools expect some prior drama experience.',
   },
   music: {
     label: 'Music', family: 'creative', fetNames: ['Music'],
@@ -520,10 +530,10 @@ const SC_QUESTIONS = [
 
   // ---- Mathematical Literacy
   { id: 'q_mlit_01', trait: 'Everyday numeracy', text: 'When you see a discount or a deal, do you like working out whether it is really a good price?', weights: { mathematicalLiteracy: 1, accounting: 0.3, economics: 0.3, businessStudies: 0.2, mathematics: 0.2 } },
-  { id: 'q_mlit_02', trait: 'Financial awareness', text: 'Would you enjoy planning a budget for an event, a trip or a month’s pocket money?', weights: { mathematicalLiteracy: 1, accounting: 0.4, tourism: 0.3, hospitalityStudies: 0.3, businessStudies: 0.3 } },
+  { id: 'q_mlit_02', trait: 'Financial awareness', text: 'Would you enjoy planning a budget for an event, a trip or a month’s spending money?', weights: { mathematicalLiteracy: 1, accounting: 0.4, tourism: 0.3, hospitalityStudies: 0.3, businessStudies: 0.3 } },
   { id: 'q_mlit_03', trait: 'Data interpretation', text: 'When a news story or post shares statistics, do you like checking what the numbers really mean?', weights: { mathematicalLiteracy: 1, geography: 0.3, economics: 0.3, socialSciences: 0.2, mathematics: 0.2 } },
   { id: 'q_mlit_04', trait: 'Measurement and planning', text: 'Do you like working out measurements — how much paint, fabric or food a project will need?', weights: { mathematicalLiteracy: 1, consumerStudies: 0.4, engineeringGraphicsAndDesign: 0.3, hospitalityStudies: 0.3, geography: 0.2 } },
-  { id: 'q_mlit_05', trait: 'Practical problem solving', text: 'Do you prefer maths you can see being used in real life — like loans, time or travel — over abstract problems?', weights: { mathematicalLiteracy: 1, tourism: 0.2, accounting: 0.2 } },
+  { id: 'q_mlit_05', trait: 'Practical problem solving', text: 'Do you like maths you can see being used in real life — like loans, time or travel?', weights: { mathematicalLiteracy: 1, tourism: 0.2, accounting: 0.2 } },
 
   // ---- Physical Sciences
   { id: 'q_phys_01', trait: 'Scientific curiosity', text: 'Do you ever wonder why things move, fall, heat up or react?', weights: { physicalSciences: 1, mathematics: 0.3, engineeringGraphicsAndDesign: 0.3, lifeSciences: 0.2 } },
@@ -615,7 +625,7 @@ const SC_QUESTIONS = [
   { id: 'q_dra_02', trait: 'Empathy', text: 'Do you like putting yourself in someone else’s shoes to understand how they feel?', weights: { dramaticArts: 1, history: 0.3, socialSciences: 0.4, languages: 0.3 } },
   { id: 'q_dra_03', trait: 'Collaboration', text: 'Would you enjoy working with a group to create a performance from scratch?', weights: { dramaticArts: 1, music: 0.3, visualArts: 0.2 } },
   { id: 'q_dra_04', trait: 'Storytelling', text: 'Do you enjoy changing your voice, face or body to bring a character to life?', weights: { dramaticArts: 1, music: 0.2 } },
-  { id: 'q_dra_05', trait: 'Confidence', text: 'Are you comfortable being the centre of attention when you have something to share?', weights: { dramaticArts: 1, languages: 0.3, businessStudies: 0.2 } },
+  { id: 'q_dra_05', trait: 'Confidence', text: 'Would you enjoy sharing an idea or a performance with an audience?', weights: { dramaticArts: 1, languages: 0.3, businessStudies: 0.2 } },
 
   // ---- Music
   { id: 'q_mus_01', trait: 'Musical ear', text: 'Do you notice melodies in videos, shops or games — and find they stay in your head?', weights: { music: 1, mathematics: 0.1 } },
@@ -636,7 +646,7 @@ const SC_QUESTIONS = [
   { id: 'q_hos_02', trait: 'Service orientation', text: 'Do you enjoy cooking, serving or looking after other people at a gathering?', weights: { hospitalityStudies: 1, consumerStudies: 0.6, tourism: 0.3 } },
   { id: 'q_hos_03', trait: 'Event planning', text: 'Would you enjoy organising an event or meal?', weights: { hospitalityStudies: 1, tourism: 0.4, businessStudies: 0.3, consumerStudies: 0.2 } },
   { id: 'q_hos_04', trait: 'Practical skills', text: 'Do you like seeing a practical project come together from beginning to end?', weights: { hospitalityStudies: 1, consumerStudies: 0.4, engineeringGraphicsAndDesign: 0.3, agriculturalSciences: 0.2 } },
-  { id: 'q_hos_05', trait: 'Teamwork', text: 'Do you stay calm and helpful when lots of people need things at once?', weights: { hospitalityStudies: 1, tourism: 0.4, businessStudies: 0.2 } },
+  { id: 'q_hos_05', trait: 'Teamwork', text: 'Would you enjoy helping lots of different people in a busy, lively place?', weights: { hospitalityStudies: 1, tourism: 0.4, businessStudies: 0.2 } },
 
   // ---- Agricultural Sciences
   { id: 'q_agr_01', trait: 'Food-system curiosity', text: 'Are you interested in where food actually comes from?', weights: { agriculturalSciences: 1, lifeSciences: 0.3, consumerStudies: 0.2, geography: 0.2 } },

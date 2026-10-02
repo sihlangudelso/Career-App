@@ -253,7 +253,7 @@ function scInterestPhrases(res, which, n){
   const list = res.interest.traits;
   const pick = which === 'high'
     ? list.filter(function(t){ return t.score >= SC_CONFIG.profile.traitMin; })
-    : list.slice().reverse().filter(function(t){ return t.score < 50; });
+    : list.slice().reverse().filter(function(t){ return t.score < 50 && !SC_CHARACTER_TRAITS[t.trait]; });
   return pick.slice(0, n).map(function(t){ return scPhrase(t.trait); });
 }
 function scPersonalityPhrase(res){
@@ -264,10 +264,11 @@ function scAcademicAreas(res){
   return scJoin(res.academic.inputs.slice().sort(function(a, b){ return b.w - a.w; }).map(function(i){ return scAreaName(i.area); }));
 }
 // e.g. "Mathematics results (84%)" or, when several marks are blended,
-// "Mathematics and Natural Sciences results (averaging 45%)".
+// "Mathematics and Natural Sciences results (together about 45%)". The blend
+// is weighted, so it is not described as a plain average.
 function scAcademicEvidence(res){
   const multi = res.academic.inputs.length > 1;
-  return scAcademicAreas(res) + ' results (' + (multi ? 'averaging ' : '') + Math.round(res.academic.score) + '%)';
+  return scAcademicAreas(res) + ' results (' + (multi ? 'together about ' : '') + Math.round(res.academic.score) + '%)';
 }
 function scFoundationPhrase(band){
   if(band.key === 'strong' || band.key === 'good') return 'a solid foundation';
@@ -297,26 +298,56 @@ function scFragments(res){
   }
   return { interest: interest, personality: personality, academic: academic };
 }
+// How interests and working style line up with a subject, said accurately
+// from each level on its own. The blended level can hide a split -- high
+// interest with a different working style -- and then "only partly aligned"
+// would sit awkwardly beside the "you enjoy ..." sentence on the same card.
+// Returns the clause (capitalised, no full stop) and a tone:
+// good (both high) / partly / less (both low).
+function scNaturalClause(res, label){
+  const li = res.interest.level, lp = res.personality.level;
+  const hi = scInterestPhrases(res, 'high', 1);
+  if(li === 'High' && lp === 'High'){
+    return { tone: 'good', text: (hi.length ? 'Your interest in ' + hi[0] + ' and your working style are' : 'Your interests and working style are') + ' well aligned with ' + label };
+  }
+  if(li === 'Low' && lp === 'Low'){
+    return { tone: 'less', text: label + ' currently shows less alignment with your interests and preferred way of working' };
+  }
+  const interest = li === 'High' ? (hi.length ? 'your interest in ' + hi[0] : 'your interests') + ' lines up well with ' + label
+    : (li === 'Moderate' ? 'some of your interests line up with ' + label
+      : 'your answers show less interest so far in the kind of work ' + label + ' involves');
+  const style = lp === 'High' ? 'your working style suits how it is usually studied'
+    : (lp === 'Moderate' ? 'your working style partly lines up with it'
+      : 'your preferred way of working is a little different from how it is usually studied');
+  // "and" when the two point the same way, "although" when one is low and the other is not.
+  const contrast = (li === 'Low') !== (lp === 'Low');
+  return { tone: 'partly', text: scCap(interest) + (contrast ? ', although ' : ', and ') + style };
+}
 function scThrive(res){
   const s = SC_SUBJECTS[res.id], label = s.label;
   const nf = res.fit.naturalFitLevel, band = res.academic.band;
   const tier = band ? band.tier : null;
   const weakNames = scJoin(res.academic.weakAreas.slice(0, 2).map(function(w){ return scAreaName(w.area); }));
-  const hi = scInterestPhrases(res, 'high', 2);
+  const nat = scNaturalClause(res, label);
+  // These two cards already say the same thing elsewhere ("consider" for a
+  // foundation card, "consider" and the line above it for an academic card),
+  // so the thrive text does not repeat it.
+  const tipShownElsewhere = res.category.key === 'foundation';
+  const threeYearsShownElsewhere = res.category.key === 'academic';
   let explanation;
-  if(nf === 'High'){
-    if(tier === 'Strong') explanation = 'Your interests and working style are well aligned with ' + label + ', and your current results suggest you are well placed to feel comfortable in it.';
-    else if(tier === null) explanation = 'Your interests and working style are well aligned with ' + label + '. We do not yet have marks that map onto it, so we cannot say how ready you are yet.';
+  if(nat.tone === 'good'){
+    if(tier === 'Strong') explanation = nat.text + ', and your current results suggest you are well placed to feel comfortable in it.';
+    else if(tier === null) explanation = nat.text + '. We do not yet have marks that map onto it, so we do not know yet how ready you are.';
     else {
       const effort = band && band.key === 'reasonable' ? 'some of the work may need extra attention at first' : 'some of the work may feel challenging at first';
-      explanation = (hi.length ? 'Your interest in ' + hi[0] + ' and your working style are' : 'Your interests and working style are') + ' well aligned with ' + label + '. However, your current ' + (weakNames ? weakNames + ' results' : 'results') + ' suggest ' + effort + '. ' + s.foundationTip;
+      explanation = nat.text + '. However, your current ' + (weakNames ? weakNames + ' results' : 'results') + ' suggest ' + effort + '.' + (tipShownElsewhere ? '' : ' ' + s.foundationTip);
     }
-  } else if(nf === 'Moderate'){
-    if(tier === 'Strong') explanation = 'Your results are strong for ' + label + '. Your interests and working style are only partly aligned with it, so it is worth finding out what the subject involves day to day.';
-    else explanation = label + ' is a reasonable fit: some of your interests and your working style line up' + (band ? ', and your current results suggest ' + scFoundationPhrase(band) : '') + '.';
+  } else if(nat.tone === 'partly'){
+    if(tier === 'Strong') explanation = 'Your results are strong for ' + label + '. ' + nat.text + ', so it is worth finding out what the subject involves day to day.';
+    else explanation = nat.text + '.' + (band ? ' Your current results suggest ' + scFoundationPhrase(band) + '.' : '');
   } else {
-    if(tier === 'Strong') explanation = 'Your results show you could do well in ' + label + ', although it currently shows less alignment with what you enjoy and how you like to work — think about whether you would enjoy it for three years.';
-    else explanation = label + ' currently shows less alignment with your interests and preferred way of working, so it may need more deliberate effort than some of your stronger matches.';
+    if(tier === 'Strong') explanation = 'Your results show you could do well in ' + label + ', although it currently shows less alignment with what you enjoy and how you like to work.' + (threeYearsShownElsewhere ? '' : ' Think about whether you would enjoy it for three years.');
+    else explanation = nat.text + ', so it is worth finding out what it involves day to day before you decide.';
   }
   return {
     naturalFit: { level: nf, score: res.fit.naturalFit },
@@ -342,7 +373,7 @@ function generateSubjectFeedback(res){
   } else if(key === 'academic'){
     const lo = scInterestPhrases(res, 'low', 2);
     why.push('You currently perform well in the areas ' + label + ' builds on, but your answers show relatively less interest in ' + (lo.length ? scJoin(lo) : 'this kind of work') + '.');
-    why.push('You are capable of taking the subject, but consider whether you would enjoy studying it for the next three years.');
+    why.push('You are capable of taking the subject — the question is whether you would enjoy it.');
     consider = 'Think about whether you would enjoy it for three years, not just whether you can do it.';
   } else if(key === 'lower'){
     why.push(SC_COPY.lowerAlignment);
@@ -405,16 +436,18 @@ function decideMathPathway(results, learner){
   let recommended = 'either', message = SC_COPY.mathEither;
   if(math){
     const readiness = math.academic.score;
-    const weak = readiness != null && readiness < M.weakReadiness;
+    const hasMarks = readiness != null;
+    const weak = hasMarks && readiness < M.weakReadiness;
     if(need.level === 'high'){
       recommended = 'mathematics';
-      message = weak ? SC_COPY.mathHighNeedWeak : SC_COPY.mathHighNeedOk;
-    } else if(math.interest.normalised < M.interestLow && (math.personality.score == null || math.personality.score < M.alignmentLow) && need.level === 'low'){
+      message = weak ? SC_COPY.mathHighNeedWeak : (hasMarks ? SC_COPY.mathHighNeedOk : SC_COPY.mathHighNeedNoMarks);
+    } else if(math.interest.normalised < M.interestLow && (math.personality.score == null || math.personality.score < M.alignmentLow) && need.level === 'low'
+              && (!hasMarks || readiness < M.litMaxReadiness)){
       recommended = 'mathematicalLiteracy';
       message = SC_COPY.mathLowNeed;
     } else if(math.fit.overall >= M.strongOverall && !weak){
       recommended = 'mathematics';
-      message = SC_COPY.mathStrongFit;
+      message = hasMarks ? SC_COPY.mathStrongFit : SC_COPY.mathStrongFitNoMarks;
     } else if(math.interest.level === 'High' && weak){
       recommended = 'mathematics';
       message = SC_COPY.mathInterestWeak;
@@ -435,7 +468,7 @@ function scMathLeanLabel(m){
 }
 
 /* ---------------- combinations ---------------- */
-function scComboWhy(subjectIds, byId){
+function scComboWhy(subjectIds, byId, closest){
   const traits = [];
   subjectIds.forEach(function(id){
     byId[id].interest.traits.forEach(function(t){
@@ -444,15 +477,20 @@ function scComboWhy(subjectIds, byId){
   });
   traits.sort(function(a, b){ return b.score - a.score; });
   const phrases = traits.slice(0, 2).map(function(t){ return scPhrase(t.trait); });
-  let why = phrases.length
-    ? 'Your answers show a real interest in ' + scJoin(phrases) + ', which fits these subjects well.'
-    : 'These subjects line up reasonably well with your interests and how you like to work.';
+  // `closest`: nothing scored well, so this is only the nearest match -- say so
+  // instead of claiming it "fits well".
+  let why = closest
+    ? 'This is the closest combination to your answers so far' + (phrases.length ? ', where you show some interest in ' + scJoin(phrases) : '') + '. It is worth finding out what each subject involves before you decide.'
+    : (phrases.length
+      ? 'Your answers show a real interest in ' + scJoin(phrases) + ', which fits these subjects well.'
+      : 'These subjects line up reasonably well with your interests and how you like to work.');
   const withMarks = subjectIds.filter(function(id){ return byId[id].academic.score != null; });
   if(withMarks.length){
+    const label = function(ids){ return scJoin(ids.map(function(id){ return SC_SUBJECTS[id].label; })); };
     const weak = withMarks.filter(function(id){ return byId[id].academic.score < SC_CONFIG.report.workOnBelow; });
-    why += weak.length
-      ? ' Your current results suggest ' + scJoin(weak.map(function(id){ return SC_SUBJECTS[id].label; })) + ' would benefit from some extra attention.'
-      : ' Your current results support this combination.';
+    if(weak.length) why += ' Your current results suggest ' + label(weak) + ' would benefit from some extra attention.';
+    else if(withMarks.length === subjectIds.length) why += ' Your current results support this combination.';
+    else why += ' Your current results support ' + label(withMarks) + '; we do not yet have marks for the others.';
   }
   return why;
 }
@@ -465,6 +503,8 @@ function generateSubjectCombinations(results, mathChoice){
     let ok = true;
     tpl.slots.forEach(function(slot){
       if(!ok) return;
+      // A pathway built on Mathematics is not offered beside a lean towards Maths Literacy.
+      if(slot.length === 1 && slot[0] === 'mathematics' && mathChoice && mathChoice.recommended === 'mathematicalLiteracy'){ ok = false; return; }
       let candidates = slot.slice();
       let eitherMaths = false;
       if(slot.length === 1 && slot[0] === 'mathChoice'){
@@ -490,7 +530,7 @@ function generateSubjectCombinations(results, mathChoice){
   let picked = unique.filter(function(c){ return c.score >= SC_CONFIG.report.minComboScore; });
   if(!picked.length) picked = unique.slice(0, 1);
   return picked.slice(0, SC_CONFIG.report.combos).map(function(c){
-    return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, why: scComboWhy(c.subjects, byId) };
+    return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, why: scComboWhy(c.subjects, byId, c.score < SC_CONFIG.report.minComboScore) };
   });
 }
 
@@ -750,7 +790,9 @@ function reconcileCareersAndSubjects(matches, report){
   if(!gapOrder.length && anyRequired) coverage = 'Your recommended subjects cover everything these careers require' + (recSubjects.length ? ', including ' + scNameList(recSubjects.slice(0, 3)) : '') + '.';
   else if(recSubjects.length) coverage = 'Your strongest subject matches already support these careers through ' + scNameList(recSubjects.slice(0, 3)) + '.';
   // 3. Subjects that connect the two (not already covered by a gap sentence).
-  const bridgeNames = exploreSubjects.filter(function(n){ return !gapMap[n]; });
+  // Mathematics is left out: its "explore" status comes from the Maths vs Maths
+  // Literacy decision, not from the "subjects worth exploring" list named here.
+  const bridgeNames = exploreSubjects.filter(function(n){ return !gapMap[n] && n !== 'Mathematics'; });
   const bridge = bridgeNames.length
     ? 'Subjects that could connect your interests to these careers: ' + scNameList(bridgeNames.slice(0, 3)) + ' — they appear under “subjects worth exploring”.'
     : null;
