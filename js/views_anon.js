@@ -117,7 +117,7 @@ function viewAnonResults(){
           <div class="pill-list">${examples.map(c=>`<span class="tag">${esc(c.name)}</span>`).join('')}</div>
         </div>`;
       }).join('')}
-      ${disclaimerHTML('This is a quick starting point based on just 4 questions — not a definitive match or a precise score. The full assessment digs much deeper.')}
+      ${disclaimerHTML('This is a quick starting point based on just 4 questions — not a definitive match or a precise score. The full personality assessment digs much deeper.')}
       <div class="card" style="margin:18px 0;background:linear-gradient(135deg, var(--indigo), #14172A);border:none;">
         <h3 style="color:#fff;">Want a much closer match?</h3>
         <ul style="margin:10px 0;padding-left:18px;font-size:14px;color:#fff;">

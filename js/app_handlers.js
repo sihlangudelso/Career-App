@@ -397,12 +397,12 @@ const App = {
     // The Subject Choice report needs this assessment -- if they were sent
     // here from it, take them straight back to their subject results.
     if(firstCompletion && LEARNER && LEARNER.subjectChoice && LEARNER.subjectChoice.completedAt){
-      toast('Assessment complete — here are your subject results!');
+      toast('Personality assessment complete — here are your subject results!');
       navigate('subject-choice');
       return;
     }
     render();
-    toast('Assessment complete!');
+    toast('Personality assessment complete!');
   },
   assessRetake(){ ASSESSMENT_DRAFT=null; const d=ensureAssessDraft(); d.retaking=true; d.step=0; render(); },
 

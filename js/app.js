@@ -815,7 +815,7 @@ function pathwayReasoningHTML(learner, faculty){
 // scores and entered marks back up.
 function careerExplanationHTML(learner, career, ev){
   if(!learner.assessmentCompletedAt){
-    return `<p class="page-sub">Complete the assessment to see a personalised explanation of why this career might suit you.</p>`;
+    return `<p class="page-sub">Complete the personality assessment to see a personalised explanation of why this career might suit you.</p>`;
   }
   const why = [];
   if(ev.interestFit>=65 && career.riasec.length){

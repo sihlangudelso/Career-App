@@ -263,7 +263,7 @@ function subjectChoiceReportHTML(l){
 
   <div style="margin-top:20px;">${disclaimerHTML(SC_COPY.finalDecision + ' Talk it through with your Life Orientation teacher or subject counsellor.')}</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-    <button class="btn btn-ghost" onclick="App.subjectChoiceRetake()">Retake the assessment</button>
+    <button class="btn btn-ghost" onclick="App.subjectChoiceRetake()">Retake the Subject Choice Assessment</button>
     <button class="btn btn-ghost" onclick="navigate('home')">Back to dashboard</button>
   </div>`;
 }

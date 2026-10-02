@@ -1,7 +1,7 @@
 const LEARNER_NAV = [
   { r:'home', label:'Dashboard', ic:'home' },
   { r:'report', label:'Your Report', short:'Report', ic:'chart' },
-  { r:'assessment', label:'Assessment', ic:'spark' },
+  { r:'assessment', label:'Personality Assessment', short:'Personality', ic:'spark' },
   // Right after the personality assessment it builds on -- and inside the
   // first five entries, the ones the mobile bottom bar shows.
   { r:'subject-choice', label:'Subject Choice Assessment', short:'Subjects', ic:'book' },

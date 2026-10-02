@@ -59,7 +59,7 @@ function reportHeaderHTML(l){
       <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Grade</div><div style="font-weight:700;">${l.grade?('Grade '+l.grade):'—'}</div></div>
       <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">School</div><div style="font-weight:700;">${esc(l.school||'—')}</div></div>
     </div>
-    ${dateStr?`<div class="page-sub" style="margin-top:10px;">Assessment completed ${esc(dateStr)}</div>`:''}
+    ${dateStr?`<div class="page-sub" style="margin-top:10px;">Personality assessment completed ${esc(dateStr)}</div>`:''}
     <p style="margin:12px 0 0;">Your results combine your interests, working style and academic performance to help you explore career pathways and make more informed Grade 10 subject choices.</p>
   </div>`;
 }
@@ -210,7 +210,7 @@ function reportOverviewHTML(l){
   const identity = reportIdentityHTML(l);
   const topDomains = computeStrengthDomains(l).filter(d=>d.hasEvidence).slice(0,3);
   if(!topDomains.length && !scHasSavedAnswers(l)){
-    return `${identity}<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> or enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> to build your report.</p></div>`;
+    return `${identity}<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> or enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> to build your report.</p></div>`;
   }
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null).slice(0,3);
   const guidanceNeeded = isGuidanceRequired(l);
@@ -259,7 +259,7 @@ function reportOverviewHTML(l){
 function reportPathwaysHTML(l){
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null);
   if(!pathways.length){
-    return `<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to see which career pathways align with you.</p></div>`;
+    return `<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to see which career pathways align with you.</p></div>`;
   }
   return `
   <p class="page-sub" style="margin-bottom:16px;">Broader fields before specific careers — starting points to explore, not a ranked list of "correct" choices.</p>
@@ -392,7 +392,7 @@ function reportSubjectsHTML(l){
   const tiers = buildSubjectRelevanceTiers(l);
   const hasAny = Object.values(tiers).some(arr=>arr.length);
   if(!hasAny){
-    return `${recCard}<div class="empty-state">${icon('compass')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to see which subjects matter for your pathways.</p></div>`;
+    return `${recCard}<div class="empty-state">${icon('compass')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to see which subjects matter for your pathways.</p></div>`;
   }
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null && p.alignment>=50).slice(0,5);
   const conflicts = pathways
@@ -447,7 +447,7 @@ function reportSubjectsHTML(l){
 function reportNextStepsHTML(l){
   const steps = buildNextSteps(l);
   if(!steps.length){
-    return `<div class="empty-state">${icon('check')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to get your personalised next steps.</p></div>`;
+    return `<div class="empty-state">${icon('check')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to get your personalised next steps.</p></div>`;
   }
   return `
   <div class="card" style="margin-bottom:18px;">

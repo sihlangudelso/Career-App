@@ -25,7 +25,7 @@ function viewOnboarding(isEdit){
 
     ${l.exploringOnly !== false ? `
     <div class="grid grid-2" style="margin-bottom:22px;gap:12px;">
-      <button class="tile" style="border-top-color:var(--indigo);padding:16px;" onclick="App.startExploring('assessment')">${icon('spark','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Interest Assessment</h3><p class="page-sub" style="margin:0;">${RIASEC_QUESTIONS.length + STRENGTH_KEYS.length} quick questions to find your interests and strengths.</p></button>
+      <button class="tile" style="border-top-color:var(--indigo);padding:16px;" onclick="App.startExploring('assessment')">${icon('spark','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Personality Assessment</h3><p class="page-sub" style="margin:0;">${RIASEC_QUESTIONS.length + STRENGTH_KEYS.length} quick questions to find your interests and strengths.</p></button>
       <button class="tile" style="border-top-color:var(--teal);padding:16px;" onclick="App.startExploring('matches')">${icon('target','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Career Matching</h3><p class="page-sub" style="margin:0;">See which careers fit you best, ranked by fit.</p></button>
       <button class="tile" style="border-top-color:var(--sky);padding:16px;" onclick="App.startExploring('explore')">${icon('search','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">Explore Careers</h3><p class="page-sub" style="margin:0;">Browse every career, with real degree requirements.</p></button>
       <button class="tile" style="border-top-color:var(--coral);padding:16px;" onclick="App.startExploring('aps')">${icon('calc','tico')}<h3 style="font-size:14px;margin:8px 0 4px;">APS Calculator</h3><p class="page-sub" style="margin:0;">Estimate your university admission score from your marks.</p></button>
@@ -44,7 +44,7 @@ function viewOnboarding(isEdit){
     ` : l.exploringOnly ? `
     <div class="card">
       <h3>You’re all set</h3>
-      <p class="page-sub" style="margin-bottom:14px;">No school details needed — jump straight into the assessment or start exploring careers. You can add a school later from your dashboard if that changes.</p>
+      <p class="page-sub" style="margin-bottom:14px;">No school details needed — jump straight into the personality assessment or start exploring careers. You can add a school later from your dashboard if that changes.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(false)">Actually, I’m a school learner</button>
         <button class="btn btn-primary" onclick="App.saveOnboarding()">${icon('check')} Continue</button>
@@ -133,7 +133,7 @@ function viewHome(){
         <div class="grid grid-2" style="gap:8px;">
           ${labelStep('Profile complete', steps[0].done)}
           ${labelStep('Subjects locked in', steps[1].done)}
-          ${labelStep('Assessment done', steps[2].done)}
+          ${labelStep('Personality assessment done', steps[2].done)}
           ${labelStep('Explored matches', steps[3].done)}
         </div>
       </div>
@@ -152,7 +152,7 @@ function viewHome(){
   <div class="grid grid-3">
     ${!l.exploringOnly && l.grade===9 ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('grade9-report')">${icon('chart','tico')}<h3>${l.grade9Report?'Update your Grade 9 report':'Enter your Grade 9 report results'}</h3><p>Add your latest marks and a few work-style questions to sharpen your profile.</p></button>` : ''}
     ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('subject-choice')">${icon('book','tico')}<h3>${l.subjectChoice&&l.subjectChoice.completedAt?'Your subject choice report':'Subject Choice Assessment'}</h3><p>A personalised look at which Grade 10 subjects fit what you enjoy, how you work and how you are doing.</p></button>` : ''}
-    <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake assessment':'Take your assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
+    <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake personality assessment':'Take your personality assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="navigate('matches')">${icon('target','tico')}<h3>Career Matches</h3><p>See careers ranked by fit with your profile.</p></button>
     <button class="tile" style="border-top-color:var(--sky)" onclick="navigate('explore')">${icon('search','tico')}<h3>Explore Careers</h3><p>Browse all seeded careers across every faculty.</p></button>
     <button class="tile" style="border-top-color:var(--coral)" onclick="navigate('aps')">${icon('calc','tico')}<h3>APS Calculator</h3><p>Estimate your Admission Point Score from your marks.</p></button>
@@ -215,7 +215,7 @@ function viewLearnerProfile(){
 function learnerProfileBodyHTML(l){
   const p = buildAcademicProfile(l);
   if(!p || !p.primaryDomain){
-    return `<div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">assessment</a> to build your profile.</p></div>`;
+    return `<div class="empty-state">${icon('target')}<p>Not enough information yet — enter your <a href="#" onclick="navigate('grade9-report');return false;">Grade 9 Report Results</a> or complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a> to build your profile.</p></div>`;
   }
   const riasec = l.riasec || {};
   const topInterests = RIASEC.filter(d=>(riasec[d.id]||0)>=65);
@@ -257,7 +257,7 @@ function learnerProfileBodyHTML(l){
 
   ${topInterests.length ? `
   <div class="card" style="margin-bottom:18px;">
-    <h3>What your assessment shows</h3>
+    <h3>What your personality assessment shows</h3>
     <p class="page-sub">You show strong interest in:</p>
     <div class="pill-list">${topInterests.map(d=>`<span class="pill rec">${esc(d.name)}</span>`).join('')}</div>
   </div>` : ''}
@@ -469,7 +469,7 @@ function viewAssessment(){
   const inStrengths = step >= TOTAL_R;
   const pct = Math.round(step/TOTAL*100);
   const animClass = 'q-anim' + (d.dir==='back' ? ' back' : '');
-  const headTitle = inStrengths ? 'Rate your strengths' : 'Interests & personality assessment';
+  const headTitle = inStrengths ? 'Rate your strengths' : 'Personality assessment';
   const headSub = inStrengths
     ? `Strength ${step-TOTAL_R+1} of ${TOTAL_S} — rate yourself honestly, from not a strength to a real strength.`
     : `Question ${step+1} of ${TOTAL_R} — answer honestly, there are no wrong answers.`;
@@ -605,11 +605,11 @@ function viewMatches(){
   if(fac!=='all') matches = matches.filter(m=>m.career.faculty===fac);
   const grouped = l.assessmentCompletedAt;
   return `
-  ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Grouped by how your interests, strengths, subjects and marks line up.':'Complete the assessment for personalised ranking — showing subject-based fit for now.')}
+  ${pageHeadHTML('Career matches', l.assessmentCompletedAt? 'Grouped by how your interests, strengths, subjects and marks line up.':'Complete the personality assessment for personalised ranking — showing subject-based fit for now.')}
   <div class="detail-hero" style="background:linear-gradient(135deg, var(--indigo), #14172A);">
     <p style="font-size:15px;">${l.assessmentCompletedAt
       ? `Every one of the ${CAREERS.length} seeded careers, ranked by fit with your interest profile, strengths, subjects and marks.`
-      : `Every one of the ${CAREERS.length} seeded careers, ordered by subject fit for now — complete the assessment below for a ranking based on your interests and strengths too.`
+      : `Every one of the ${CAREERS.length} seeded careers, ordered by subject fit for now — complete the personality assessment for a ranking based on your interests and strengths too.`
     } Filter by faculty below, or open any career to see real degree programmes and entry requirements.</p>
   </div>
   <div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>A match score reflects <b>fit</b> with your interests, strengths, subjects and marks — it is not a guarantee of admission. Meeting a programme’s minimum requirements doesn’t guarantee acceptance, especially for competitive programmes — always confirm on the institution’s own site.</div></div>
@@ -986,7 +986,7 @@ function viewActivateAccount(){
   ${pageHeadHTML('Activate your account')}
   <div class="card" style="margin-bottom:20px;">
     <h3>Hi ${esc(firstName)}, you're almost ready</h3>
-    <p class="page-sub" style="margin:0;">Access to the assessment, career matches and your full report needs an active licence first. There are two ways to get activated:</p>
+    <p class="page-sub" style="margin:0;">Access to the assessments, career matches and your full report needs an active licence first. There are two ways to get activated:</p>
   </div>
   <div class="grid grid-2">
     <div class="card">
