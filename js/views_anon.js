@@ -125,7 +125,8 @@ function viewAnonResults(){
           <li>Recommended school subjects for your grade</li>
           <li>Study and qualification pathways for each career</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%;background:#fff;color:var(--indigo);margin-top:6px;" onclick="App.miniContinueToSignup()">Continue to the full assessment</button>
+        <button class="btn btn-primary" style="width:100%;background:#fff;color:var(--indigo);margin-top:6px;" onclick="App.miniContinueToSignup()">Create an account to continue</button>
+        <p style="color:#E4DCFF;font-size:12.5px;margin:12px 0 0;text-align:center;">The full assessments are unlocked with your school’s class code or an individual licence.</p>
       </div>
       <div style="text-align:center;">
         <button class="btn btn-ghost btn-sm" onclick="App.miniBack()">Back to your answers</button>
