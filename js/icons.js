@@ -3,6 +3,7 @@ function icon(name, cls){
   const S = `stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"`;
   const map = {
     home: `<circle cx="12" cy="12" r="9" ${S}/><path d="M8 12l4-4 4 4M12 8v8" ${S}/>`,
+    person: `<circle cx="12" cy="8" r="3.4" ${S}/><path d="M5 20c0-4 3.5-6.5 7-6.5s7 2.5 7 6.5" ${S}/>`,
     compass: `<circle cx="12" cy="12" r="9" ${S}/><path d="M15 9l-2 6-6 2 2-6 6-2z" ${S}/>`,
     spark: `<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" ${S}/><circle cx="12" cy="12" r="2.4" ${S}/>`,
     target: `<circle cx="12" cy="12" r="8.5" ${S}/><circle cx="12" cy="12" r="4.5" ${S}/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>`,

@@ -1090,6 +1090,42 @@ function viewCompare(){
   `;
 }
 
+/* ---------------- My Profile ---------------- */
+// Three separate cards/actions, not one combined "Save" button -- each
+// has a genuinely different underlying behaviour a learner should
+// understand distinctly: details are instant, email requires
+// confirmation and doesn't apply yet, password requires their current
+// one first. Doesn't touch the separate 'profile' route (grade/school/
+// subjects, viewOnboarding(true)).
+function viewMyProfile(){
+  const l = ensureLearnerObj();
+  return `
+  ${pageHeadHTML('My Profile')}
+  <div class="grid grid-2" style="margin-bottom:18px;">
+    <div class="card">
+      <h3>Your details</h3>
+      <div class="form-row"><label>Name</label><input type="text" id="myName" value="${esc(ME.name||'')}"/></div>
+      <div class="form-row"><label>Cell number</label><input type="tel" id="myCell" placeholder="e.g. 082 123 4567" value="${esc(l.cellNumber||'')}"/></div>
+      <button class="btn btn-primary" onclick="App.saveMyDetails()">Save details</button>
+    </div>
+    <div class="card">
+      <h3>Email address</h3>
+      <p class="page-sub">Current: <b>${esc(ME.email||'')}</b></p>
+      <div class="form-row"><label>New email</label><input type="email" id="myEmail" placeholder="new@example.com"/></div>
+      <button class="btn btn-primary" onclick="App.changeEmail()">Update email</button>
+      <p class="page-sub" style="margin-top:10px;margin-bottom:0;">We'll send a confirmation link to your new address — this doesn't take effect until you click it (and depending on your account's security settings, you may need to confirm from your current email too).</p>
+    </div>
+  </div>
+  <div class="card" style="max-width:480px;">
+    <h3>Change password</h3>
+    <div class="form-row"><label>Current password</label><input type="password" id="curPass" placeholder="Your current password"/></div>
+    <div class="form-row"><label>New password</label><input type="password" id="newPass1" placeholder="At least 6 characters"/></div>
+    <div class="form-row"><label>Confirm new password</label><input type="password" id="newPass2" placeholder="Re-enter your new password"/></div>
+    <button class="btn btn-primary" onclick="App.changePassword()">Update password</button>
+  </div>
+  `;
+}
+
 /* ---------------- Class / Licence ---------------- */
 function viewClass(){
   const l = ensureLearnerObj();

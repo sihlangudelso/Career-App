@@ -135,6 +135,54 @@ const App = {
     const { data } = await sb.auth.getSession();
     await handleSession(data.session);
   },
+  // ---- my profile (name/cell/email/password, while already signed in --
+  // distinct from authUpdatePassword above, which is the recovery-link flow) ----
+  async saveMyDetails(){
+    const name = ((document.getElementById('myName')||{}).value||'').trim();
+    const cellNumber = ((document.getElementById('myCell')||{}).value||'').trim();
+    if(!name){ toast('Enter your name.'); return; }
+    // { data:{...} } merges into existing user_metadata (e.g. a Google
+    // avatar_url survives), it doesn't replace it -- same call shape
+    // signUp() already uses for this same field.
+    const { error } = await sb.auth.updateUser({ data: { display_name: name } });
+    if(error){ toast('Could not save — '+friendlyAuthError(error)); console.error(error); return; }
+    ME.name = name;
+    await saveLearner({ cellNumber });
+    toast('Details saved.');
+    render();
+  },
+  async changeEmail(){
+    const newEmail = ((document.getElementById('myEmail')||{}).value||'').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){ toast('Please enter a valid email address.'); return; }
+    const { error } = await sb.auth.updateUser({ email: newEmail });
+    if(error){ toast('Could not update email — '+friendlyAuthError(error)); console.error(error); return; }
+    // Deliberately no optimistic update to ME/learners/profiles here --
+    // the real auth email hasn't changed yet. handle_user_updated()
+    // (supabase/add_profile_editing.sql) syncs profiles/learners once
+    // they actually confirm it, and the next session refresh picks up
+    // the new ME.email automatically.
+    toast('Check your new email address for a confirmation link — the change applies once you click it.');
+    render();
+  },
+  async changePassword(){
+    const current = (document.getElementById('curPass')||{}).value||'';
+    const next1 = (document.getElementById('newPass1')||{}).value||'';
+    const next2 = (document.getElementById('newPass2')||{}).value||'';
+    if(!current){ toast('Enter your current password.'); return; }
+    if(next1.length < 6){ toast('New password must be at least 6 characters.'); return; }
+    if(next1 !== next2){ toast('Those new passwords don’t match.'); return; }
+    // Re-verifies the current password before allowing a change -- these
+    // are minors' accounts, often on shared school computers; without
+    // this, anyone left on an unlocked, already-signed-in session could
+    // lock the real owner out with no proof of identity at all. A failed
+    // attempt here doesn't disturb the existing valid session.
+    const { error: verifyError } = await sb.auth.signInWithPassword({ email: ME.email, password: current });
+    if(verifyError){ toast('Current password is incorrect.'); return; }
+    const { error } = await sb.auth.updateUser({ password: next1 });
+    if(error){ toast('Could not update password — '+friendlyAuthError(error)); console.error(error); return; }
+    toast('Password updated.');
+    render();
+  },
   async signOut(){ await sb.auth.signOut(); },
   async cancelRecovery(){
     AUTH_RECOVERY_MODE = false;

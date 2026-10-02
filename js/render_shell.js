@@ -8,6 +8,7 @@ const LEARNER_NAV = [
   { r:'aps', label:'APS Calculator', ic:'calc' },
   { r:'favourites', label:'Favourites', ic:'heart' },
   { r:'compare', label:'Compare', ic:'layers' },
+  { r:'my-profile', label:'My Profile', ic:'person' },
   { r:'class', label:'My Class & Licence', ic:'users' },
 ];
 const ADMIN_NAV = [
@@ -200,6 +201,7 @@ function render(){
   else if(ROUTE==='aps') app.innerHTML = viewAPS();
   else if(ROUTE==='favourites') app.innerHTML = viewFavourites();
   else if(ROUTE==='compare') app.innerHTML = viewCompare();
+  else if(ROUTE==='my-profile') app.innerHTML = viewMyProfile();
   else if(ROUTE==='class') app.innerHTML = viewClass();
   else if(ROUTE==='profile') app.innerHTML = viewOnboarding(true);
   else app.innerHTML = viewHome();
