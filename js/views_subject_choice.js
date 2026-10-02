@@ -188,7 +188,9 @@ function subjectChoiceReportHTML(l){
   </div>
 
   <div class="section-title"><h2>2. Your strongest subject matches</h2></div>
-  <div class="grid grid-2">${rep.top.map(function(r){ return subjectCardHTML(r, true); }).join('')}</div>
+  ${rep.top.length
+    ? `<div class="grid grid-2">${rep.top.map(function(r){ return subjectCardHTML(r, true); }).join('')}</div>`
+    : `<div class="card"><p style="margin:0;">No subject stood out strongly this time — and that is completely fine. It can simply mean you are still exploring. Try the assessment again after you have looked into a few subjects, and talk to your Life Orientation teacher about what you enjoy.</p></div>`}
 
   <div class="card" style="margin-top:16px;">
     <h3>Mathematics or Mathematical Literacy?</h3>

@@ -217,6 +217,8 @@ privacy.html              privacy notice
 style.css                 design system (colours, layout, components)
 supabase/
   schema.sql              tables + Row Level Security policies — run once!
+  add_*.sql               one-off migrations for databases created before a
+                          feature existed (e.g. add_subject_choice_assessment.sql)
 js/
   supabase-config.js      YOUR Supabase URL + anon key — edit this first
   icons.js                small inline SVG icon set
@@ -225,9 +227,33 @@ js/
   auth-ui.js              sign-in / sign-up screen
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
   views_learner.js        onboarding, dashboard, assessment, careers, APS…
+  subject_choice_config.js  Grade 9 Subject Choice Assessment: ALL tunable settings
+                          (score weights, thresholds, subjects, questions, wording)
+  subject_choice_engine.js  that assessment's scoring logic (no numbers to hunt for)
+  views_subject_choice.js   that assessment's screens and report
   views_admin.js          admin overview, classes, cohort table + export
   app_handlers.js         all click/submit handlers (the `App` object)
 ```
+
+### Grade 9 Subject Choice Assessment
+
+An additional assessment that sits alongside the personality assessment (it
+does not replace it). It scores 21 Grade 10 subject areas on three things
+and blends them — **interest** (what the learner enjoys, from 113 indirect
+questions), **personality alignment** (from the existing personality
+assessment) and **academic readiness** (from their Grade 9 report or current
+marks) — by default 40% / 25% / 35%.
+
+Everything you might want to change is in `js/subject_choice_config.js`:
+`SC_CONFIG.weights`, the readiness bands and thresholds, `SC_SUBJECTS` (add a
+subject here), `SC_QUESTIONS` (each question's `weights` say which subjects its
+answer feeds), `SC_COMBOS`, and the fixed wording in `SC_COPY`. Only the
+learner's answers are stored (`learners."subjectChoice"`); the report is
+recomputed from those plus their latest marks and personality results.
+
+**Before deploying:** run `supabase/add_subject_choice_assessment.sql` once in
+the Supabase SQL editor. The app saves a learner's whole row in one go, so
+finishing the assessment would show "Could not save" until that column exists.
 
 ### Why the column names look like `"mathType"` in SQL
 

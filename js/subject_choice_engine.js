@@ -566,7 +566,15 @@ function scBuildWorkOn(focusResults){
     .sort(function(a, b){ return a.pct - b.pct; })
     .slice(0, SC_CONFIG.report.workOnMax)
     .map(function(a){ return SC_AREA_TIPS[a.area] + ' This matters for ' + scJoin(a.subjects.slice(0, 3)) + '.'; });
-  if(!tips.length) tips.push('Your current results support your strongest matches well — keep up your regular study habits and revisit your results each term.');
+  if(!tips.length){
+    // Only reassure when there are marks to base it on.
+    const withMarks = focusResults.filter(function(r){ return r.academic.score != null; });
+    const without = focusResults.filter(function(r){ return r.academic.score == null; });
+    const names = function(list){ return scJoin(list.slice(0, 3).map(function(r){ return SC_SUBJECTS[r.id].label; })); };
+    if(!withMarks.length) tips.push('We could not match your current marks to these subjects yet — adding your latest results will show where to focus your effort.');
+    else if(without.length) tips.push('Your current results support ' + names(withMarks) + ' well. Add your remaining marks to see how ready you are for ' + names(without) + '.');
+    else tips.push('Your current results support your strongest matches well — keep up your regular study habits and revisit your results each term.');
+  }
   return tips;
 }
 
