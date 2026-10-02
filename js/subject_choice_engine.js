@@ -365,7 +365,8 @@ function scMathPathwayNeed(results, learner){
   let careerNeed = null;
   if(typeof computeMatches === 'function' && typeof CAREERS !== 'undefined'){
     try {
-      const top = computeMatches(learner).slice(0, M.careerSample);
+      // The same ordering as the best-suited careers shown to the learner.
+      const top = bestSuitedCareers(learner, M.careerSample);
       const fav = {};
       (learner.favourites || []).forEach(function(id){ fav[id] = true; });
       let num = 0, den = 0;
@@ -522,7 +523,7 @@ function getCareerPathwaysForSubjects(subjectIds, results){
 }
 
 /* ---------------- profile summary + "what to work on" ---------------- */
-function scBuildProfile(answers, results, personality){
+function scBuildProfile(answers, results){
   // Learner-level interest traits: average answer per trait across the
   // questions that belong to a specific subject.
   const acc = {};
@@ -542,8 +543,6 @@ function scBuildProfile(answers, results, personality){
     if(rs.length) famScores[f] = scMean(rs.map(function(r){ return r.fit.overall; }));
   });
   const fams = Object.keys(famScores).sort(function(a, b){ return famScores[b] - famScores[a]; });
-  const persTop = Object.keys(personality.traits).filter(function(t){ return personality.traits[t] != null; })
-    .sort(function(a, b){ return personality.traits[b] - personality.traits[a]; }).slice(0, 2);
   const summary = [];
   summary.push(traits.length >= 2
     ? 'You seem to enjoy ' + scJoin(traits.map(function(t){ return scPhrase(t.trait); })) + '.'
@@ -553,11 +552,9 @@ function scBuildProfile(answers, results, personality){
     if(fams[1] && famScores[fams[1]] >= 55) s += ', although you also show an interest in ' + SC_FAMILIES[fams[1]].label;
     summary.push(s + '.');
   }
-  if(persTop.length) summary.push('Your working style leans towards ' + scJoin(persTop.map(function(t){ return SC_TRAITS[t].phrase; })) + '.');
   return {
     summary: summary,
     interestTraits: traits.map(function(t){ return { trait: t.trait, phrase: scPhrase(t.trait), score: t.score }; }),
-    personalityTraits: persTop.map(function(t){ return { id: t, label: SC_TRAITS[t].label, score: personality.traits[t] }; }),
     families: fams.map(function(f){ return { id: f, label: SC_FAMILIES[f].label, score: famScores[f] }; }),
   };
 }
@@ -639,7 +636,7 @@ function buildSubjectChoiceReport(learner){
     },
     answered: answered, total: SC_QUESTIONS.length,
     results: sorted,
-    profile: scBuildProfile(answers, results, personality),
+    profile: scBuildProfile(answers, results),
     top: top, explore: explore, effort: effort,
     mathChoice: mathChoice,
     combos: combos,

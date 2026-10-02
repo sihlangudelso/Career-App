@@ -176,6 +176,11 @@ function subjectChoiceReportHTML(l){
   const letter = function(i){ return String.fromCharCode(65 + i); };
   const m = rep.mathChoice;
   const mathLean = scMathLeanLabel(m);
+  const pti = personalityTypeInfo(l);
+  // The same best-suited careers (and explanation) as the report overview,
+  // so the two pages can't name different careers for the same learner.
+  const matches = bestSuitedCareers(l, 5);
+  const fit = reconcileCareersAndSubjects(matches, rep);
   return `
   ${pageHeadHTML('Your Subject Choice Report', 'Based on what you enjoy, how you naturally work and how you are currently performing.')}
   ${!rep.ready.complete ? `<p class="page-sub" style="margin-bottom:14px;">This report uses the ${rep.answered} of ${rep.total} questions you answered. The question set has grown since you took it — retake to include everything.</p>` : ''}
@@ -183,7 +188,7 @@ function subjectChoiceReportHTML(l){
   <div class="section-title"><h2>1. Your subject choice profile</h2></div>
   <div class="card card-top-accent">
     ${rep.profile.summary.map(function(s){ return `<p>${esc(s)}</p>`; }).join('')}
-    ${rep.profile.personalityTraits.length ? `<div class="sc-label">How you like to work</div><div class="pill-list">${rep.profile.personalityTraits.map(function(t){ return `<span class="pill">${esc(t.label)}</span>`; }).join('')}</div>` : ''}
+    ${pti ? `<div class="sc-label">Your personality type</div><div class="pill-list"><span class="pill rec"><b>${esc(pti.code)}</b> · ${esc(pti.top[0].name)} · ${esc(pti.top[1].name)}</span></div>` : ''}
     <p class="page-sub" style="margin-top:12px;font-size:12.5px;">Each match percentage blends what you enjoy (${pctOf(W.interest)}%), how you naturally work (${pctOf(W.personality)}%) and how you are currently performing (${pctOf(W.academic)}%).</p>
   </div>
 
@@ -230,7 +235,13 @@ function subjectChoiceReportHTML(l){
   <div class="card"><ul style="margin:0;padding-left:20px;">${rep.workOn.map(function(t){ return `<li style="margin-bottom:6px;">${esc(t)}</li>`; }).join('')}</ul></div>
 
   <div class="section-title"><h2>7. Careers these subjects keep open</h2></div>
+  <h3 style="margin:0 0 4px;">Your best-suited careers</h3>
+  <p class="page-sub" style="margin-bottom:12px;">From your personality and strengths assessment — with how your recommended subjects relate to each.</p>
+  ${matches.map(function(mt){ return `<div class="ov-career">${careerRowHTML(mt.career, mt.score, l, mt.category, { route:'subject-choice' })}${careerSupportLineHTML(careerSubjectSupport(mt.career, rep))}</div>`; }).join('')}
+  ${fit.length ? `<div class="card" style="margin:6px 0 18px;">${fit.map(function(s, i){ return `<p style="margin:0 0 ${i === fit.length - 1 ? 0 : 8}px;">${esc(s)}</p>`; }).join('')}</div>` : ''}
   <div class="card">
+    <h3>Fields your recommended subjects connect to</h3>
+    <p class="page-sub">From your subject interests — these can differ from the careers above, and that is fine.</p>
     <p>These subjects may keep these broad pathways open: ${esc(rep.careers.pathways.slice(0, 6).join(', '))}.</p>
     ${rep.careers.clusters.length ? `<div class="grid grid-2" style="margin-top:12px;">${rep.careers.clusters.map(function(c){ return `
       <div class="card" style="padding:14px;">

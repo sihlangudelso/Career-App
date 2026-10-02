@@ -71,7 +71,7 @@ function reportHeaderHTML(l){
 // the report follows. Each block reads from ONE canonical source, and says
 // which: subjects from the Subject Choice Assessment, personality type from
 // the personality assessment (personalityTypeInfo), careers from the same
-// computeMatches() ranking the Career Matches page uses. Never a separate,
+// bestSuitedCareers() ranking the Career Matches page uses. Never a separate,
 // potentially-drifting summary calculation.
 
 // Slim one-line identity (the large header card above is kept for print).
@@ -201,7 +201,7 @@ function overviewFitHTML(sentences){
 function reportOverviewCoreHTML(l){
   const src = reportSubjectSource(l);
   const rep = src.kind === 'assessment' ? src.report : null;
-  const matches = l.assessmentCompletedAt ? computeMatches(l).slice(0, 5) : [];
+  const matches = l.assessmentCompletedAt ? bestSuitedCareers(l, 5) : [];
   const fit = rep ? reconcileCareersAndSubjects(matches, rep) : [];
   return `${overviewSubjectsHTML(l, src)}${overviewPersonalityHTML(l)}${overviewCareersHTML(l, matches, rep)}${overviewFitHTML(fit)}`;
 }

@@ -685,6 +685,21 @@ function computeMatches(learner){
     return { career:c, score:ev.score, category:ev.category, eval:ev };
   }).sort((a,b)=>b.score-a.score);
 }
+// A learner's best-suited careers, in the order the Career Matches page
+// presents them: strong matches first, then academic / interest / possible
+// / low, best score first within each group (before the assessment there
+// are no groups, just score order). Every learner-facing "top careers"
+// list goes through this, so no page can name a different top career than
+// the Career Matches page the learner can click through to.
+function bestSuitedCareers(learner, n){
+  const all = computeMatches(learner);
+  if(!learner.assessmentCompletedAt) return all.slice(0, n);
+  const order = MATCH_GROUP_ORDER.map(g=>g[0]);
+  const rank = c=>{ const i = order.indexOf(c); return i<0 ? order.length : i; };
+  return all.map((m,i)=>({ m, i }))
+    .sort((a,b)=> (rank(a.m.category)-rank(b.m.category)) || (a.i-b.i))
+    .map(x=>x.m).slice(0, n);
+}
 
 // A faculty/pathway's Alignment ("does this fit your interests and
 // strengths") and Readiness ("do your current results/subjects support

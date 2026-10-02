@@ -114,7 +114,7 @@ function viewOnboarding(isEdit){
 function viewHome(){
   const l = ensureLearnerObj();
   const { steps, pct } = progressState(l);
-  const matches = computeMatches(l).slice(0,3);
+  const matches = bestSuitedCareers(l, 3);
   const r = 42, circ = 2*Math.PI*r;
   const cls = CLASSES.find(c=>c.id===l.classId);
   return `
@@ -220,7 +220,7 @@ function learnerProfileBodyHTML(l){
   }
   const riasec = l.riasec || {};
   const topInterests = RIASEC.filter(d=>(riasec[d.id]||0)>=65);
-  const topMatches = computeMatches(l).slice(0,3);
+  const topMatches = bestSuitedCareers(l, 3);
   const pathways = [...new Set([...p.primaryDomain.domain.pathways, ...(p.secondaryDomain?p.secondaryDomain.domain.pathways:[])])];
   // Leads with the plain-language headline (top 3 strongest domains + a
   // generated sentence) before the percentage-driven cards below -- the
@@ -765,7 +765,7 @@ function assessmentResultsHTML(l){
   const pti = personalityTypeInfo(l);
   const top2 = pti ? pti.code : hollandCode(l.riasec);
   const topDims = pti ? pti.top : [];
-  const topMatches = computeMatches(l).slice(0,3);
+  const topMatches = bestSuitedCareers(l, 3);
   return `
   <div class="page-head" style="align-items:center;">
     <div>
