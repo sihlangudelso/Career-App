@@ -7,7 +7,7 @@ function cohortStats(){
   const facCount = {}; FACULTIES.forEach(f=>facCount[f.id]=0);
   COHORT.forEach(c=>{
     if(c.assessmentCompletedAt){
-      const top = computeMatches(c)[0];
+      const top = bestSuitedCareers(c,1)[0];
       if(top) facCount[top.career.faculty] = (facCount[top.career.faculty]||0)+1;
     }
   });
@@ -112,7 +112,7 @@ function cohortRowsFiltered(facFilter, filterClass, search){
   if(facFilter){
     rows = rows.filter(l=>{
       if(l.grade!==9 || !l.assessmentCompletedAt) return false;
-      const top = computeMatches(l)[0];
+      const top = bestSuitedCareers(l,1)[0];
       return top && top.career.faculty===facFilter;
     });
   }
@@ -151,7 +151,7 @@ function viewAdminCohort(){
     <tbody>
       ${rows.length? rows.map(l=>{
         const cls = CLASSES.find(c=>c.id===l.classId);
-        const top = l.assessmentCompletedAt ? computeMatches(l).slice(0,3).map(m=>m.career.name).join(', ') : '—';
+        const top = l.assessmentCompletedAt ? bestSuitedCareers(l,3).map(m=>m.career.name).join(', ') : '—';
         return `<tr>
           <td><a href="#" onclick="navigate('admin-learner','${l.id}');return false;"><b>${esc(cohortLearnerName(l.id))}</b></a></td>
           <td>${l.grade||'—'}</td>
@@ -174,7 +174,7 @@ function viewAdminLearnerDetail(id){
   const l = COHORT.find(c=>c.id===id);
   if(!l) return `${pageHeadHTML('Learner not found')}<div class="empty-state">${icon('users')}<p>This learner record could not be found.</p></div>`;
   const cls = CLASSES.find(c=>c.id===l.classId);
-  const matches = l.assessmentCompletedAt ? computeMatches(l).slice(0,5) : [];
+  const matches = l.assessmentCompletedAt ? bestSuitedCareers(l,5) : [];
   return `
   <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="navigate('admin-cohort')">${icon('chevron')} Back to cohort</button>
   ${pageHeadHTML(cohortLearnerName(l.id), `Grade ${l.grade||'—'} · ${esc(l.school||'No school set')}`)}
@@ -228,7 +228,7 @@ function buildSchoolDashboardData(classFilter){
   const assessed = rows.filter(l=>l.assessmentCompletedAt);
 
   const enriched = assessed.map(l=>{
-    const top = computeMatches(l)[0];
+    const top = bestSuitedCareers(l,1)[0];
     const faculty = top ? facultyById(top.career.faculty) : null;
     if(!faculty) return null;
     return {

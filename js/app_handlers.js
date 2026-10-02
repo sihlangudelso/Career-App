@@ -227,7 +227,8 @@ const App = {
   async saveOnboarding(){
     const l = ensureLearnerObj();
     if(l.exploringOnly){
-      await saveLearner({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
+      const savedExploring = await saveLearnerOrRevert({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
+      if(!savedExploring) return;
       toast('Profile saved.');
       // A mini-assessment-driven signup lands straight in the real
       // assessment instead of the dashboard -- the invitation they just
@@ -238,7 +239,8 @@ const App = {
     if(!l.grade){ toast('Please select your grade.'); return; }
     const { school, subjects, subjectMarks } = readOnboardingForm(l.grade);
     if(!school || !school.trim()){ toast('Please add your school name.'); return; }
-    await saveLearner({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects: subjects||[], subjectMarks: l.grade>9?(subjectMarks||{}):null, licenseStatus: l.licenseStatus||'trial' });
+    const savedProfile = await saveLearnerOrRevert({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects: subjects||[], subjectMarks: l.grade>9?(subjectMarks||{}):null, licenseStatus: l.licenseStatus||'trial' });
+    if(!savedProfile) return;
     toast('Profile saved.');
     navigate(l.miniAssessment ? 'assessment' : 'home');
   },
@@ -279,7 +281,14 @@ const App = {
     scSanitizeDraft(d);
     if(Object.keys(d.answers).length < SC_QUESTIONS.length){ toast('Please answer every question first.'); return; }
     const l = ensureLearnerObj();
-    await saveLearner({ subjectChoice: { answers: d.answers, completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } });
+    const done = busyButton('#scNext', 'Saving…');
+    const ok = await saveLearnerOrRevert({ subjectChoice: { answers: d.answers, completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } });
+    if(!ok){
+      // Keep their answers: the draft is untouched, so tapping again retries.
+      done();
+      toast('Could not save your answers — they are still here. Check your connection and tap the button again.');
+      return;
+    }
     SUBJECT_CHOICE_DRAFT = null;
     if(!l.assessmentCompletedAt){
       toast('Answers saved — now a quick look at how you naturally work.');
@@ -320,10 +329,12 @@ const App = {
     Object.keys(d.marks).forEach(k=>{ if(d.marks[k]!=null && d.marks[k]!=='') subjects[k] = { pct: clamp(Number(d.marks[k]),0,100) }; });
     const workStyle = {};
     WORK_STYLE_QUESTIONS.forEach(q=>{ workStyle[q.key] = clamp((d.workStyle[q.key]-1)/4*100, 0, 100); });
-    await saveLearner({
+    const done = busyButton('button[onclick="App.grade9Submit()"]', 'Saving…');
+    const ok = await saveLearnerOrRevert({
       grade9Report: { term: d.term, grade: 9, subjects, socialSciencesSplit: d.socialSciencesSplit, creativeArtsFocus: d.creativeArtsFocus },
       workStyle,
     });
+    if(!ok){ done(); return; }
     GRADE9_DRAFT = null;
     toast('Grade 9 report results saved.');
     navigate('learner-profile');
@@ -374,7 +385,14 @@ const App = {
     const strengths = {};
     STRENGTH_KEYS.forEach((s,i)=>{ strengths[s.id] = clamp((d.strengths[i]-1)/4*100,0,100); });
     const firstCompletion = !LEARNER || !LEARNER.assessmentCompletedAt;
-    await saveLearner({ riasec, strengths, riasecRaw:d.answers, strengthsRaw:d.strengths, assessmentCompletedAt: todayISO() });
+    const done = busyButton('button[onclick="App.assessSubmit()"]', 'Saving…');
+    const ok = await saveLearnerOrRevert({ riasec, strengths, riasecRaw:d.answers, strengthsRaw:d.strengths, assessmentCompletedAt: todayISO() });
+    if(!ok){
+      // Keep their answers: they are still in the draft, so tapping again retries.
+      done();
+      toast('Could not save your results — your answers are still here. Check your connection and tap the button again.');
+      return;
+    }
     ASSESSMENT_DRAFT = null;
     // The Subject Choice report needs this assessment -- if they were sent
     // here from it, take them straight back to their subject results.
@@ -659,7 +677,7 @@ const App = {
     const lines = [headers.join(',')];
     rows.forEach(l=>{
       const cls = CLASSES.find(c=>c.id===l.classId);
-      const top3 = l.assessmentCompletedAt ? computeMatches(l).slice(0,3).map(m=>m.career.name).join('; ') : '';
+      const top3 = l.assessmentCompletedAt ? bestSuitedCareers(l,3).map(m=>m.career.name).join('; ') : '';
       const line = [
         cohortLearnerName(l.id), l.grade||'', l.school||'', cls?cls.name:'', l.mathType||'',
         (l.subjects||[]).join('; '), hollandCode(l.riasec), l.assessmentCompletedAt?'Yes':'No',

@@ -303,7 +303,7 @@ function reportCareersHTML(l){
   const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null).slice(0,5);
   const facultyIds = new Set(pathways.map(p=>p.faculty.id));
   const matches = facultyIds.size
-    ? computeMatches(l).filter(m=>facultyIds.has(m.career.faculty)).slice(0,10)
+    ? bestSuitedCareers(l, CAREERS.length).filter(m=>facultyIds.has(m.career.faculty)).slice(0,10)
     : computeMatches(l).slice(0,6); // pre-assessment fallback, same subject-based ordering viewMatches already uses
   if(!matches.length){
     return `<div class="empty-state">${icon('search')}<p>No careers to show yet.</p></div>`;

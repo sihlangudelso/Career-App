@@ -308,11 +308,14 @@ function ensureLearnerObj(){
   return LEARNER;
 }
 
+// Resolves true if the change is saved (or there is nothing to save to: preview
+// mode), false if the save failed -- callers that must not tell the learner
+// "saved" unless it really was check this (see saveLearnerOrRevert).
 async function saveLearner(partial){
   ensureLearnerObj();
   Object.assign(LEARNER, partial);
   LEARNER.updatedAt = todayISO();
-  if(PREVIEW_MODE || !ME.id) return; // memory-only in preview
+  if(PREVIEW_MODE || !ME.id) return true; // memory-only in preview: nothing can fail
   try{
     if(!LEARNER.createdAt) LEARNER.createdAt = todayISO();
     const body = { ...LEARNER, id: ME.id, displayName: ME.name, email: ME.email };
@@ -320,7 +323,30 @@ async function saveLearner(partial){
     const { error } = await sb.from('learners').upsert(body, { onConflict:'id' });
     if(error) throw error;
     LEARNER.exists = true;
-  }catch(e){ toast('Could not save — check your connection and try again.'); console.error(e); }
+    return true;
+  }catch(e){ toast('Could not save — check your connection and try again.'); console.error(e); return false; }
+}
+// For the long forms (assessments, report results, onboarding): save, and if
+// it fails put the in-memory profile back as it was, so no page goes on
+// showing a result that was never saved. The caller keeps the learner's
+// answers on screen / in their draft and lets them tap again.
+async function saveLearnerOrRevert(partial){
+  const l = ensureLearnerObj();
+  const before = {};
+  Object.keys(partial).forEach(k=>{ before[k] = { had: Object.prototype.hasOwnProperty.call(l, k), value: l[k] }; });
+  const ok = await saveLearner(partial);
+  if(!ok) Object.keys(before).forEach(k=>{ if(before[k].had) l[k] = before[k].value; else delete l[k]; });
+  return ok;
+}
+// Disables a button and shows "Saving…" while a slow save is in flight (a
+// second tap can't double-submit, and the learner can see something is
+// happening on a slow connection). Returns a function that restores it.
+function busyButton(selector, label){
+  const b = document.querySelector(selector);
+  if(!b) return function(){};
+  const html = b.innerHTML, was = b.disabled;
+  b.disabled = true; b.textContent = label;
+  return function(){ b.innerHTML = html; b.disabled = was; };
 }
 
 /* ---------------- matching engine ---------------- */
@@ -1005,8 +1031,8 @@ function buildNextSteps(learner){
   const steps = [];
   const pathways = computePathwayMatches(learner).filter(p=>p.alignment!=null).slice(0,3);
   if(pathways.length) steps.push(`Explore your top ${pathways.length===1?'pathway':'pathways'}: ${pathways.map(p=>p.faculty.name).join(', ')}.`);
-  const matches = computeMatches(learner).slice(0,3);
-  if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} in Careers Worth Exploring.`);
+  const matches = bestSuitedCareers(learner, 3);
+  if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} — your best-suited careers on the Overview.`);
   if(!learner.exploringOnly){
     if(learner.subjectChoice && learner.subjectChoice.completedAt) steps.push('Read your Subject Choice report and talk it through with your Life Orientation teacher or subject counsellor.');
     else steps.push('Take the Subject Choice Assessment for a personalised look at which Grade 10 subjects fit you.');
