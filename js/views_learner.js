@@ -994,7 +994,7 @@ function viewClass(){
 }
 
 // Forced landing screen for any learner past onboarding whose
-// licenseStatus isn't 'active' yet (see render()'s needsActivation gate)
+// licenseStatus isn't 'active' yet (see learnerGate() and render())
 // -- offers both activation paths side by side: joining a class (the
 // code itself is the payment proof, see join_class_by_code()) or
 // individual activation via the super admin, matching pricing.html's own
