@@ -396,7 +396,7 @@ function ensureGuideDraft(){
       conf = {};
       STRENGTH_DOMAINS.forEach(dm=>{
         const found = domains.find(x=>x.domain.id===dm.id);
-        conf[dm.id] = found && found.hasEvidence ? Math.max(1, Math.min(5, Math.round(found.score/25)+1)) : 3;
+        conf[dm.id] = found && found.hasEvidence ? Math.max(1, Math.min(5, Math.round(found.score/25)+1)) : 0;
       });
     }
     GUIDE_DRAFT = { step:1, tags: g?g.tags:[], conf };
@@ -424,14 +424,21 @@ function viewGuidance(){
       ${STRENGTH_DOMAINS.map(dm=>confSlider(dm.id, dm.name, d.conf[dm.id])).join('')}
       <div style="margin-top:10px;display:flex;gap:10px;">
         <button class="btn btn-ghost" onclick="App.guideStep(1)">Back</button>
-        <button class="btn btn-primary" onclick="App.guideSubmit()">See my recommendation</button>
+        <button class="btn btn-primary" ${STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0)?'':'disabled'} onclick="App.guideSubmit()">See my recommendation</button>
       </div>
     `}
   </div>`;
 }
 function confSlider(key,label,val){
-  return `<div class="slider-row"><div class="sl-top"><span>${label}</span><span id="val_${key}">${val}/5</span></div>
-    <input type="range" min="1" max="5" value="${val}" oninput="App.guideConf('${key}',this.value)"/></div>`;
+  // 0 = not yet rated. A native range input still needs some numeric
+  // position to render at, so the thumb sits at the midpoint (3) only
+  // visually via .unanswered -- same sentinel pattern as the Grade 9
+  // work-style slider and the Assessment's slider widget -- while the
+  // stored value stays 0 until the learner actually drags it.
+  const answered = val>0;
+  const v = answered ? val : 3;
+  return `<div class="slider-row ${answered?'':'unanswered'}"><div class="sl-top"><span>${label}</span><span id="val_${key}">${answered?v+'/5':'Not yet rated'}</span></div>
+    <input type="range" min="1" max="5" value="${v}" oninput="App.guideConf('${key}',this.value,this)"/></div>`;
 }
 // Grounded in the real career database rather than a hardcoded tag->subject
 // table: for every career example under the learner's selected clusters,

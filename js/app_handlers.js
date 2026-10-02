@@ -252,7 +252,18 @@ const App = {
     render();
   },
   guideStep(n){ ensureGuideDraft().step = n; render(); },
-  guideConf(key,val){ const d=ensureGuideDraft(); d.conf[key]=Number(val); const s=document.getElementById('val_'+key); if(s) s.textContent = val+'/5'; },
+  guideConf(key,val,el){
+    const d = ensureGuideDraft();
+    d.conf[key] = Number(val);
+    const s = document.getElementById('val_'+key);
+    if(s) s.textContent = val+'/5';
+    if(!el) return;
+    const row = el.closest('.slider-row');
+    if(row) row.classList.remove('unanswered');
+    const card = el.closest('.card');
+    const btn = card && card.querySelector('.btn-primary');
+    if(btn) btn.disabled = !STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0);
+  },
   async guideSubmit(){
     const d = ensureGuideDraft();
     const result = buildGuidanceResult(d);
