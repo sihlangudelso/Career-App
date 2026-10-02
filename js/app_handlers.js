@@ -443,7 +443,7 @@ const App = {
     LEARNER.licenseStatus = 'active';
     LEARNER.licenseSource = 'class';
     toast('Joined '+row.class_name+' — your account is now active!');
-    render();
+    navigate('home');
   },
   async leaveClass(){
     // Mirrors what the server-side trigger will enforce regardless (a
