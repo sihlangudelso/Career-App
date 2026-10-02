@@ -84,7 +84,10 @@ const App = {
     AUTH_BUSY = true; AUTH_ERROR=''; AUTH_SHOW_RESET=false; render();
     const { data, error } = await sb.auth.signUp({
       email, password: pass,
-      options: { data: { display_name: name.trim() } },
+      options: {
+        data: { display_name: name.trim() },
+        emailRedirectTo: window.location.origin + window.location.pathname,
+      },
     });
     if(error){ AUTH_ERROR = friendlyAuthError(error); AUTH_BUSY=false; render(); return; }
     AUTH_BUSY = false;
