@@ -84,6 +84,13 @@ function viewAdminClasses(){
       </div>
       ${IS_SUPER_ADMIN? `
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#eee);">
+        <div class="page-sub" style="margin-bottom:6px;">Licence seats (blank = unlimited)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="number" id="seats-${c.id}" min="1" placeholder="Unlimited" value="${c.seatLimit||''}" style="width:120px;"/>
+          <button class="btn btn-ghost btn-sm" onclick="App.updateClassSeats('${c.id}', (document.getElementById('seats-${c.id}')||{}).value)">Update seats</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#eee);">
         <div class="page-sub" style="margin-bottom:6px;">${classAdmin? `Class admin: <b>${esc(classAdmin.email)}</b>` : 'No class admin assigned yet.'}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="email" id="assignEmail-${c.id}" placeholder="teacher@school.co.za" style="flex:1;min-width:200px;"/>

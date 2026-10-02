@@ -497,6 +497,21 @@ const App = {
     CLASSES = CLASSES.filter(c=>c.id!==id);
     render();
   },
+  // ||null, not ||0: matches createClass's own "blank/0 = unlimited"
+  // convention, which join_class_by_code()'s seat-limit check already
+  // relies on (supabase/add_payment_verification.sql) -- a class can be
+  // increased (or decreased) at any time, including after learners have
+  // already joined; decreasing below the current active count doesn't
+  // remove anyone, it just blocks further joins until the count drops.
+  async updateClassSeats(id, rawValue){
+    const seatLimit = Number(rawValue) || null;
+    const { error } = await sb.from('classes').update({ seatLimit }).eq('id', id);
+    if(error){ toast('Could not update seats — check your connection and try again.'); console.error(error); return; }
+    const cls = CLASSES.find(c=>c.id===id);
+    if(cls) cls.seatLimit = seatLimit;
+    toast('Seats updated.');
+    render();
+  },
   // Assigns an existing account as the class admin for one class, by email
   // -- mirrors this app's existing "promote by hand" assumption (README
   // Phase 2/5): the target must already have signed up. Refuses to
