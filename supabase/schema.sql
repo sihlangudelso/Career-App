@@ -78,6 +78,7 @@ create table if not exists public.learners (
   "miniAssessment" jsonb,
   "intendedSubjects" text[] default '{}',
   "intendedMathType" text,
+  "cellNumber" text,
   "displayName" text,
   email text,
   "createdAt" timestamptz not null default now(),
@@ -400,3 +401,43 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ============================================================
+-- Keeps profiles.email/"displayName" AND learners.email/"displayName"
+-- in sync with auth.users whenever either changes -- not just at
+-- signup. Without this, a learner changing their own name/email from
+-- the My Profile page (which can only ever write auth.users --
+-- profiles_update_admin_only blocks a learner from updating their own
+-- profiles row directly) would leave profiles.email permanently stale,
+-- silently breaking App.assignClassAdmin's email lookup and the
+-- Classes & Licences class-admin display for that person. An UPDATE
+-- against learners with no matching row (an admin/class_admin account
+-- has none) is a no-op, not an error.
+-- ============================================================
+create or replace function public.handle_user_updated()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.profiles set
+    email = new.email,
+    "displayName" = coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1))
+  where id = new.id;
+  update public.learners set
+    email = new.email,
+    "displayName" = coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1))
+  where id = new.id;
+  return new;
+end;
+$$;
+
+-- The WHEN clause means this doesn't even fire for an auth.users touch
+-- unrelated to email/metadata (e.g. a token refresh).
+drop trigger if exists on_auth_user_updated on auth.users;
+create trigger on_auth_user_updated
+  after update on auth.users
+  for each row
+  when (old.email is distinct from new.email or old.raw_user_meta_data is distinct from new.raw_user_meta_data)
+  execute function public.handle_user_updated();
