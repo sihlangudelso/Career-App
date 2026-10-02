@@ -243,44 +243,6 @@ const App = {
     navigate(l.miniAssessment ? 'assessment' : 'home');
   },
 
-  // ---- grade 9 guidance ----
-  guideToggleTag(k){
-    const d = ensureGuideDraft();
-    if(d.tags.includes(k)) d.tags = d.tags.filter(x=>x!==k);
-    else if(d.tags.length<3) d.tags = [...d.tags, k];
-    else toast('You can pick up to 3.');
-    render();
-  },
-  guideStep(n){ ensureGuideDraft().step = n; render(); },
-  guideConf(key,val,el){
-    const d = ensureGuideDraft();
-    d.conf[key] = Number(val);
-    const s = document.getElementById('val_'+key);
-    if(s) s.textContent = val+'/5';
-    if(!el) return;
-    const row = el.closest('.slider-row');
-    if(row) row.classList.remove('unanswered');
-    const card = el.closest('.card');
-    const btn = card && card.querySelector('.btn-primary');
-    if(btn) btn.disabled = !STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0);
-  },
-  async guideSubmit(){
-    const d = ensureGuideDraft();
-    const l = ensureLearnerObj();
-    // Defence in depth: the Step 2 button already enforces this via
-    // disabled/relabeling, but guard the save path itself in case this
-    // is ever reached another way (e.g. a stale render).
-    if(!STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0)){ toast('Please rate every domain first.'); return; }
-    if(!l.assessmentCompletedAt){ navigate('assessment'); return; }
-    const result = buildGuidanceResult(d);
-    await saveLearner({ subjectGuidance: result });
-    d.step = 3;
-    render();
-    toast('Recommendation saved.');
-  },
-  guideRetake(){ GUIDE_DRAFT = null; ensureGuideDraft().step = 1; render(); },
-  guideViewSaved(){ const d = ensureGuideDraft(); d.step = 3; render(); },
-
   // ---- Grade 9 Subject Choice Assessment ----
   subjectChoiceStart(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
   subjectChoiceRetake(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
@@ -289,7 +251,7 @@ const App = {
     SUBJECT_CHOICE_DRAFT = null; render(); window.scrollTo(0,0);
   },
   // Patches the page in place (no full re-render) so the learner's scroll
-  // position doesn't jump after every tap -- same approach as guideConf.
+  // position doesn't jump after every tap -- same approach as grade9SetWorkStyle.
   subjectChoiceAnswer(qid, v, el){
     const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
     v = Number(v);
@@ -674,7 +636,7 @@ const App = {
   },
   // A deliberate, admin-triggered point-in-time copy of the dashboard's
   // aggregate numbers -- never a silent background snapshot, mirroring
-  // how apsLast/subjectGuidance are saved elsewhere in this app. Only
+  // how apsLast is saved elsewhere in this app. Only
   // cohort-level aggregates are stored, never per-learner rows. Always
   // whole-cohort (ignores any active class-filter chip) -- this feature
   // is specifically for whole-school term-over-term trend tracking, and

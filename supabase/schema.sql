@@ -27,8 +27,8 @@ create table if not exists public.classes (
 -- ---------- dashboard_snapshots ----------
 -- A point-in-time copy of the Grade 9 Dashboard's aggregate numbers,
 -- saved only when an admin deliberately clicks "Save Snapshot" (e.g. at
--- the end of a term) -- mirrors how apsLast/subjectGuidance on `learners`
--- are deliberate user-triggered snapshots, never a silent background
+-- the end of a term) -- mirrors how apsLast on `learners` is a
+-- deliberate user-triggered snapshot, never a silent background
 -- cache. `data` holds only cohort-level aggregates (overview counts,
 -- pathway distribution, subject demand) -- never per-learner records, so
 -- this table carries no additional learner PII beyond what `learners`
@@ -54,6 +54,10 @@ create table if not exists public.learners (
   school text,
   "mathType" text,
   subjects text[] default '{}',
+  -- Retired: written by the old 2-step Subject Guidance tool, which the
+  -- Subject Choice Assessment ("subjectChoice" below) replaced. Nothing
+  -- reads or writes it any more; the column is kept only so existing rows
+  -- keep their data (dropping it would be destructive).
   "subjectGuidance" jsonb,
   -- Grade 9 Subject Choice Assessment answers only:
   -- { answers:{questionId:1-5}, completedAt, bankVersion }. The report is

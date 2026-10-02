@@ -35,7 +35,7 @@ function viewOnboarding(isEdit){
     ${!pathChosen ? `
     <div class="card">
       <h3 style="margin-bottom:4px;">Are you currently a Grade 9–12 learner at school?</h3>
-      <p class="page-sub" style="margin-bottom:14px;">This just tailors subject guidance and your school’s class view — everything above works either way.</p>
+      <p class="page-sub" style="margin-bottom:14px;">This just tailors your subject choice report and your school’s class view — everything above works either way.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="App.chooseOnboardingPath(false)">Yes, I’m a school learner</button>
         <button class="btn btn-ghost" onclick="App.chooseOnboardingPath(true)">No — I’m just exploring</button>
@@ -100,7 +100,7 @@ function viewOnboarding(isEdit){
         ${markRowHTML('First Additional Language','First Additional Language', marks['First Additional Language'])}
         ${markRowHTML('Life Orientation','Life Orientation', marks['Life Orientation'])}
       </div>` : `
-      <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. After saving your profile, use your dashboard to enter your <b>Grade 9 Report Results</b> and try the <b>Subject Choice Guidance</b> tool — no need to pick subjects here yet.</div></div>
+      <div class="disclaimer">${icon('info','ic')}<div>Grade 9 learners choose subjects for Grade 10 soon. After saving your profile, use your dashboard to enter your <b>Grade 9 Report Results</b> and take the <b>Subject Choice Assessment</b> — no need to pick subjects here yet.</div></div>
       `}
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App.chooseOnboardingPath(true)">Actually, I’m just exploring</button>
@@ -151,7 +151,6 @@ function viewHome(){
   <div class="section-title"><h2>Quick actions</h2></div>
   <div class="grid grid-3">
     ${!l.exploringOnly && l.grade===9 ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('grade9-report')">${icon('chart','tico')}<h3>${l.grade9Report?'Update your Grade 9 report':'Enter your Grade 9 report results'}</h3><p>Add your latest marks and a few work-style questions to sharpen your profile.</p></button>` : ''}
-    ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--amber)" onclick="navigate('guidance')">${icon('compass','tico')}<h3>Subject Choice Guidance</h3><p>Grade 9 tool: find the right subject combination for your goals.</p></button>` : ''}
     ${!l.exploringOnly ? `<button class="tile" style="border-top-color:var(--grass)" onclick="navigate('subject-choice')">${icon('book','tico')}<h3>${l.subjectChoice&&l.subjectChoice.completedAt?'Your subject choice report':'Subject Choice Assessment'}</h3><p>A personalised look at which Grade 10 subjects fit what you enjoy, how you work and how you are doing.</p></button>` : ''}
     <button class="tile" style="border-top-color:var(--indigo)" onclick="navigate('assessment')">${icon('spark','tico')}<h3>${l.assessmentCompletedAt?'Retake assessment':'Take your assessment'}</h3><p>Discover your interests, personality style and strengths.</p></button>
     <button class="tile" style="border-top-color:var(--teal)" onclick="navigate('matches')">${icon('target','tico')}<h3>Career Matches</h3><p>See careers ranked by fit with your profile.</p></button>
@@ -384,256 +383,6 @@ function grade9WorkStyleStepHTML(d, l){
       <button class="btn btn-ghost" onclick="App.grade9Step(1)">Back</button>
       <button class="btn btn-primary" ${allAnswered?'':'disabled'} onclick="App.grade9Submit()">${icon('check')} Save my results</button>
     </div>
-  </div>`;
-}
-
-/* ---------------- Grade 9 subject guidance ---------------- */
-function ensureGuideDraft(){
-  const l = ensureLearnerObj();
-  if(!GUIDE_DRAFT){
-    const g = l.subjectGuidance;
-    // Only trust a saved conf if it's already keyed by the current
-    // STRENGTH_DOMAINS ids -- an older saved result (from before this
-    // step was regrouped around domains) has different keys entirely, and
-    // reusing it as-is would leave every new slider undefined.
-    const savedConfMatchesCurrentShape = g && g.conf && STRENGTH_DOMAINS.every(dm=>g.conf[dm.id]!=null);
-    let conf;
-    if(savedConfMatchesCurrentShape) conf = g.conf;
-    else {
-      // Pre-filled from whatever real evidence already exists (report
-      // marks and/or assessment interests via computeStrengthDomains),
-      // rather than a flat neutral default for everyone -- still fully
-      // adjustable, since self-rated confidence can honestly differ from
-      // a raw mark or interest score.
-      const domains = computeStrengthDomains(l);
-      conf = {};
-      STRENGTH_DOMAINS.forEach(dm=>{
-        const found = domains.find(x=>x.domain.id===dm.id);
-        conf[dm.id] = found && found.hasEvidence ? Math.max(1, Math.min(5, Math.round(found.score/25)+1)) : 0;
-      });
-    }
-    GUIDE_DRAFT = { step:1, tags: g?g.tags:[], conf };
-  }
-  return GUIDE_DRAFT;
-}
-function hasEnteredResults(l){
-  const fetCount = l.subjectMarks ? Object.keys(l.subjectMarks).length : 0;
-  const g9Count = (l.grade9Report && l.grade9Report.subjects) ? Object.keys(l.grade9Report.subjects).length : 0;
-  return fetCount>0 || g9Count>0;
-}
-function guidancePrerequisiteHTML(l){
-  const isG9 = l.grade===9;
-  const ctaRoute = isG9 ? 'grade9-report' : 'profile';
-  const ctaLabel = isG9 ? 'Enter my Grade 9 report results' : 'Add my subject marks';
-  return `
-  ${pageHeadHTML('Grade 10 Subject Guidance', 'A recommendation grounded in your real results and interests — not just a guess.')}
-  ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You already have a saved recommendation from before. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
-  <div class="card">
-    <h3>Add your results first</h3>
-    <p class="page-sub">Subject guidance works best once we know how you're actually doing, not just which fields excite you. Add your ${isG9?'Grade 9 report':'subject'} marks, then come back here to rate your confidence — and, if you haven't already, take the Career Interest Assessment — before we put together your recommendation.</p>
-    <button class="btn btn-primary" onclick="navigate('${ctaRoute}')">${ctaLabel}</button>
-  </div>`;
-}
-function viewGuidance(){
-  const d = ensureGuideDraft();
-  const l = ensureLearnerObj();
-  if(d.step===3 || (l.subjectGuidance && d.step===1 && d.justViewing)) return guidanceResultsHTML(l.subjectGuidance || buildGuidanceResult(d));
-  if(!hasEnteredResults(l)) return guidancePrerequisiteHTML(l);
-  const allRated = STRENGTH_DOMAINS.every(dm=>d.conf[dm.id]>0);
-  const assessmentDone = !!l.assessmentCompletedAt;
-  const step2Label = assessmentDone ? 'See my recommendation' : 'Take the Career Interest Assessment';
-  const step2Action = assessmentDone ? 'App.guideSubmit()' : "navigate('assessment')";
-  return `
-  ${pageHeadHTML('Grade 10 Subject Guidance', 'Mainly built for Grade 9 learners choosing subjects for Grade 10, but useful any time you’re weighing up a subject change — 2 quick steps.')}
-  ${l.subjectGuidance? `<div class="disclaimer" style="margin-bottom:16px;">${icon('info','ic')}<div>You\u2019ve already completed this. Saving again will replace your previous recommendation. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App.guideViewSaved()">View saved result</button></div></div>`:''}
-  <div class="card">
-    ${d.step===1 ? `
-      <h3>Step 1 — Which fields excite you?</h3>
-      <p class="page-sub">Pick up to 3 — these aren’t final, just a starting point.</p>
-      <div class="filter-bar">
-        ${CLUSTERS.map(cl=>`<button class="chip-select ${d.tags.includes(cl.id)?'on':''}" onclick="App.guideToggleTag('${cl.id}')">${esc(cl.name)}</button>`).join('')}
-      </div>
-      <div style="margin-top:20px;"><button class="btn btn-primary" ${d.tags.length?'':'disabled'} onclick="App.guideStep(2)">Next</button></div>
-    ` : `
-      <h3>Step 2 — Rate your confidence</h3>
-      <p class="page-sub">Be honest — this just helps guide the suggestion. Pre-filled from your report results and assessment where we already have evidence.</p>
-      ${STRENGTH_DOMAINS.map(dm=>confSlider(dm.id, dm.name, d.conf[dm.id])).join('')}
-      <div style="margin-top:10px;display:flex;gap:10px;">
-        <button class="btn btn-ghost" onclick="App.guideStep(1)">Back</button>
-        <button class="btn btn-primary" ${allRated?'':'disabled'} onclick="${step2Action}">${step2Label}</button>
-      </div>
-    `}
-  </div>`;
-}
-function confSlider(key,label,val){
-  // 0 = not yet rated. A native range input still needs some numeric
-  // position to render at, so the thumb sits at the midpoint (3) only
-  // visually via .unanswered -- same sentinel pattern as the Grade 9
-  // work-style slider and the Assessment's slider widget -- while the
-  // stored value stays 0 until the learner actually drags it.
-  const answered = val>0;
-  const v = answered ? val : 3;
-  return `<div class="slider-row ${answered?'':'unanswered'}"><div class="sl-top"><span>${label}</span><span id="val_${key}">${answered?v+'/5':'Not yet rated'}</span></div>
-    <input type="range" min="1" max="5" value="${v}" oninput="App.guideConf('${key}',this.value,this)"/></div>`;
-}
-// Grounded in the real career database rather than a hardcoded tag->subject
-// table: for every career example under the learner's selected clusters,
-// tally which subjects are actually required/recommended, so "why" can
-// name real careers instead of a generic sentence.
-function buildGuidanceResult(d){
-  const l = ensureLearnerObj();
-  const tags = d.tags; // cluster ids
-  const selectedClusters = tags.map(function(id){ return clusterById(id); }).filter(Boolean);
-  const selectedCareers = [];
-  selectedClusters.forEach(function(cl){
-    cl.exampleCareerIds.forEach(function(cid){
-      const c = CAREERS.find(function(x){ return x.id===cid; });
-      if(c) selectedCareers.push(c);
-    });
-  });
-  const subjectInfo = tallySubjectsAcrossCareers(selectedCareers); // subject -> { required:Set<careerName>, recommended:Set<careerName> }
-
-  const rec = [];
-  const reasoning = [];
-  function nameList(set,max){
-    max = max||3;
-    const arr=[...set];
-    return arr.length>max ? (arr.slice(0,max).join(', ')+' and '+(arr.length-max)+' other career'+(arr.length-max>1?'s':'')) : arr.join(', ');
-  }
-  // Cites the learner's own report/marks evidence for a subject alongside
-  // the interest evidence above it -- never marks alone (that's built
-  // into subjectMarkPct itself: a current FET mark first, a Grade 9
-  // report antecedent only as a fallback).
-  function reportCitation(subject){
-    const pct = subjectMarkPct(l, subject);
-    return pct!=null ? (' Your results show '+subject+' at '+pct+'% — '+markBandLabel(pct)+'.') : '';
-  }
-  // Blends self-rated confidence with real marks+RIASEC evidence
-  // (computeStrengthDomains already blends marks 50/50 with RIASEC-derived
-  // interest per domain, 0-100 scale), so a domain is never judged on the
-  // slider alone once real evidence exists.
-  const DOMAIN_EVIDENCE_STRONG_SCORE = 65;
-  const strengthDomains = computeStrengthDomains(l);
-  const domainById = {};
-  strengthDomains.forEach(function(x){ domainById[x.domain.id] = x; });
-  function domainIsStrong(domainId){
-    const conf = d.conf[domainId]||0;
-    const evidence = domainById[domainId];
-    return conf>=4 || (evidence && evidence.hasEvidence && evidence.score>=DOMAIN_EVIDENCE_STRONG_SCORE);
-  }
-  // A required subject the learner is genuinely struggling with gets a
-  // concrete caution, not just a silent "required" label. Mathematics has
-  // a real named alternative (Mathematical Literacy); no other subject has
-  // a modelled alternative in this codebase, so other subjects get a
-  // softer "discuss extra support" framing rather than an invented swap.
-  const WEAK_REQUIRED_MARK_PCT = 40;
-  // Assumes it's being appended right after reportCitation(subject), which
-  // already states the percentage and band -- this only adds the concrete
-  // next step, instead of restating the same number a second time.
-  function weakMarkCaution(subject){
-    const pct = subjectMarkPct(l, subject);
-    if(pct==null || pct>=WEAK_REQUIRED_MARK_PCT) return '';
-    if(subject==='Mathematics'){
-      return ' With results like this, it’s worth discussing with your teacher whether Mathematical Literacy may be the more realistic track, since Mathematics matters for several of your selected interests.';
-    }
-    return ' With results like this, it’s worth discussing extra support with your teacher, since this subject matters for your selected interests.';
-  }
-
-  const math = subjectInfo['Mathematics'];
-  if(math && math.required.size){
-    rec.push('Mathematics');
-    reasoning.push('Mathematics is required for '+nameList(math.required)+' among your selected interests.'+reportCitation('Mathematics')+weakMarkCaution('Mathematics'));
-  } else if((math && math.recommended.size) || domainIsStrong('quantitative')){
-    rec.push('Mathematics');
-    reasoning.push((math ? ('Mathematics isn’t strictly required for your selected interests, but it’s recommended for '+nameList(math.recommended)+' and generally keeps more doors open.') : 'Mathematics isn’t required by your selected interests specifically, but it keeps the widest range of future options open.')+reportCitation('Mathematics'));
-  } else {
-    rec.push('Mathematics or Mathematical Literacy — discuss with your teacher');
-    reasoning.push('None of your selected interests strictly need Mathematics, so Mathematical Literacy is a reasonable option — but talk this through with your subject counsellor, since switching back later is hard if your interests change.'+reportCitation('Mathematics'));
-  }
-
-  Object.keys(subjectInfo).filter(function(s){ return s!=='Mathematics'; }).forEach(function(s){
-    const info = subjectInfo[s];
-    if(info.required.size){ rec.push(s); reasoning.push(s+' is required for '+nameList(info.required)+' among your selected interests.'+reportCitation(s)+weakMarkCaution(s)); }
-    else if(info.recommended.size>=2){ rec.push(s); reasoning.push(s+' is recommended for '+nameList(info.recommended)+'.'+reportCitation(s)); }
-  });
-
-  selectedClusters.forEach(function(cl){
-    if(cl.usefulSubjects.length && !cl.usefulSubjects.some(function(s){ return rec.includes(s); })){
-      rec.push(cl.usefulSubjects[0]);
-      reasoning.push(cl.usefulSubjects[0]+' is a useful foundation subject for '+cl.name+'.'+reportCitation(cl.usefulSubjects[0]));
-    }
-  });
-  // Generalizes the old Mathematics-only special case to the other 7
-  // domains: a strong domain (confidence OR real marks+assessment
-  // evidence) contributes at most one new, not-yet-covered subject from
-  // its own STRENGTH_DOMAINS "fet" list -- mirroring the "one
-  // representative subject per cluster" pattern just above
-  // (cl.usefulSubjects[0]) rather than dumping a whole domain's subject
-  // list at once. Quantitative is excluded -- Mathematics already has its
-  // own fully-handled branch above.
-  STRENGTH_DOMAINS.filter(function(dm){ return dm.id!=='quantitative'; }).forEach(function(dm){
-    if(!domainIsStrong(dm.id)) return;
-    const candidate = dm.fet.find(function(s){ return !rec.includes(s); });
-    if(!candidate) return;
-    const conf = d.conf[dm.id]||0;
-    rec.push(candidate);
-    reasoning.push(candidate+' lines up with your '+dm.name.toLowerCase()+' strength'+(conf>=4?' (you rated your confidence here highly)':' (your results and assessment point this way)')+'.'+reportCitation(candidate));
-  });
-  if(!selectedClusters.length) reasoning.push('Pick at least one field you’re curious about to get a grounded recommendation.');
-
-  // "Keeps options open": marks must support, not override, interest --
-  // a strong current subject that isn't backed by any selected-interest
-  // evidence above is still surfaced, just framed as optional rather than
-  // a top-billed pick (never hidden just because it wasn't "chosen").
-  // A Grade 9 subject already cited above via its FET antecedent (e.g.
-  // "History" recommended, sourced from a "Social Sciences" report mark)
-  // shouldn't also show up here under its raw Grade 9 name -- same
-  // evidence, would just read as a repeat.
-  function alreadyCited(subject){
-    if(rec.includes(subject)) return true;
-    // Home Language/First Additional Language are stored generically at
-    // Grade 9 level but cited elsewhere under a specific language (e.g.
-    // "English Home Language") -- same mark, so treat either as a match.
-    if((subject==='Home Language' || subject==='First Additional Language') && rec.some(function(r){ return r.includes(subject); })) return true;
-    return (GRADE9_TO_FET[subject]||[]).some(function(fet){ return rec.includes(fet); });
-  }
-  const profile = buildAcademicProfile(l);
-  const keepsOpen = [];
-  if(profile){
-    profile.strongest.filter(function(e){ return e.pct>=60 && !alreadyCited(e.subject); }).forEach(function(e){
-      keepsOpen.push(e.subject+' is currently '+markBandLabel(e.pct)+' for you ('+e.pct+'%) and could keep additional pathways open, even though it wasn’t flagged by your selected interests above.');
-    });
-  }
-
-  return { tags: tags, conf:d.conf, recommendedSubjects:[...new Set(rec)], reasoning: reasoning, keepsOpen: keepsOpen, completedAt: todayISO() };
-}
-function guidanceResultsHTML(res){
-  const selectedClusters = (res.tags||[]).map(function(id){ return clusterById(id); }).filter(Boolean);
-  return `
-  ${pageHeadHTML('Your subject recommendation', 'A starting point for your Grade 10 subject choice conversation — grounded in real careers, not just a guess.')}
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Suggested subject focus</h3>
-    <div class="pill-list" style="margin-bottom:16px;">
-      ${res.recommendedSubjects.map(s=>`<span class="pill req">${esc(s)}</span>`).join('')}
-    </div>
-    <h3>Why</h3>
-    <ul>${res.reasoning.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>
-    ${disclaimerHTML('This is guidance to support a conversation with your school’s Life Orientation teacher or subject counsellor — final subject choice depends on your school’s offering and timetable.')}
-  </div>
-  ${res.keepsOpen && res.keepsOpen.length ? `
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Also worth knowing</h3>
-    <ul>${res.keepsOpen.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>
-  </div>` : ''}
-  ${selectedClusters.length? `
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Your selected fields</h3>
-    <div class="pill-list">${selectedClusters.map(cl=>`<span class="tag" style="cursor:pointer;" onclick="navigate('cluster','${cl.id}')">${esc(cl.name)}</span>`).join('')}</div>
-    <p class="page-sub" style="margin-top:10px;">Click any field above to see real example careers and how they connect to these subjects.</p>
-  </div>` : ''}
-  <div style="display:flex;gap:10px;">
-    <button class="btn btn-ghost" onclick="App.guideRetake()">Retake</button>
-    <button class="btn btn-primary" onclick="navigate('matches')">See career matches</button>
   </div>`;
 }
 

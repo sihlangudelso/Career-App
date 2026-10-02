@@ -21,7 +21,6 @@ let COHORT = [];
 let SNAPSHOTS = [];
 let CLASS_ADMINS = [];
 let ASSESSMENT_DRAFT = null;
-let GUIDE_DRAFT = null;
 let APS_DRAFT = null;
 let GRADE9_DRAFT = null;
 let SUBJECT_CHOICE_DRAFT = null;
@@ -31,7 +30,7 @@ let learnerChannel = null;
 let JUST_CONFIRMED_EMAIL = false;
 let AUTH_RECOVERY_MODE = false;
 
-// In-progress assessment/guidance/APS/Grade-9 drafts had no persistence
+// In-progress assessment/subject-choice/APS/Grade-9 drafts had no persistence
 // at all (found in the pre-launch audit): a reload, crash, or a mobile
 // tab discarded under memory pressure silently lost all progress, with
 // no warning -- unlike the anonymous mini-assessment (js/views_anon.js),
@@ -47,7 +46,7 @@ function draftsLsKey(){ return 'iroli_drafts_v'+DRAFTS_LS_VERSION+'_'+ME.id; }
 function persistDrafts(){
   if(!ME.id) return;
   try{
-    const drafts = { ASSESSMENT_DRAFT, GUIDE_DRAFT, APS_DRAFT, GRADE9_DRAFT, SUBJECT_CHOICE_DRAFT };
+    const drafts = { ASSESSMENT_DRAFT, APS_DRAFT, GRADE9_DRAFT, SUBJECT_CHOICE_DRAFT };
     if(Object.values(drafts).some(d=>d!=null)) localStorage.setItem(draftsLsKey(), JSON.stringify(drafts));
     else localStorage.removeItem(draftsLsKey());
   }catch(e){ /* private mode / storage disabled -- silently no-op */ }
@@ -59,7 +58,6 @@ function restoreDrafts(){
     if(!raw) return;
     const d = JSON.parse(raw);
     if(d.ASSESSMENT_DRAFT) ASSESSMENT_DRAFT = d.ASSESSMENT_DRAFT;
-    if(d.GUIDE_DRAFT) GUIDE_DRAFT = d.GUIDE_DRAFT;
     if(d.APS_DRAFT) APS_DRAFT = d.APS_DRAFT;
     if(d.GRADE9_DRAFT) GRADE9_DRAFT = d.GRADE9_DRAFT;
     if(d.SUBJECT_CHOICE_DRAFT) SUBJECT_CHOICE_DRAFT = d.SUBJECT_CHOICE_DRAFT;
@@ -129,10 +127,10 @@ async function handleSession(session){
     // full cohort (names, marks, riasec) sitting in COHORT/SNAPSHOTS/
     // CLASS_ADMINS for a signed-out tab, a stuck PREVIEW_MODE silently
     // no-oping every save for whoever signs in next, or being dropped into
-    // someone else's half-finished assessment/guidance/APS/Grade-9 draft.
+    // someone else's half-finished assessment/subject-choice/APS/Grade-9 draft.
     PREVIEW_MODE = false;
     CLASSES = []; COHORT = []; SNAPSHOTS = []; CLASS_ADMINS = [];
-    ASSESSMENT_DRAFT = null; GUIDE_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
+    ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
     EXPLORE_SEARCH = ''; EXPLORE_FILTERS = {};
     window.__cohortSearch = '';
     // Decide the anonymous mini-assessment's state once, the same way
@@ -453,10 +451,9 @@ function keySubjectFor(facultyId){
 }
 // Tallies which subjects a list of careers requires/recommends, keyed by
 // subject name -> the set of career names citing it at each tier. Shared
-// by the Subject Choice Guidance quiz (buildGuidanceResult) and the
-// report's automatic per-pathway subject tiering (buildSubjectRelevanceTiers),
-// so there's one implementation of "which subjects matter for these
-// careers and why", not two that could quietly disagree.
+// by the report's automatic per-pathway subject tiering
+// (buildSubjectRelevanceTiers), so there's one implementation of "which
+// subjects matter for these careers and why".
 function tallySubjectsAcrossCareers(careers){
   const info = {};
   function touch(s, tier, name){
@@ -662,7 +659,7 @@ function relatedCareersFor(career, limit){
     .map(x=>x.career);
 }
 // Faculties (used for pathway alignment/readiness) and CLUSTERS (the
-// Subject Choice Guidance tool's richer, more-detailed field groupings)
+// richer, more-detailed field groupings behind the field pages)
 // are two separate taxonomies with no declared mapping between them --
 // derived here, not hand-authored, by finding which cluster's own
 // exampleCareerIds overlap most with a faculty's real careers. Lets a
@@ -1040,7 +1037,7 @@ function computeAPSFromMarks(marks){
 function progressState(l){
   const steps = [
     { key:'profile', done: !!(l && (l.exploringOnly || (l.grade && l.school))) },
-    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && (l.subjectGuidance || (l.subjectChoice && l.subjectChoice.completedAt))) || (l.grade>9 && l.subjects && l.subjects.length))) },
+    { key:'subjects', done: !!(l && (l.exploringOnly || (l.grade===9 && l.subjectChoice && l.subjectChoice.completedAt) || (l.grade>9 && l.subjects && l.subjects.length))) },
     { key:'assessment', done: !!(l && l.assessmentCompletedAt) },
     { key:'explore', done: !!(l && l.viewedMatches) },
   ];

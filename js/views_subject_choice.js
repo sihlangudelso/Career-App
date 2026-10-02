@@ -4,10 +4,19 @@
    js/subject_choice_engine.js + js/subject_choice_config.js; this file
    only decides which screen to show and draws it.
 
-   Flow: results first (same principle as Subject Guidance) -> interest
-   questions -> the existing personality assessment -> report. A saved
-   report is always viewable.
+   Flow: results first -> interest questions -> the personality
+   assessment -> report. A saved report is always viewable.
    ============================================================ */
+
+// The prerequisite for starting: real, grade-appropriate results -- a current
+// subject mark or a Grade 9 report mark (the same evidence the readiness
+// scoring and the academic profile use). apsLast is deliberately not
+// accepted: nothing in the scoring reads it, so it isn't evidence here.
+function hasEnteredResults(l){
+  const fetCount = l.subjectMarks ? Object.keys(l.subjectMarks).length : 0;
+  const g9Count = (l.grade9Report && l.grade9Report.subjects) ? Object.keys(l.grade9Report.subjects).length : 0;
+  return fetCount>0 || g9Count>0;
+}
 
 const SC_Q_BY_ID = {};
 SC_QUESTIONS.forEach(function(q){ SC_Q_BY_ID[q.id] = q; });

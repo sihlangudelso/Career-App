@@ -1,12 +1,11 @@
 const LEARNER_NAV = [
   { r:'home', label:'Dashboard', ic:'home' },
   { r:'report', label:'Your Report', short:'Report', ic:'chart' },
-  { r:'guidance', label:'Grade 10 Subject Guidance', short:'Guidance', ic:'compass' },
   { r:'assessment', label:'Assessment', ic:'spark' },
-  { r:'matches', label:'Career Matches', ic:'target' },
-  // Placed after Career Matches (not next to Guidance) so the first five
-  // entries -- the ones the mobile bottom bar shows -- stay unchanged.
+  // Right after the personality assessment it builds on -- and inside the
+  // first five entries, the ones the mobile bottom bar shows.
   { r:'subject-choice', label:'Subject Choice Assessment', short:'Subjects', ic:'book' },
+  { r:'matches', label:'Career Matches', ic:'target' },
   { r:'explore', label:'Explore Careers', ic:'search' },
   { r:'aps', label:'APS Calculator', ic:'calc' },
   { r:'favourites', label:'Favourites', ic:'heart' },
@@ -31,7 +30,7 @@ function roleLabel(){
 
 function currentNav(){
   if(IS_ADMIN && !PREVIEW_MODE) return ADMIN_NAV;
-  if(LEARNER && LEARNER.exploringOnly) return LEARNER_NAV.filter(n=>n.r!=='guidance' && n.r!=='subject-choice');
+  if(LEARNER && LEARNER.exploringOnly) return LEARNER_NAV.filter(n=>n.r!=='subject-choice');
   return LEARNER_NAV;
 }
 
@@ -192,7 +191,6 @@ function render(){
   else if(ROUTE==='activate') app.innerHTML = viewActivateAccount();
   else if(ROUTE==='home') app.innerHTML = viewHome();
   else if(ROUTE==='report') app.innerHTML = viewReport();
-  else if(ROUTE==='guidance') app.innerHTML = viewGuidance();
   else if(ROUTE==='subject-choice') app.innerHTML = viewSubjectChoice();
   else if(ROUTE==='grade9-report') app.innerHTML = viewGrade9Report();
   else if(ROUTE==='learner-profile') app.innerHTML = viewLearnerProfile();
