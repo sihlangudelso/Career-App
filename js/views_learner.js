@@ -312,6 +312,7 @@ function ensureGrade9Draft(){
       creativeArtsFocus: (g && g.creativeArtsFocus) || [],
       workStyle: ws,
     };
+    GRADE9_DRAFT.__base = JSON.stringify(GRADE9_DRAFT); // see draftTouched()
   }
   return GRADE9_DRAFT;
 }
@@ -839,6 +840,7 @@ function ensureApsDraft(){
     const subjectsList = priorMarks ? Object.keys(priorMarks) : uniq;
     subjectsList.forEach(s=> marks[s] = (priorMarks && priorMarks[s]!=null) ? priorMarks[s] : '');
     APS_DRAFT = { subjects: subjectsList, marks, extra:'' };
+    APS_DRAFT.__base = JSON.stringify(APS_DRAFT); // see draftTouched()
   }
   return APS_DRAFT;
 }

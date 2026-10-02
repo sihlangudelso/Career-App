@@ -186,7 +186,13 @@ const App = {
     toast('Password updated.');
     render();
   },
-  async signOut(){ await sb.auth.signOut(); },
+  async signOut(){
+    // On a shared computer nothing of this learner's in-progress work should
+    // be left behind for the next person to find.
+    ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
+    if(ME && ME.id) clearDraftsFor(ME.id);
+    await sb.auth.signOut();
+  },
   async cancelRecovery(){
     AUTH_RECOVERY_MODE = false;
     AUTH_ERROR = '';
@@ -225,6 +231,13 @@ const App = {
     navigate(route);
   },
   async saveOnboarding(){
+    if(SAVING.onboarding) return;
+    SAVING.onboarding = true;
+    const done = busyButton('button[onclick="App.saveOnboarding()"]', 'Saving…');
+    try { await App.saveOnboardingNow(); }
+    finally { SAVING.onboarding = false; done(); }
+  },
+  async saveOnboardingNow(){
     const l = ensureLearnerObj();
     if(l.exploringOnly){
       const savedExploring = await saveLearnerOrRevert({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
@@ -246,16 +259,18 @@ const App = {
   },
 
   // ---- Grade 9 Subject Choice Assessment ----
-  subjectChoiceStart(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
-  subjectChoiceRetake(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); },
+  subjectChoiceStart(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); focusPageHeading(); },
+  subjectChoiceRetake(){ SUBJECT_CHOICE_DRAFT = newSubjectChoiceDraft(); render(); window.scrollTo(0,0); focusPageHeading(); },
   subjectChoiceStartOver(){
+    if(SAVING.sc) return;
     if(!confirm('Start over? The answers on this attempt will be cleared.')) return;
-    SUBJECT_CHOICE_DRAFT = null; render(); window.scrollTo(0,0);
+    SUBJECT_CHOICE_DRAFT = null; render(); window.scrollTo(0,0); focusPageHeading();
   },
   // Patches the page in place (no full re-render) so the learner's scroll
   // position doesn't jump after every tap -- same approach as grade9SetWorkStyle.
   subjectChoiceAnswer(qid, v, el){
-    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    // A save is in flight: changing an answer now would change what is being saved.
+    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
     v = Number(v);
     d.answers[qid] = v;
     persistDrafts();
@@ -271,22 +286,27 @@ const App = {
     }
   },
   subjectChoicePage(delta){
-    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
     d.page = clamp(d.page + delta, 0, scPageCount(d) - 1);
     d.dir = delta < 0 ? 'back' : 'fwd';
     render(); window.scrollTo(0,0);
     // The old Next/Back button is gone after the re-render; without this,
     // keyboard focus falls back to the top of the whole document.
-    const heading = document.querySelector('#app h1');
-    if(heading){ heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll:true }); }
+    focusPageHeading();
+    announce('Part ' + (d.page + 1) + ' of ' + scPageCount(d));
   },
   async subjectChoiceFinish(){
-    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
     scSanitizeDraft(d);
     if(Object.keys(d.answers).length < SC_QUESTIONS.length){ toast('Please answer every question first.'); return; }
     const l = ensureLearnerObj();
+    SAVING.sc = true;
     const done = busyButton('#scNext', 'Saving…');
-    const ok = await saveLearnerOrRevert({ subjectChoice: { answers: d.answers, completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } });
+    let ok = false;
+    // A copy of the answers, so nothing that happens to the draft afterwards
+    // can alter what was saved (the optimistic update shares the object).
+    try { ok = await saveLearnerOrRevert({ subjectChoice: { answers: Object.assign({}, d.answers), completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } }); }
+    finally { SAVING.sc = false; }
     if(!ok){
       // Keep their answers: the draft is untouched, so tapping again retries.
       done();
@@ -296,11 +316,11 @@ const App = {
     SUBJECT_CHOICE_DRAFT = null;
     if(!l.assessmentCompletedAt){
       toast('Answers saved — now a quick look at how you naturally work.');
-      navigate('assessment');
+      navigate('assessment'); focusPageHeading();
       return;
     }
     toast('Your subject results are ready!');
-    navigate('subject-choice');
+    navigate('subject-choice'); focusPageHeading();
   },
 
   // ---- Grade 9 report results + work style ----
@@ -315,6 +335,7 @@ const App = {
     render();
   },
   grade9Step(n){
+    if(SAVING.g9) return;
     const d = ensureGrade9Draft();
     // The marks are the point of this form (the Subject Choice Assessment and
     // the academic profile both read them), so one is needed to move on.
@@ -322,6 +343,7 @@ const App = {
     d.step = n; render();
   },
   grade9SetWorkStyle(key, val, el){
+    if(SAVING.g9) return;
     const d = ensureGrade9Draft();
     d.workStyle[key] = Number(val);
     if(!el) return;
@@ -332,6 +354,7 @@ const App = {
     if(saveBtn) saveBtn.disabled = !WORK_STYLE_QUESTIONS.every(q=>d.workStyle[q.key]>0);
   },
   async grade9Submit(){
+    if(SAVING.g9) return;
     const d = ensureGrade9Draft();
     const subjects = {};
     // clamp(...,0,100): found accepting out-of-range input (150, -20) in
@@ -342,11 +365,15 @@ const App = {
     if(!Object.keys(subjects).length){ d.step = 1; render(); toast('Add at least one subject mark so we can use your results.'); return; }
     const workStyle = {};
     WORK_STYLE_QUESTIONS.forEach(q=>{ workStyle[q.key] = clamp((d.workStyle[q.key]-1)/4*100, 0, 100); });
+    SAVING.g9 = true;
     const done = busyButton('button[onclick="App.grade9Submit()"]', 'Saving…');
-    const ok = await saveLearnerOrRevert({
-      grade9Report: { term: d.term, grade: 9, subjects, socialSciencesSplit: d.socialSciencesSplit, creativeArtsFocus: d.creativeArtsFocus },
-      workStyle,
-    });
+    let ok = false;
+    try {
+      ok = await saveLearnerOrRevert({
+        grade9Report: { term: d.term, grade: 9, subjects, socialSciencesSplit: d.socialSciencesSplit, creativeArtsFocus: d.creativeArtsFocus.slice() },
+        workStyle,
+      });
+    } finally { SAVING.g9 = false; }
     if(!ok){ done(); return; }
     GRADE9_DRAFT = null;
     toast('Grade 9 report results saved.');
@@ -356,6 +383,7 @@ const App = {
 
   // ---- assessment ----
   assessGoto(step,dir){
+    if(SAVING.assess) return;
     const d = ensureAssessDraft();
     d.retaking = true;
     d.dir = dir || 'fwd';
@@ -368,11 +396,13 @@ const App = {
     App.assessGoto(d.step+1,'fwd');
   },
   assessChoose(step,val){
+    if(SAVING.assess) return;
     const d = ensureAssessDraft();
     if(step<RIASEC_QUESTIONS.length) d.answers[step]=val; else d.strengths[step-RIASEC_QUESTIONS.length]=val;
     App.assessGoto(step+1,'fwd');
   },
   assessSlide(step,val){
+    if(SAVING.assess) return;
     const d = ensureAssessDraft();
     const isRiasec = step<RIASEC_QUESTIONS.length;
     if(isRiasec) d.answers[step]=Number(val); else d.strengths[step-RIASEC_QUESTIONS.length]=Number(val);
@@ -389,6 +419,7 @@ const App = {
   },
   assessSlideCommit(step,val){ App.assessChoose(step, Number(val)); },
   async assessSubmit(){
+    if(SAVING.assess) return;
     const d = ensureAssessDraft();
     const riasec = {};
     RIASEC.forEach(dim=>{
@@ -399,8 +430,12 @@ const App = {
     const strengths = {};
     STRENGTH_KEYS.forEach((s,i)=>{ strengths[s.id] = clamp((d.strengths[i]-1)/4*100,0,100); });
     const firstCompletion = !LEARNER || !LEARNER.assessmentCompletedAt;
+    SAVING.assess = true;
     const done = busyButton('button[onclick="App.assessSubmit()"]', 'Saving…');
-    const ok = await saveLearnerOrRevert({ riasec, strengths, riasecRaw:d.answers, strengthsRaw:d.strengths, assessmentCompletedAt: todayISO() });
+    let ok = false;
+    // Copies of the raw answers: the optimistic update would otherwise share them with the draft.
+    try { ok = await saveLearnerOrRevert({ riasec, strengths, riasecRaw:d.answers.slice(), strengthsRaw:d.strengths.slice(), assessmentCompletedAt: todayISO() }); }
+    finally { SAVING.assess = false; }
     if(!ok){
       // Keep their answers: they are still in the draft, so tapping again retries.
       done();
@@ -532,6 +567,8 @@ const App = {
   // ---- admin: preview mode ----
   togglePreview(){
     PREVIEW_MODE = !PREVIEW_MODE;
+    // Neither the learner view's drafts nor the admin's own carry across the switch.
+    ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
     if(PREVIEW_MODE){
       // Needs grade+school set, or render()'s needsOnboarding check (it
       // can't tell this object apart from a real new signup) force-routes

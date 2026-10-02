@@ -42,26 +42,85 @@ let AUTH_RECOVERY_MODE = false;
 // someone else's draft -- defense in depth alongside handleSession's own
 // in-memory reset on sign-out.
 const DRAFTS_LS_VERSION = 1;
+// A draft nobody has touched for this long is dropped rather than restored:
+// it is more likely stale, or left on a shared computer, than wanted.
+const DRAFT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 function draftsLsKey(){ return 'iroli_drafts_v'+DRAFTS_LS_VERSION+'_'+ME.id; }
+function clearDraftsFor(userId){
+  try{ localStorage.removeItem('iroli_drafts_v'+DRAFTS_LS_VERSION+'_'+userId); }catch(e){ /* storage unavailable */ }
+}
+// The forms that build a draft pre-filled from saved data (Grade 9 results,
+// APS) remember what they started from, so "opened but never changed" can be
+// told apart from "in progress" -- only the second is worth storing.
+function draftTouched(d){
+  if(!d) return false;
+  if(d.__base === undefined) return true;
+  const copy = Object.assign({}, d); delete copy.__base;
+  return JSON.stringify(copy) !== d.__base;
+}
 function persistDrafts(){
-  if(!ME.id) return;
+  // An admin's preview answers are not the admin's own work, so they are not kept.
+  if(!ME.id || PREVIEW_MODE) return;
   try{
-    const drafts = { ASSESSMENT_DRAFT, APS_DRAFT, GRADE9_DRAFT, SUBJECT_CHOICE_DRAFT };
-    if(Object.values(drafts).some(d=>d!=null)) localStorage.setItem(draftsLsKey(), JSON.stringify(drafts));
+    const drafts = {
+      // Merely opening the assessment page builds a draft pre-filled from the
+      // learner's saved answers; a second stored copy of those helps nobody.
+      ASSESSMENT_DRAFT: (ASSESSMENT_DRAFT && ASSESSMENT_DRAFT.retaking) ? ASSESSMENT_DRAFT : null,
+      APS_DRAFT: draftTouched(APS_DRAFT) ? APS_DRAFT : null,
+      GRADE9_DRAFT: draftTouched(GRADE9_DRAFT) ? GRADE9_DRAFT : null,
+      SUBJECT_CHOICE_DRAFT,
+    };
+    if(Object.values(drafts).some(d=>d!=null)) localStorage.setItem(draftsLsKey(), JSON.stringify({ v:2, savedAt:Date.now(), drafts }));
     else localStorage.removeItem(draftsLsKey());
   }catch(e){ /* private mode / storage disabled -- silently no-op */ }
+}
+// A restored draft must have the shape its form expects. One saved by an older
+// build, or edited by hand, is dropped instead of being allowed to crash a page.
+function validDraft(kind, d){
+  const isArr = Array.isArray;
+  const isObj = function(x){ return !!x && typeof x === 'object' && !isArr(x); };
+  if(!isObj(d)) return false;
+  if(kind === 'assessment') return isArr(d.answers) && isArr(d.strengths) && typeof d.step === 'number';
+  if(kind === 'aps') return isObj(d.marks) && isArr(d.subjects);
+  if(kind === 'grade9') return isObj(d.marks) && isObj(d.workStyle) && isArr(d.creativeArtsFocus) && typeof d.step === 'number';
+  return false;
 }
 function restoreDrafts(){
   if(!ME.id) return;
   try{
     const raw = localStorage.getItem(draftsLsKey());
     if(!raw) return;
-    const d = JSON.parse(raw);
-    if(d.ASSESSMENT_DRAFT) ASSESSMENT_DRAFT = d.ASSESSMENT_DRAFT;
-    if(d.APS_DRAFT) APS_DRAFT = d.APS_DRAFT;
-    if(d.GRADE9_DRAFT) GRADE9_DRAFT = d.GRADE9_DRAFT;
+    const parsed = JSON.parse(raw);
+    // v2 wraps the drafts with a timestamp; the first format was the drafts alone.
+    const wrapped = !!parsed && parsed.v === 2;
+    if(wrapped && !(Date.now() - Number(parsed.savedAt) < DRAFT_TTL_MS)){ localStorage.removeItem(draftsLsKey()); return; }
+    const d = wrapped ? parsed.drafts : parsed;
+    if(!d || typeof d !== 'object') return;
+    if(validDraft('assessment', d.ASSESSMENT_DRAFT)) ASSESSMENT_DRAFT = d.ASSESSMENT_DRAFT;
+    if(validDraft('aps', d.APS_DRAFT)) APS_DRAFT = d.APS_DRAFT;
+    if(validDraft('grade9', d.GRADE9_DRAFT)) GRADE9_DRAFT = d.GRADE9_DRAFT;
     if(d.SUBJECT_CHOICE_DRAFT && typeof d.SUBJECT_CHOICE_DRAFT === 'object') SUBJECT_CHOICE_DRAFT = d.SUBJECT_CHOICE_DRAFT;
   }catch(e){ /* corrupt/unavailable storage -- just start fresh */ }
+}
+
+// Moves keyboard focus to the page heading after a screen changes underneath
+// the learner (the button they pressed is gone), and says what changed to
+// screen readers -- the page is replaced wholesale, so nothing inside it is
+// announced by itself.
+function focusPageHeading(){
+  const h = document.querySelector('#app h1');
+  if(h){ h.setAttribute('tabindex', '-1'); h.focus({ preventScroll:true }); }
+}
+function announce(msg){
+  let r = document.getElementById('srAnnounce');
+  if(!r){
+    r = document.createElement('div');
+    r.id = 'srAnnounce'; r.className = 'sr-only';
+    r.setAttribute('role', 'status'); r.setAttribute('aria-live', 'polite');
+    document.body.appendChild(r);
+  }
+  r.textContent = '';
+  setTimeout(function(){ r.textContent = msg; }, 60);
 }
 
 function esc(s){ const d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
@@ -248,8 +307,8 @@ async function loadLearner(){
   if(!LEARNER.exists){
     const mini = readMiniAssessment();
     if(mini && mini.answers){
-      await saveLearner({ miniAssessment: { answers: mini.answers, completedAt: mini.completedAt } });
-      clearMiniAssessment();
+      // Forget the local copy only once the account really has it: it is the only copy.
+      if(await saveLearner({ miniAssessment: { answers: mini.answers, completedAt: mini.completedAt } })) clearMiniAssessment();
     }
   }
 
@@ -352,13 +411,22 @@ async function saveLearnerOrRevert(partial){
 // Disables a button and shows "Saving…" while a slow save is in flight (a
 // second tap can't double-submit, and the learner can see something is
 // happening on a slow connection). Returns a function that restores it.
+// The button's real label is remembered on the button itself, so a second tap
+// while a save is in flight can never capture "Saving…" as the label to restore.
 function busyButton(selector, label){
   const b = document.querySelector(selector);
   if(!b) return function(){};
-  const html = b.innerHTML, was = b.disabled;
+  if(b.dataset.idleHtml === undefined){ b.dataset.idleHtml = b.innerHTML; b.dataset.idleDisabled = b.disabled ? '1' : '0'; }
   b.disabled = true; b.textContent = label;
-  return function(){ b.innerHTML = html; b.disabled = was; };
+  return function(){
+    b.innerHTML = b.dataset.idleHtml; b.disabled = b.dataset.idleDisabled === '1';
+    delete b.dataset.idleHtml; delete b.dataset.idleDisabled;
+  };
 }
+// Which saves are in flight. While one runs, taps that would change what is
+// being saved (answers, pages) or start the same save again are ignored, so
+// what reaches the database is exactly what the learner saw when they tapped Save.
+const SAVING = { sc:false, g9:false, assess:false, onboarding:false };
 
 /* ---------------- matching engine ---------------- */
 // Structural (enrollment) fit for a single named subject, 0-100 -- not

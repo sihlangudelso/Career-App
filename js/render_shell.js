@@ -205,6 +205,7 @@ function render(){
   // highlight the screen they are really on.
   if(gate) refreshNav();
 
+  try {
   if(ROUTE==='onboarding') app.innerHTML = viewOnboarding();
   else if(ROUTE==='activate') app.innerHTML = viewActivateAccount();
   else if(ROUTE==='home') app.innerHTML = viewHome();
@@ -225,4 +226,19 @@ function render(){
   else if(ROUTE==='class') app.innerHTML = viewClass();
   else if(ROUTE==='profile') app.innerHTML = viewOnboarding(true);
   else app.innerHTML = viewHome();
+  } catch(err){
+    // Most likely a stored draft in a shape this version does not expect.
+    // persistDrafts() would write it straight back on every render, so the
+    // screen would never recover -- drop the drafts, reset, and say so.
+    console.error('render failed on route', ROUTE, err);
+    ASSESSMENT_DRAFT = null; APS_DRAFT = null; GRADE9_DRAFT = null; SUBJECT_CHOICE_DRAFT = null;
+    persistDrafts();
+    try {
+      ROUTE = 'home'; ROUTE_PARAM = null;
+      app.innerHTML = viewHome();
+    } catch(err2){
+      app.innerHTML = '<div class="card"><h3>Something went wrong loading this page</h3><p class="page-sub">Please refresh the page. Your saved results are safe.</p></div>';
+    }
+    toast('Something went wrong with that screen, so it was reset. Your saved results are safe.');
+  }
 }
