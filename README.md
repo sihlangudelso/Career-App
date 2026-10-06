@@ -225,8 +225,8 @@ js/
   data.js                 careers, faculties, assessment questions, subjects
   app.js                  auth bootstrap, Postgres data layer, matching engine
   auth-ui.js              sign-in / sign-up screen
-  learner_report.js       the learner report: a summary table + six sections (the model, and the
-                          screen and printed markup)
+  learner_report.js       the learner report: five sections laid out like the design mock-up (the
+                          model, and the screen and printed markup)
   answer_inputs.js        how an answer feels: the pick animation, the pause before the next
                           question, and the touch-first snap slider (see below)
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
@@ -276,33 +276,70 @@ the spec before rewording any of it.
 
 ### The learner report
 
-**Your Report** is one short report — about 2–3 printed pages — in this fixed
-shape: a headline **summary table** (best-fit subjects, academic readiness,
-interest alignment, personality alignment, overall recommendation), then
-1 Learner Profile, 2 Academic Snapshot, 3 Subject Fit, 4 Recommended Subject
-Combination, 5 Career Pathways, 6 Final Recommendation & Action. The longer
-views that used to be tabs (career pathways, careers, academic strengths,
-subjects, profile, next steps) are one step away under "More detail", and the
-printed copy is only the short report.
+**Your Report** is one short report — two printed A4 pages — laid out like the
+design mock-up and drawn in the iroli brand colours: a branded header and a
+name / grade / school / date bar, then five numbered sections.
+
+1. **Your Learner Profile** — key traits, "how you learn best", and interest bars.
+2. **Subject Fit** — a table of the recommended subjects (academic readiness,
+   interest alignment, personality alignment, overall fit, recommendation), with the
+   learner's strongest results and areas to strengthen under it (the old Academic
+   Snapshot lives here).
+3. **Recommended Subject Combination** — the best-fit combination and one
+   alternative, each as core subjects + electives.
+4. **Career Pathways** — up to four broad career areas, with example careers.
+5. **Your Final Recommendation & Next Steps** — where the learner is likely to
+   thrive, where extra effort may be needed, the **summary table** (best-fit
+   subjects, academic readiness, interest alignment, personality alignment, overall
+   recommendation) and three next steps.
+
+The longer views that used to be tabs (career pathways, careers, academic
+strengths, subjects, profile, next steps) are one step away under "More detail",
+and the printed copy is only the short report.
 
 It scores nothing itself. `buildLearnerReport(l)` in `js/learner_report.js`
 gathers everything from the code that already owns it — `personalityTypeInfo`,
-`buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit, combinations),
-`bestSuitedCareers` (the example careers, in the same order as Career Matches) —
-into one plain object, and `learnerReportHTML` draws it for screen and print, so
-it cannot disagree with the rest of the app. The words (Very Strong / Strong /
-Moderate / Low) and their cut-offs are `LR_CONFIG` at the top of that file.
+`scTraitScores` (key traits), the personality assessment's own RIASEC scores
+(interest bars), `buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit,
+combinations), `bestSuitedCareers` (the example careers, in the same order as
+Career Matches) — into one plain object, and `learnerReportHTML` draws it for
+screen and print, so it cannot disagree with the rest of the app. The words (Very
+Strong / Strong / Moderate / Low) and their cut-offs are `LR_CONFIG` at the top of
+that file.
 
-Two rules worth knowing:
+Things worth knowing:
 - **A strong blend never hides a weak side.** "Strong" overall needs no part to be
-  Low/Developing; otherwise it reads "Moderate Fit" with a note (strong interest
-  with results still developing is "build the foundation", not a plain strong fit).
+  Low/Developing; otherwise it reads "Moderate Fit" with a note, and a subject is
+  never labelled "Recommended" past that cap. The pill beside each subject follows
+  the Subject Choice engine's own category: strong match → *Recommended*; high
+  interest with results still developing, or lower natural alignment → *May require
+  more effort*; anything else → *Consider*.
+- **"How you learn best" is inferred, not measured.** There is no learning-style
+  test: the sentence is read from the learner's personality and work-style answers
+  (`LR_LEARN`), and the report says so beneath it.
 - **Every learner gets a report that fits them.** Grade 9 with a finished Subject
-  Choice Assessment gets all six sections; a Grade 10–12 or exploring learner has no
-  "Recommended Subject Combination" and sees the subjects their careers rely on
-  instead; someone with nothing done yet sees a "Start here" card, never an empty
-  table. Finishing the Subject Choice or personality assessment lands on the report;
-  the Subject Choice Assessment keeps its own detailed subject-by-subject page.
+  Choice Assessment gets all five sections; a Grade 10–12 or exploring learner has no
+  "Recommended Subject Combination" (the numbers close up) and sees the subjects their
+  careers rely on instead; someone with nothing done yet sees a "Start here" card,
+  never an empty table. Finishing the Subject Choice or personality assessment lands
+  on the report; the Subject Choice Assessment keeps its own detailed
+  subject-by-subject page.
+- **Brand colours only.** The look is the mock-up's layout, not its palette. The five
+  section badges, trait icons and bars step through the logo gradient (blue → violet →
+  pink, `--brand-*` in `style.css`); the Subject Fit bars use one colour per column
+  (academic = blue, interest = violet, personality = pink); pills use the brand
+  indigo and the existing blue and pink tints. Change the `--brand-*` / `--tint-*`
+  tokens and the report follows. The real logo sits on a white chip in the header
+  (the pink "oli." would vanish on the gradient).
+- **It is a light sheet in every theme.** Inside `.rp` the shared colour tokens are
+  pinned to their light values, so the report reads the same in dark mode, on paper
+  and on a phone. The phone layout is switched on by the report's own width (a CSS
+  container query), not the screen width, because the report sits beside the sidebar;
+  on a phone each subject becomes a small card with three labelled bars.
+- **Print** is the same markup (`.rp-print`), tightened: page 1 is the header, profile
+  and subject fit; page 2 the combination, careers and final recommendation. Cards and
+  rows are kept whole; only Subject Fit may split (its header row repeats), so a long
+  table never leaves a half-empty page.
 
 ### One story across the app (please keep it that way)
 
@@ -317,7 +354,7 @@ re-derive them:
 | Personality type (e.g. `IR`) | `personalityTypeInfo(l)` — top two RIASEC dimensions from the **Personality Assessment** | `js/app.js` |
 | Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first). **Empty until the personality assessment is done**: before it every career ties, so a "top three" would be arbitrary | `js/app.js` |
 | Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list ("the subjects your top careers rely on" for anyone who is not in Grade 9) | `js/views_report.js` |
-| The learner report | `buildLearnerReport(l)` — the summary table and six sections, built only from the rows above | `js/learner_report.js` |
+| The learner report | `buildLearnerReport(l)` — the five sections and summary table, built only from the rows above | `js/learner_report.js` |
 | Who sees what | `isGrade9Learner`, `subjectChoiceAvailable`, `learnerGate` (profile / activation screen), `resultsEntryLinkHTML` (where a learner adds marks) | `js/app.js` |
 | How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
 

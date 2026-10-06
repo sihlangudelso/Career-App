@@ -1,5 +1,5 @@
 /* ---------------- Your Career & Subject Choice Report ---------------- */
-// The report is ONE short page -- a summary table and six sections, built by
+// The report is ONE short page -- five sections and a summary table, built by
 // js/learner_report.js. The longer views that used to be tabs (career
 // pathways, careers, academic strengths, subjects, profile, next steps) are
 // still here, one step away from the "More detail" row at the bottom, and
@@ -40,23 +40,13 @@ function viewReport(){
     ${body}
     <div class="print-only">${reportPrintHTML(l, R)}</div>`;
   }
+  // The report draws its own header (logo, title, name / grade / school / date),
+  // so there is no separate page heading above it.
   return `
-  ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point, not a prediction of your future.')}
-  ${reportIdentityHTML(l, false)}
-  <button class="btn btn-ghost btn-sm" style="margin-bottom:6px;" onclick="window.print()">${icon('download')} Print / Save as PDF</button>
+  <div class="rp-toolbar"><button class="btn btn-ghost btn-sm" onclick="window.print()">${icon('download')} Print / Save as PDF</button></div>
   ${learnerReportHTML(l, R)}
   ${reportMoreDetailHTML(l, R)}
   <div class="print-only">${reportPrintHTML(l, R)}</div>`;
-}
-
-// Slim one-line identity: name, grade, school and when the personality assessment was done.
-function reportIdentityHTML(l, withName){
-  const dateStr = l.assessmentCompletedAt
-    ? new Date(l.assessmentCompletedAt).toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' })
-    : null;
-  // On screen the avatar chip beside the title already shows the name; the printed copy needs it.
-  const parts = [withName === false ? null : (ME.name || 'You'), l.grade ? ('Grade ' + l.grade) : null, l.school || null].filter(Boolean);
-  return `<div class="page-sub ov-identity">${esc(parts.join(' · '))}${dateStr ? ' · Personality assessment completed ' + esc(dateStr) : ''}</div>`;
 }
 
 // Where this learner's Grade 10 subject recommendations come from:
@@ -323,10 +313,5 @@ function reportNextStepsHTML(l){
 // longer views are not part of it.
 function reportPrintHTML(l, R){
   R = R || buildLearnerReport(l);
-  return `
-  <div class="lr-print-head">
-    <img class="brand-mark-img" src="assets/logo-mark.png" alt="Iroli"/>
-    <div><h1>Your Career &amp; Subject Choice Report</h1>${reportIdentityHTML(l)}</div>
-  </div>
-  ${learnerReportHTML(l, R, { print:true })}`;
+  return learnerReportHTML(l, R, { print:true });
 }

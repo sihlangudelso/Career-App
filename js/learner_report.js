@@ -1,13 +1,14 @@
 /* ============================================================
-   THE LEARNER REPORT -- one short report, six core sections.
+   THE LEARNER REPORT -- one short report, five sections, laid out like the
+   owner's mock-up and drawn in the iroli brand colours:
 
-   A headline summary table (best-fit subjects, academic readiness,
-   interest alignment, personality alignment, overall recommendation),
-   then:
-     1  Learner Profile                    4  Recommended Subject Combination
-     2  Academic Snapshot                  5  Career Pathways
-     3  Subject Fit                        6  Final Recommendation & Action
-   About 2-3 pages when printed -- a short report, not a psychometric one.
+     1  Your Learner Profile                 4  Career Pathways
+     2  Subject Fit                          5  Your Final Recommendation & Next Steps
+     3  Recommended Subject Combination         (the summary table + three next steps)
+
+   The Academic Snapshot (key results, strongest and weakest areas) sits
+   under the Subject Fit table, where those results are used.
+   About 2 pages when printed -- a short report, not a psychometric one.
 
    Nothing in this file scores anything. Every number and ranking comes
    from the one place that already owns it (personalityTypeInfo,
@@ -30,8 +31,10 @@ const LR_CONFIG = {
   // same line the Subject Choice report uses for its "work on" tips.
   weakBelow: SC_CONFIG.report.workOnBelow,
   fitRows: 6,                       // most subjects listed under Subject Fit
-  careerAreas: { min: 3, max: 5 },  // broad career areas listed
+  careerAreas: { min: 3, max: 4 },  // broad career areas listed
   nextSteps: 3,                     // next steps listed
+  trait: { max: 5, min: 55, least: 3 },  // key traits: up to 5 scoring 55+, never fewer than 3
+  interests: 5,                     // interest areas shown (of the six the assessment scores)
 };
 
 /* ---------------- small helpers ---------------- */
@@ -83,51 +86,97 @@ function lrCareerSubjectIds(names){
 
 /* ---------------- section content ---------------- */
 
-// How the learner tends to work, in the learner's own answers to the Grade 9
-// work-style sliders: only the preferences they leaned clearly towards.
-function lrWorkStyle(l){
-  const ws = l.workStyle;
-  if(!ws || typeof ws !== 'object') return null;
-  const picks = [];
-  let any = false;
-  WORK_STYLE_QUESTIONS.forEach(function(q){
-    if(ws[q.key] == null) return;
-    const v = Number(ws[q.key]);
-    if(isNaN(v)) return;
-    any = true;
-    const d = v - 50;
-    if(Math.abs(d) >= 25) picks.push({ d: Math.abs(d), text: lrLower(d > 0 ? q.right : q.left) });
-  });
-  if(!any) return null;
-  if(!picks.length) return 'Your answers show a flexible style — you can adapt to what a task needs.';
-  picks.sort(function(a, b){ return b.d - a.d; });
-  return 'You tend to prefer ' + scJoin(picks.slice(0, 3).map(function(p){ return p.text; })) + '.';
-}
-// The two clearest working-style traits (from the personality assessment).
-function lrTraits(rep){
-  if(!rep || !rep.traits) return null;
-  const top = Object.keys(rep.traits)
-    .filter(function(t){ return rep.traits[t] != null && rep.traits[t] >= 65 && SC_TRAITS[t]; })
-    .sort(function(a, b){ return rep.traits[b] - rep.traits[a]; })
-    .slice(0, 2);
-  return top.length ? 'Your strongest working-style traits are ' + scJoin(top.map(function(t){ return SC_TRAITS[t].phrase; })) + '.' : null;
-}
-function lrInterests(l, rep){
-  if(rep && rep.profile && rep.profile.summary && rep.profile.summary.length) return rep.profile.summary.slice(0, 2).join(' ');
-  const doms = computeStrengthDomains(l).filter(function(d){ return d.hasEvidence; }).slice(0, 3);
-  return doms.length ? 'You tend to enjoy ' + joinBlends(doms.map(function(d){ return d.domain.blend; })) + '.' : null;
+// "Analytical & logical" -> "Analytical": the first part of the trait's own label.
+function lrTraitWord(id){ return SC_TRAITS[id].label.split(' & ')[0]; }
+
+// The learner's clearest traits (the same eight the Subject Choice report
+// scores for personality alignment), strongest first.
+function lrKeyTraits(l){
+  const scores = scTraitScores(l);
+  const all = Object.keys(SC_TRAITS)
+    .filter(function(id){ return scores[id] != null; })
+    .map(function(id, i){ return { id: id, word: lrTraitWord(id), phrase: SC_TRAITS[id].phrase, score: scores[id], i: i }; })
+    .sort(function(a, b){ return (b.score - a.score) || (a.i - b.i); });
+  const T = LR_CONFIG.trait;
+  const picked = all.filter(function(t){ return t.score >= T.min; }).slice(0, T.max);
+  return picked.length >= T.least ? picked : all.slice(0, T.least);
 }
 
-function lrProfile(l, rep){
+// Interest areas: the personality assessment's own six dimensions (the ones
+// behind the learner's personality type), strongest first. Ties keep the
+// fixed RIASEC order, exactly as the personality type does.
+function lrInterestBars(l){
+  const r = l.riasec || {};
+  return RIASEC
+    .map(function(d, i){ return { id: d.id, name: d.name, score: r[d.id] == null || r[d.id] === '' ? NaN : Math.max(0, Math.min(100, Number(r[d.id]))), i: i }; })
+    .filter(function(d){ return !isNaN(d.score); })
+    .sort(function(a, b){ return (b.score - a.score) || (a.i - b.i); })
+    .slice(0, LR_CONFIG.interests);
+}
+
+// How the learner tends to learn: short "you can ..." phrases, each tied to a
+// clear leaning in their own answers -- a trait score, or a working-style
+// slider pushed towards one end. They are tendencies read from the personality
+// assessment, not a measured learning style, and the report says so.
+const LR_LEARN = [
+  { group:'why',     trait:'analytical',    text:'understand why something works' },
+  { group:'explore', trait:'investigative', text:'explore and ask questions' },
+  { group:'apply',   trait:'practical',     text:'apply what you learn to real problems' },
+  { group:'create',  trait:'creative',      text:'try out your own ideas' },
+  { group:'plan',    trait:'organised',     text:'follow a clear plan' },
+  { group:'people',  trait:'people',        text:'talk ideas through with other people' },
+  { group:'debate',  trait:'persuasive',    text:'discuss and debate ideas' },
+  { group:'think',   trait:'reflective',    text:'take time to think things through' },
+  { group:'people',  slider:'teamVsSolo',           dir:'high', text:'work with other people' },
+  { group:'solo',    slider:'teamVsSolo',           dir:'low',  text:'work on your own' },
+  { group:'plan',    slider:'structureVsFlexible',  dir:'low',  text:'follow a clear plan' },
+  { group:'flex',    slider:'structureVsFlexible',  dir:'high', text:'adapt as things change' },
+  { group:'detail',  slider:'detailVsBigPicture',   dir:'low',  text:'get the details exactly right' },
+  { group:'big',     slider:'detailVsBigPicture',   dir:'high', text:'see the big picture first' },
+  { group:'steady',  slider:'routineVsVariety',     dir:'low',  text:'settle into a steady routine' },
+  { group:'variety', slider:'routineVsVariety',     dir:'high', text:'switch between different kinds of tasks' },
+];
+const LR_LEARN_OPPOSITE = { plan:'flex', flex:'plan', detail:'big', big:'detail', steady:'variety', variety:'steady', people:'solo', solo:'people' };
+function lrLearnBest(l){
+  const scores = scTraitScores(l), ws = (l.workStyle && typeof l.workStyle === 'object') ? l.workStyle : {};
+  let any = false;
+  const cands = [];
+  LR_LEARN.forEach(function(c, i){
+    let strength = null;
+    if(c.trait){
+      const s = scores[c.trait];
+      if(s == null) return;
+      any = true;
+      if(s >= 60) strength = (s - 50) / 50;
+    } else {
+      if(ws[c.slider] == null) return;
+      const v = Number(ws[c.slider]);
+      if(isNaN(v)) return;
+      any = true;
+      const d = c.dir === 'high' ? v - 50 : 50 - v;
+      if(d >= 25) strength = d / 50;     // a clear lean (2/5 or 4/5 on the slider, or further)
+    }
+    if(strength != null) cands.push({ c: c, strength: strength, i: i });
+  });
+  if(!any) return null;
+  cands.sort(function(a, b){ return (b.strength - a.strength) || (a.i - b.i); });
+  const picked = [], groups = {};
+  cands.forEach(function(x){
+    if(picked.length >= 3 || groups[x.c.group] || groups[LR_LEARN_OPPOSITE[x.c.group]]) return;
+    groups[x.c.group] = true; picked.push(x.c.text);
+  });
+  return picked.length ? 'You tend to learn best when you can ' + scJoin(picked) + '.' : 'Your answers show a flexible style — you can adapt to how a topic is taught.';
+}
+
+function lrProfile(l){
   const p = personalityTypeInfo(l);
   if(!p) return { available:false };
   return {
     available: true,
     code: p.code, names: p.top.map(function(t){ return t.name; }),
-    personality: p.summary,
-    interests: lrInterests(l, rep),
-    work: [lrWorkStyle(l), lrTraits(rep)].filter(Boolean).join(' ') || null,
-    strengths: p.strengths.map(function(s){ return s.label; }),
+    traits: lrKeyTraits(l),
+    interests: lrInterestBars(l),
+    learn: lrLearnBest(l),
   };
 }
 
@@ -164,20 +213,45 @@ function lrCombos(rep){
   }
   return { best: best, alt: alt };
 }
-function lrComboView(c){
+// Everyone takes Mathematics or Mathematical Literacy, two languages and Life
+// Orientation; the rest of a combination is the electives. When a combination
+// has no Maths slot (humanities, creative ...), the core Maths line follows
+// the report's own Maths lean.
+function lrIsMaths(label){ return label.indexOf('Mathematics') === 0 || label.indexOf('Mathematical Literacy') === 0; }
+function lrComboView(c, rep){
   const labels = c.labels.map(lrShort);
-  return { id: c.id, name: c.name, labels: labels, fit: lrFit(c.score), why: c.why, eitherMaths: c.labels.indexOf('Mathematics or Mathematical Literacy') !== -1 };
+  const maths = c.labels.filter(lrIsMaths)[0]
+    || (rep && rep.mathChoice && rep.mathChoice.recommended === 'mathematics' ? 'Mathematics'
+      : (rep && rep.mathChoice && rep.mathChoice.recommended === 'mathematicalLiteracy' ? 'Mathematical Literacy' : 'Mathematics or Mathematical Literacy'));
+  return {
+    id: c.id, name: c.name, labels: labels, why: c.why,
+    eitherMaths: c.labels.indexOf('Mathematics or Mathematical Literacy') !== -1,
+    core: [lrShort(maths), 'Home Language and First Additional Language', 'Life Orientation'],
+    electives: c.labels.filter(function(x){ return !lrIsMaths(x); }).map(lrShort),
+  };
+}
+
+// The verdict beside each subject. Recommended = a strong match on every side;
+// "May require more effort" = high interest with results still developing, or
+// lower natural alignment; everything in between is worth a conversation.
+function lrRecommend(r, overall){
+  const k = r.category.key;
+  if(k === 'lower' || k === 'foundation') return { key:'effort', label:'May require more effort' };
+  if(k === 'strong' && !overall.capped) return { key:'rec', label:'Recommended' };
+  return { key:'consider', label:'Consider' };
 }
 
 // One row of the Subject Fit table.
 function lrFitRow(r, extra){
   const academic = lrLevel(r.academic.score, 'academic'), interest = lrLevel(r.interest.normalised), personality = lrLevel(r.personality.score);
+  const overall = Object.assign({ score: r.fit.overall }, lrOverall(r.fit.overall, [academic, interest, personality]));
   return {
-    id: r.id, label: lrShort(r.label), extra: extra || null,
+    id: r.id, label: lrShort(r.label), extra: extra || null, category: r.category.key,
     academic: Object.assign({ score: r.academic.score }, academic),
     interest: Object.assign({ score: r.interest.normalised }, interest),
     personality: Object.assign({ score: r.personality.score }, personality),
-    overall: Object.assign({ score: r.fit.overall }, lrOverall(r.fit.overall, [academic, interest, personality])),
+    overall: overall,
+    rec: lrRecommend(r, overall),
     // "build the foundation" / "academically strong -- check your interest" are worth a word.
     note: r.category.key === 'foundation' ? 'High interest — build the foundation'
         : (r.category.key === 'academic' ? 'Academically strong — check your interest' : null),
@@ -235,7 +309,8 @@ function lrCareerAreas(l, matches, comboIds){
 
 // Where the learner is likely to thrive, in one honest sentence.
 function lrThrive(rows){
-  const strong = rows.filter(function(r){ return r.overall.key === 's'; }).slice(0, 3);
+  // Exactly the subjects the table marks "Recommended", so the two can never disagree.
+  const strong = rows.filter(function(r){ return r.rec.key === 'rec'; }).slice(0, 3);
   if(strong.length){
     const hasMarks = strong.every(function(r){ return r.academic.key !== 'na'; });
     return 'You are likely to thrive in ' + scJoin(strong.map(function(r){ return r.label; })) + ', where ' + (hasMarks ? 'your interests, working style and results' : 'your interests and working style') + ' line up well.';
@@ -243,18 +318,19 @@ function lrThrive(rows){
   const best = rows.slice(0, 2);
   return best.length ? 'Your closest matches are ' + scJoin(best.map(function(r){ return r.label; })) + ' — worth exploring what each involves day to day before you decide.' : null;
 }
-// Where extra effort may be needed: results first, then interest. (The practice
-// tips themselves are next steps, so they are not repeated here.)
+// Where extra effort may be needed: results first (the subjects the table marks
+// "build the foundation", or whose results are Developing), then interest. (The
+// practice tips themselves are next steps, so they are not repeated here.)
 function lrEffort(rows, rep){
   const out = [];
-  const dev = rows.filter(function(r){ return r.academic.key === 'l'; });
+  const dev = rows.filter(function(r){ return r.academic.key === 'l' || r.category === 'foundation'; });
   const tips = (rep && rep.workOnTips) || [];
   if(dev.length){
     out.push(scJoin(dev.slice(0, 3).map(function(r){ return r.label; })) + ' may need regular practice at first — your current results in the areas ' + (dev.length === 1 ? 'it builds' : 'they build') + ' on are still developing.');
   } else if(tips.length){
     out.push('Some of your results are still developing in areas these subjects build on — a little regular practice will help.');
   }
-  rows.filter(function(r){ return (r.interest.key === 'l' || r.personality.key === 'l') && r.academic.key !== 'l'; }).slice(0, 1).forEach(function(r){
+  rows.filter(function(r){ return (r.category === 'lower' || r.interest.key === 'l' || r.personality.key === 'l') && dev.indexOf(r) === -1; }).slice(0, 1).forEach(function(r){
     out.push(r.label + ' shows less alignment with what you enjoy — think about whether you would enjoy it for three years.');
   });
   if(out.length) return out.slice(0, 2);
@@ -303,6 +379,16 @@ function lrNextSteps(l, ctx){
 }
 
 /* ---------------- the model ---------------- */
+// The header band and info bar: who the report is for, and what it is called.
+function lrMeta(l, grade9){
+  return {
+    name: (typeof ME !== 'undefined' && ME && ME.name) ? ME.name : 'You',
+    grade: l.grade ? String(l.grade) : null,
+    school: l.school || null,
+    date: new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' }),
+    title: grade9 ? 'Grade 9 Subject Choice Report' : (l.grade ? 'Grade ' + l.grade + ' Career Report' : 'Career Report'),
+  };
+}
 function buildLearnerReport(l){
   const grade9 = isGrade9Learner(l);
   const src = reportSubjectSource(l);
@@ -311,7 +397,7 @@ function buildLearnerReport(l){
   const matches = l.assessmentCompletedAt ? bestSuitedCareers(l, CAREERS.length) : [];
   const academic = lrAcademic(l);
   const profile = lrProfile(l, rep);
-  const R = { grade9: grade9, mode: rep ? 'subjects' : 'general', src: src.kind, profile: profile, academic: academic };
+  const R = { grade9: grade9, mode: rep ? 'subjects' : 'general', src: src.kind, meta: lrMeta(l, grade9), profile: profile, academic: academic };
 
   // ---- 3 + 4: subject fit and the recommended combination (Grade 9, report done)
   let rows = [], comboIds = [], best = null, alt = null, also = [];
@@ -319,7 +405,7 @@ function buildLearnerReport(l){
     const pair = lrCombos(rep);
     if(pair.best){
       const byId = {}; rep.results.forEach(function(r){ byId[r.id] = r; });
-      best = lrComboView(pair.best); alt = pair.alt ? lrComboView(pair.alt) : null;
+      best = lrComboView(pair.best, rep); alt = pair.alt ? lrComboView(pair.alt, rep) : null;
       comboIds = pair.best.subjects.slice();
       // "Mathematics or Maths Literacy" is an open question: show both rows, each its own scores.
       const ids = [];
@@ -333,6 +419,10 @@ function buildLearnerReport(l){
         const isAlt = pair.best.subjects.indexOf(id) === -1 && !(best.eitherMaths && (id === 'mathematics' || id === 'mathematicalLiteracy'));
         return lrFitRow(byId[id], isAlt ? 'alternative' : null);
       });
+      // Best match first (stable: equal scores keep the combination's own order).
+      rows = rows.map(function(r, i){ return { r: r, i: i }; })
+        .sort(function(a, b){ return ((b.r.overall.score || 0) - (a.r.overall.score || 0)) || (a.i - b.i); })
+        .map(function(x){ return x.r; });
       // Strong matches that are not in either combination: say so, instead of leaving them out silently.
       also = rep.top.filter(function(r){ return ids.indexOf(r.id) === -1; }).slice(0, 2).map(function(r){ return lrShort(r.label); });
     } else {
@@ -406,210 +496,287 @@ function lrSummary(l, c){
 /* ============================================================
    Drawing it. Everything below reads the object buildLearnerReport()
    returns -- no scoring, no new wording rules -- and is used for both
-   the on-screen report and the printed copy.
+   the on-screen report and the printed copy. The layout follows the
+   owner's mock-up; the colours are the iroli brand's (see .rp in
+   style.css): the logo's blue -> violet -> pink gradient, in five steps.
    ============================================================ */
 
-function lrPill(lv){ return `<span class="lr-pill lr-${lv.key}">${esc(lv.label)}</span>`; }
-function lrButton(label, onclick, cls){ return `<button class="btn ${cls || 'btn-ghost'} btn-sm" onclick="${onclick}">${esc(label)}</button>`; }
+// One icon per personality trait and per career area (icons.js).
+const LR_TRAIT_ICON = { analytical:'brain', investigative:'search', creative:'bulb', organised:'checklist', people:'users', persuasive:'flag', practical:'gear', reflective:'eye' };
+const LR_AREA_ICON = { engineering:'gear', ict:'laptop', health:'stethoscope', natsci:'flask', built:'building', agri:'leaf', finance:'chart', business:'briefcase', humanities:'globe', 'law-public':'scale', education:'cap', 'media-arts':'spark', tourism:'compass', trades:'wrench', sport:'trophy' };
 
-// The headline. The most important part of the report.
-function lrSummaryHTML(R, l){
-  const rows = R.summary.rows;
-  // Nothing known yet (a "to do" prompt is not a result): say where to begin instead.
-  if(!rows.some(function(r){ return r.kind !== 'todo'; })) return lrStartHereHTML(R, l);
-  const body = rows.map(function(r){
-    let val;
-    if(r.kind === 'level') val = lrPill(r.level);
-    else if(r.kind === 'fit') val = `<span class="lr-pill lr-fit lr-${r.fit.key}">${esc(r.fit.word)}</span>`;
-    else if(r.kind === 'todo') val = `<span class="lr-todo">${esc(r.result)}</span>`;
-    else val = esc(r.result);
-    return `<tr class="${r.kind === 'fit' ? 'lr-overall' : ''}"><th scope="row">${esc(r.area)}</th><td>${val}${r.note ? `<div class="lr-note">${esc(r.note)}</div>` : ''}</td></tr>`;
-  }).join('');
+function lrButton(label, onclick, cls){ return `<button class="btn ${cls || 'btn-ghost'} btn-sm" onclick="${onclick}">${esc(label)}</button>`; }
+function rpBar(v){ return `<span class="rp-bar" aria-hidden="true"><i style="width:${Math.max(3, Math.min(100, Math.round(v)))}%"></i></span>`; }
+function rpPct(v){ return v == null || isNaN(v) ? '—' : Math.round(v) + '%'; }
+// A prompt inside a section (text is trusted markup written in this file).
+function rpEmpty(text, label, onclick){
+  return `<div class="rp-empty"><p>${text}</p>${label ? lrButton(label, onclick, 'btn-primary') : ''}</div>`;
+}
+// Which of the five brand steps (blue ... pink) each section takes: always
+// from blue to pink, however many sections this learner's report has.
+function rpTones(n){
+  const out = [];
+  for(let i = 0; i < n; i++) out.push(n === 1 ? 1 : Math.round(1 + i * 4 / (n - 1)));
+  return out;
+}
+
+function rpSection(o){
+  const badge = o.n == null ? icon(o.icon || 'compass', 'rp-ic') : o.n;
   return `
-  <section class="lr-sum" aria-label="Summary">
-    <h2>Your summary</h2>
-    <table class="lr-sumtable"><tbody>${body}</tbody></table>
-    <p class="lr-foot">${R.summary.complete ? 'Based on what you enjoy, how you like to work and how you are doing at school.' : 'What we know so far — the steps at the end of this report fill in the rest.'}</p>
+  <section class="rp-sec rp-t${o.tone} ${o.cls || ''}" aria-labelledby="${o.id}">
+    <div class="rp-sechead"><span class="rp-num" aria-hidden="true">${badge}</span><div class="rp-sectext"><h2 id="${o.id}">${esc(o.title)}</h2>${o.sub ? `<p>${esc(o.sub)}</p>` : ''}</div></div>
+    <div class="rp-secbody">${o.body}</div>
   </section>`;
 }
-// A learner with nothing done yet: where to begin, instead of an empty table.
-function lrStartHereHTML(R, l){
-  const steps = [];
-  steps.push(['Take the personality assessment', 'Shows your personality type, interests and best-suited careers.', "navigate('assessment')"]);
+
+// The branded header band.
+function rpHeadHTML(R){
+  const m = R.meta;
+  return `
+  <header class="rp-head">
+    <div class="rp-brand">
+      <span class="rp-logo"><img src="assets/logo-wordmark.png" alt="iroli"/></span>
+      <p class="rp-tag">Discover your path.<br>Choose with confidence.</p>
+    </div>
+    <div class="rp-titleblock">
+      <h1 class="rp-title">${esc(m.title)}</h1>
+      <p class="rp-motto">Insights today. More opportunities tomorrow.</p>
+    </div>
+  </header>`;
+}
+// Name / grade / school / date, on the white sheet under the header.
+function rpInfoHTML(R){
+  const m = R.meta;
+  const cells = [['Name', m.name], ['Grade', m.grade], ['School', m.school], ['Date', m.date]].filter(function(c){ return c[1]; });
+  return `<dl class="rp-info">${cells.map(function(c){ return `<div><dt>${esc(c[0])}</dt><dd>${esc(c[1])}</dd></div>`; }).join('')}</dl>`;
+}
+
+// A learner with nothing done yet: where to begin, instead of empty sections.
+function rpStartHTML(R, idp){
+  const steps = [['Take the personality assessment', 'Shows your personality type, interests and best-suited careers.', "navigate('assessment')"]];
   if(R.grade9){
     steps.push(['Enter your Grade 9 report results', 'So we can see how ready you are for each subject.', "navigate('grade9-report')"]);
     steps.push(['Take the Subject Choice Assessment', 'Shows which Grade 10 subjects fit you best.', "navigate('subject-choice')"]);
   }
-  return `
-  <section class="lr-sum lr-start" aria-label="Start here">
-    <h2>Start here</h2>
-    <p class="page-sub" style="margin:0 0 12px;">Your report builds as you go. ${steps.length > 1 ? steps.length + ' quick steps unlock it:' : 'One quick step unlocks it:'}</p>
-    <ol class="lr-startlist">${steps.map(function(s){ return `<li><div><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>${lrButton('Start', s[2], 'btn-primary')}</li>`; }).join('')}</ol>
-  </section>`;
+  return rpSection({
+    id: idp + '-start', n: null, icon: 'compass', tone: 1, title: 'Start here',
+    sub: 'Your report builds as you go. ' + (steps.length > 1 ? steps.length + ' quick steps unlock it.' : 'One quick step unlocks it.'),
+    body: `<ol class="rp-startlist">${steps.map(function(x){ return `<li><div><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>${lrButton('Start', x[2], 'btn-primary')}</li>`; }).join('')}</ol>`,
+  });
 }
 
-function lrProfileHTML(R){
+/* ---- 1: profile ---- */
+function rpProfileHTML(R){
   const pr = R.profile;
-  if(!pr.available){
-    return `<div class="card lr-card"><p class="page-sub" style="margin:0 0 10px;">Take the personality assessment to see your personality type, your interests and how you tend to work.</p>${lrButton('Take the personality assessment', "navigate('assessment')", 'btn-primary')}</div>`;
-  }
+  if(!pr.available) return rpEmpty('Take the personality assessment to see your key traits, your interests and how you tend to work.', 'Take the personality assessment', "navigate('assessment')");
+  const traits = pr.traits.map(function(t, i){
+    return `<li class="rp-t${i + 1}"><span class="rp-dot">${icon(LR_TRAIT_ICON[t.id] || 'spark', 'rp-ic')}</span><span>${esc(t.word)}</span></li>`;
+  }).join('');
+  const bars = pr.interests.map(function(x, i){
+    return `<li class="rp-t${i + 1}"><span class="rp-iname">${esc(x.name)}</span>${rpBar(x.score)}<b class="rp-ipct">${rpPct(x.score)}</b></li>`;
+  }).join('');
   return `
-  <div class="card lr-card">
-    <div class="lr-type">
-      <div class="lr-code" aria-label="Personality type ${esc(pr.code)}">${esc(pr.code)}</div>
-      <div class="lr-typebody"><div class="lr-typenames">${esc(pr.names.join(' · '))}</div><p>${esc(pr.personality)}</p></div>
+  <div class="rp-profile">
+    <div class="rp-pcol">
+      <h3 class="rp-h3">Your key traits</h3>
+      <ul class="rp-traits">${traits}</ul>
+      ${pr.learn ? `<div class="rp-learn"><span class="rp-learn-ic">${icon('cap', 'rp-ic')}</span><div><h3 class="rp-h3">How you learn best</h3><p>${esc(pr.learn)}</p><small>Read from your personality and work-style answers.</small></div></div>` : ''}
     </div>
-    <dl class="lr-dl">
-      ${pr.interests ? `<div><dt>Your interests</dt><dd>${esc(pr.interests)}</dd></div>` : ''}
-      ${pr.work ? `<div><dt>How you tend to work</dt><dd>${esc(pr.work)}</dd></div>` : ''}
-      ${pr.strengths.length ? `<div><dt>Your top strengths</dt><dd><div class="pill-list">${pr.strengths.map(function(s){ return `<span class="pill rec">${esc(s)}</span>`; }).join('')}</div></dd></div>` : ''}
-    </dl>
+    <div class="rp-pcol rp-pint">
+      <h3 class="rp-h3">Your interests</h3>
+      <ul class="rp-ibars">${bars}</ul>
+      <p class="rp-type">Your personality type: <b>${esc(pr.code)}</b> — ${esc(pr.names.join(' · '))}</p>
+    </div>
   </div>`;
 }
 
-function lrAcademicHTML(R, l){
+/* ---- 2: subject fit (with the academic snapshot beneath it) ---- */
+function rpAcademicHTML(R, l){
   const a = R.academic;
   if(!a.has){
     const entry = resultsEntryLinkHTML(l);
-    return `<div class="card lr-card"><p class="page-sub" style="margin:0;">${entry ? 'Enter your ' + entry + ' to see your key results, strongest areas and areas to strengthen here.' : 'School marks are not needed to explore careers.'}</p></div>`;
+    return entry ? `<p class="rp-foot">Enter your ${entry} to see your strongest results and the areas to strengthen here.</p>` : '';
   }
-  const top = {}, low = {};
-  a.strongest.forEach(function(e){ top[e.subject] = true; });
-  a.toStrengthen.forEach(function(e){ low[e.subject] = true; });
-  const pct = function(e){ return e.subject + ' (' + e.pct + '%)'; };
+  const pct = function(e){ return e.subject + ' ' + e.pct + '%'; };
   return `
-  <div class="card lr-card">
-    <div class="lr-src">Based on ${esc(a.source)}</div>
-    <div class="lr-bars ${a.entries.length > 6 ? 'many' : ''}" role="list">
-      ${a.entries.map(function(e){
-        const cls = top[e.subject] ? 'top' : (low[e.subject] ? 'low' : '');
-        return `<div class="lr-bar ${cls}" role="listitem"><span class="lr-bn">${esc(e.subject)}</span><span class="lr-bt"><i style="width:${Math.max(2, Math.min(100, e.pct))}%"></i></span><span class="lr-bp">${e.pct}%</span></div>`;
-      }).join('')}
-    </div>
-    <div class="grid grid-2 lr-two">
-      <div><div class="lr-k">Strongest areas</div><div>${esc(a.strongest.map(pct).join(' · '))}</div></div>
-      <div><div class="lr-k">Areas to strengthen</div><div>${a.toStrengthen.length ? esc(a.toStrengthen.map(pct).join(' · ')) : 'None below ' + LR_CONFIG.weakBelow + '% — nice work.'}</div></div>
-    </div>
+  <div class="rp-acad">
+    <div><span class="rp-k">Strongest results</span> ${esc(a.strongest.map(pct).join(' · '))}</div>
+    <div><span class="rp-k">To strengthen</span> ${a.toStrengthen.length ? esc(a.toStrengthen.map(pct).join(' · ')) : 'None below ' + LR_CONFIG.weakBelow + '% — nice work.'}</div>
+    <small>Based on ${esc(a.source)}.</small>
   </div>`;
 }
 
-function lrFitHTML(R, l){
+function rpFitTableHTML(R){
+  const f = R.fit, W = SC_CONFIG.weights, pc = function(x){ return Math.round(x * 100); };
+  const cell = function(m, cls, label){
+    return `<td data-label="${label}"><div class="rp-cell ${cls}">${m.score == null ? '<span class="rp-nodata">No marks yet</span>' : rpBar(m.score) + '<b class="rp-pct">' + rpPct(m.score) + '</b>'}</div></td>`;
+  };
+  const rows = f.rows.map(function(r){
+    return `<tr>
+      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra ? '<small class="rp-alt">In the alternative combination</small>' : ''}</th>
+      ${cell(r.academic, 'm-ac', 'Academic')}
+      ${cell(r.interest, 'm-in', 'Interest')}
+      ${cell(r.personality, 'm-pe', 'Personality')}
+      <td class="rp-overall" data-label="Overall fit"><b class="rp-ov rp-ov-${r.overall.key}">${rpPct(r.overall.score)}</b></td>
+      <td class="rp-recwrap" data-label="Recommendation"><span class="rp-chip rp-chip-${r.rec.key}">${esc(r.rec.label)}</span></td>
+    </tr>`;
+  }).join('');
+  return `
+  <table class="rp-table">
+    <thead><tr>
+      <th scope="col">Subject</th>
+      <th scope="col" class="h-ac">Academic Readiness</th>
+      <th scope="col" class="h-in">Interest Alignment</th>
+      <th scope="col" class="h-pe">Personality Alignment</th>
+      <th scope="col">Overall Fit</th>
+      <th scope="col">Recommendation</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  ${f.also.length ? `<p class="rp-foot">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
+  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%).${R.combo.mathLine ? ' Mathematics or Mathematical Literacy: ' + esc(lrLower(R.combo.mathLine)) + '.' : ''}</p>`;
+}
+function rpFitHTML(R, l){
   const f = R.fit;
   if(f.state === 'ready'){
-    const W = SC_CONFIG.weights, p = function(x){ return Math.round(x * 100); };
-    return `
-    <div class="card lr-card">
-      <table class="lr-table">
-        <thead><tr><th scope="col">Subject</th><th scope="col">Academic readiness</th><th scope="col">Interest alignment</th><th scope="col">Personality alignment</th><th scope="col">Overall fit</th></tr></thead>
-        <tbody>${f.rows.map(function(r){
-          return `<tr>
-            <td class="lr-subject" data-label="Subject"><b>${esc(r.label)}</b>${r.extra ? ' <span class="lr-tag">alternative</span>' : ''}${r.note ? `<div class="lr-note">${esc(r.note)}</div>` : ''}</td>
-            <td data-label="Academic readiness">${lrPill(r.academic)}</td>
-            <td data-label="Interest alignment">${lrPill(r.interest)}</td>
-            <td data-label="Personality alignment">${lrPill(r.personality)}</td>
-            <td data-label="Overall fit">${lrPill(r.overall)}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-      ${f.also.length ? `<p class="lr-foot">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
-      <p class="lr-foot">Overall fit blends interest (${p(W.interest)}%), personality alignment (${p(W.personality)}%) and academic readiness (${p(W.academic)}%).${R.combo.mathLine ? ' Mathematics or Mathematical Literacy: ' + esc(lrLower(R.combo.mathLine)) + '.' : ''}</p>
-      <div class="lr-actions">${lrButton('See the full subject-by-subject breakdown', "navigate('subject-choice')")}</div>
-    </div>`;
+    return rpFitTableHTML(R) + rpAcademicHTML(R, l) + `<div class="rp-actions">${lrButton('See the full subject-by-subject breakdown', "navigate('subject-choice')")}</div>`;
   }
   if(f.state === 'needsPersonality'){
-    return `<div class="card lr-card"><p style="margin:0 0 10px;">Your Subject Choice answers are saved. Take the personality assessment to see how each subject fits you — it only takes a few minutes.</p>${lrButton('Take the personality assessment', "navigate('assessment')", 'btn-primary')}</div>`;
+    return rpEmpty('Your Subject Choice answers are saved. Take the personality assessment to see how each subject fits you — it only takes a few minutes.', 'Take the personality assessment', "navigate('assessment')") + rpAcademicHTML(R, l);
   }
   if(f.state === 'needsSubjectChoice'){
-    return `<div class="card lr-card"><p style="margin:0 0 10px;">The Subject Choice Assessment shows how each Grade 10 subject fits you — what you enjoy, how you like to work and how you are doing.</p>${lrButton('Take the Subject Choice Assessment', "navigate('subject-choice')", 'btn-primary')}</div>`;
+    return rpEmpty('The Subject Choice Assessment shows how each Grade 10 subject fits you — what you enjoy, how you like to work and how you are doing.', 'Take the Subject Choice Assessment', "navigate('subject-choice')") + rpAcademicHTML(R, l);
   }
   // other grades / exploring: the subjects their best careers lean on (not a personal ranking)
   if(f.provisional && f.provisional.length){
     return `
-    <div class="card lr-card">
-      <div class="pill-list">${f.provisional.map(function(s){ return `<span class="pill rec">${esc(s.subject)}</span>`; }).join('')}</div>
-      <p class="lr-foot">These are the subjects your strongest career areas lean on — they describe the careers, not a personal ranking.</p>
-    </div>`;
+    <div class="rp-pills">${f.provisional.map(function(s){ return `<span class="rp-chip rp-chip-consider">${esc(s.subject)}</span>`; }).join('')}</div>
+    <p class="rp-foot">These are the subjects your strongest career areas lean on — they describe the careers, not a personal ranking.</p>${rpAcademicHTML(R, l)}`;
   }
-  return `<div class="card lr-card"><p class="page-sub" style="margin:0;">Take the personality assessment to see which subjects your best-suited careers rely on.</p></div>`;
+  return rpEmpty('Take the personality assessment to see which subjects your best-suited careers rely on.', 'Take the personality assessment', "navigate('assessment')") + rpAcademicHTML(R, l);
 }
 
-function lrComboCard(c, kind){
+/* ---- 3: recommended subject combination ---- */
+function rpComboCard(c, kind){
   if(!c) return '';
+  const best = kind === 'best';
+  const list = function(items){ return `<ul>${items.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>`; };
   return `
-  <div class="lr-combo ${kind}">
-    <div class="lr-combo-h"><span class="lr-combo-k">${kind === 'best' ? 'Best-fit combination' : 'Alternative'}</span>${lrPill(c.fit)}</div>
-    <div class="lr-combo-n">${esc(c.name)}</div>
-    <div class="pill-list lr-combo-s">${c.labels.map(function(s){ return `<span class="pill rec">${esc(s)}</span>`; }).join('')}</div>
-    <p class="lr-why">${esc(c.why)}</p>
+  <div class="rp-combo ${kind}">
+    <div class="rp-combo-h"><span class="rp-sq">${icon(best ? 'check' : 'switch', 'rp-ic')}</span><div><b>${best ? 'Best-fit combination' : 'Alternative combination'}</b><small>${esc(c.name)}</small></div></div>
+    <div class="rp-combo-b">
+      <h4>Core subjects</h4>${list(c.core)}
+      ${c.electives.length ? `<h4>${best ? 'Recommended electives' : 'Electives'}</h4>${list(c.electives)}` : ''}
+      <p class="rp-why">${esc(c.why)}</p>
+    </div>
   </div>`;
 }
-function lrComboHTML(R){
+function rpComboHTML(R){
   const c = R.combo;
   if(c.state !== 'ready'){
-    return `<div class="card lr-card"><p class="page-sub" style="margin:0;">Your best-fit combination, and one alternative, will appear here once you have taken the ${c.state === 'needsPersonality' ? 'personality' : 'Subject Choice'} assessment.</p></div>`;
+    return `<p class="rp-muted">Your best-fit combination, and one alternative, will appear here once you have taken the ${c.state === 'needsPersonality' ? 'personality' : 'Subject Choice'} assessment.</p>`;
   }
-  if(!c.best) return `<div class="card lr-card"><p class="page-sub" style="margin:0;">No subject combination stood out strongly this time — talk through the subjects above with your teacher.</p></div>`;
+  if(!c.best) return `<p class="rp-muted">No subject combination stood out strongly this time — talk through the subjects above with your teacher.</p>`;
   return `
-  <div class="card lr-card">
-    <div class="grid grid-2 lr-combos">${lrComboCard(c.best, 'best')}${c.alt ? lrComboCard(c.alt, 'alt') : ''}</div>
-    <p class="lr-foot">You will also take Home Language, First Additional Language and Life Orientation. Check which combinations your school offers.</p>
-  </div>`;
+  <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, 'alt') : ''}</div>
+  <p class="rp-foot">Check which combinations your school offers.</p>`;
 }
 
-function lrAreasHTML(R){
+/* ---- 4: career pathways ---- */
+function rpAreasHTML(R){
   const A = R.areas;
-  if(!A.ready){
-    return `<div class="card lr-card"><p class="page-sub" style="margin:0 0 10px;">Take the personality assessment to see which broad career areas fit you.</p>${lrButton('Take the personality assessment', "navigate('assessment')", 'btn-primary')}</div>`;
-  }
-  const intro = A.basis === 'recommended' ? 'Broad areas that fit your personality and the subjects recommended above.'
-    : (A.basis === 'current' ? 'Broad areas that fit your personality and the subjects you are taking.' : 'Broad areas that fit your personality.');
-  return `
-  <p class="page-sub lr-intro">${esc(intro)}</p>
-  <div class="lr-areas">
-  ${A.list.map(function(a){
+  if(!A.ready) return rpEmpty('Take the personality assessment to see which broad career areas fit you.', 'Take the personality assessment', "navigate('assessment')");
+  return `<ul class="rp-areas">${A.list.map(function(a, i){
     const careers = a.careers.map(function(c){ return `<a href="#" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'overview'}});return false;">${esc(c.name)}</a>`; }).join(', ');
+    const uses = [
+      A.basis !== 'none' && a.draws.length ? `<b>Builds on</b> ${esc(a.draws.join(', '))}` : '',
+      a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '',
+    ].filter(Boolean).join(' · ');
     return `
-    <div class="card lr-area">
-      <div class="lr-area-h"><b>${esc(a.faculty.name)}</b><span class="badge ${a.label.c}">${esc(a.label.t)}</span></div>
-      <p class="lr-area-o">${esc(a.faculty.overview)}</p>
-      ${A.basis !== 'none' && a.draws.length ? `<div class="lr-area-m"><span>${A.basis === 'recommended' ? 'Draws on your recommended subjects' : 'Draws on your subjects'}</span> ${esc(a.draws.join(', '))}</div>` : ''}
-      ${a.gaps.length ? `<div class="lr-area-m"><span>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</span> ${esc(a.gaps.join(', '))}</div>` : ''}
-      <div class="lr-area-m"><span>Careers to explore</span> ${careers}</div>
-    </div>`;
-  }).join('')}
-  </div>`;
+    <li class="rp-area rp-t${i + 1}">
+      <span class="rp-dot rp-dot-lg">${icon(LR_AREA_ICON[a.faculty.id] || 'compass', 'rp-ic')}</span>
+      <div>
+        <h3 title="${esc(a.faculty.overview)}">${esc(a.faculty.name)} <span class="badge ${a.label.c}">${esc(a.label.t)}</span></h3>
+        <p><b>Careers to explore</b> ${careers}</p>
+        ${uses ? `<p class="rp-areamore">${uses}</p>` : ''}
+      </div>
+    </li>`;
+  }).join('')}</ul>`;
 }
 
-function lrFinalHTML(R){
-  const f = R.final;
-  const steps = f.steps.map(function(s){ return `<li>${esc(s.text)}${s.action ? ` <span class="lr-act">${lrButton(s.action.label, s.action.onclick)}</span>` : ''}</li>`; }).join('');
+/* ---- 5: final recommendation, summary table and next steps ---- */
+function rpFinalHTML(R){
+  const f = R.final, S = R.summary;
+  const concl = [];
+  if(f.thrive) concl.push(['star', 'Where you are likely to thrive', [f.thrive]]);
+  if(f.effort.length) concl.push(['flag', 'Where extra effort may be needed', f.effort]);
+  const rows = S.rows.map(function(r){
+    let val;
+    if(r.kind === 'level') val = `<span class="rp-lv rp-lv-${r.level.key}">${esc(r.level.label)}</span>`;
+    else if(r.kind === 'fit') val = `<span class="rp-chip rp-chip-fit rp-fit-${r.fit.key}">${esc(r.fit.word)}</span>`;
+    else if(r.kind === 'todo') val = `<span class="rp-todo">${esc(r.result)}</span>`;
+    else val = esc(r.result);
+    return `<tr class="${r.kind === 'fit' ? 'rp-sum-main' : ''}"><th scope="row">${esc(r.area)}</th><td>${val}${r.note ? `<div class="rp-note">${esc(r.note)}</div>` : ''}</td></tr>`;
+  }).join('');
+  const steps = f.steps.map(function(s){ return `<li><span>${esc(s.text)}${s.action ? ` <span class="rp-act">${lrButton(s.action.label, s.action.onclick)}</span>` : ''}</span></li>`; }).join('');
   return `
-  <div class="card lr-card lr-final">
-    ${f.thrive ? `<div class="lr-fin"><div class="lr-k">Where you are likely to thrive</div><p>${esc(f.thrive)}</p></div>` : ''}
-    ${f.effort.length ? `<div class="lr-fin"><div class="lr-k">Where you may need extra effort</div>${f.effort.map(function(e){ return `<p>${esc(e)}</p>`; }).join('')}</div>` : ''}
-    <div class="lr-fin"><div class="lr-k">${R.grade9 ? 'Next steps before you choose your subjects' : 'Your next steps'}</div><ol class="lr-steps">${steps}</ol></div>
-    <p class="lr-foot">${esc(SC_COPY.finalDecision)}</p>
-  </div>`;
+  ${concl.length ? `<div class="rp-concl${concl.length === 1 ? ' rp-concl-one' : ''}">${concl.map(function(c){ return `<div class="rp-concl-i"><span class="rp-concl-ic">${icon(c[0], 'rp-ic')}</span><div><h3>${esc(c[1])}</h3>${c[2].map(function(t){ return `<p>${esc(t)}</p>`; }).join('')}</div></div>`; }).join('')}</div>` : ''}
+  <div class="rp-final">
+    <div class="rp-card rp-card-sum">
+      <div class="rp-card-h"><span class="rp-sq">${icon('star', 'rp-ic')}</span><h3>${S.complete ? (R.grade9 ? 'Your subject choice summary' : 'Your summary') : 'Your summary so far'}</h3></div>
+      <table class="rp-sumtable"><tbody>${rows}</tbody></table>
+    </div>
+    <div class="rp-card rp-card-steps">
+      <div class="rp-card-h"><span class="rp-sq">${icon('clipboard', 'rp-ic')}</span><h3>Your next steps</h3></div>
+      <ol class="rp-steps">${steps}</ol>
+    </div>
+  </div>
+  <p class="rp-foot">${esc(SC_COPY.finalDecision)}</p>`;
 }
 
-// The whole report: the summary, then the sections that apply to this learner,
+// The whole report: header, then the sections that apply to this learner,
 // numbered in order (a learner who is not choosing Grade 10 subjects has no
 // "Recommended Subject Combination", so the numbers simply close up).
 function learnerReportHTML(l, R, opts){
   opts = opts || {};
-  const secs = [];
-  secs.push(['Learner Profile', lrProfileHTML(R)]);
-  secs.push(['Academic Snapshot', lrAcademicHTML(R, l)]);
-  secs.push([R.fit.state === 'general' ? 'Subjects Your Careers Rely On' : 'Subject Fit', lrFitHTML(R, l)]);
-  if(R.fit.state !== 'general') secs.push(['Recommended Subject Combination', lrComboHTML(R)]);
-  secs.push(['Career Pathways', lrAreasHTML(R)]);
-  secs.push(['Final Recommendation & Action', lrFinalHTML(R)]);
+  const idp = opts.print ? 'rpp' : 'rps';
+  const known = R.summary.rows.some(function(r){ return r.kind !== 'todo'; });
+  let main;
+  if(!known){
+    main = rpStartHTML(R, idp);
+  } else {
+    const general = R.fit.state === 'general';
+    const secs = [
+      { key:'profile', title:'Your Learner Profile', sub:'How you naturally work, learn and what interests you.', body: rpProfileHTML(R) },
+      { key:'fit', title: general ? 'Subjects Your Careers Rely On' : 'Subject Fit', cls:'rp-fit',
+        sub: general ? 'The subjects your strongest career areas lean on.' : 'How well each subject matches your results, interests and personality.', body: rpFitHTML(R, l) },
+    ];
+    // Side by side only when there is a combination to show; otherwise each section stands alone, full width.
+    const sideBySide = !general && R.combo.state === 'ready' && !!R.combo.best;
+    if(!general) secs.push({ key:'combo', title:'Recommended Subject Combination', sub:'Your best-fit Grade 10 subjects based on your overall profile.', body: rpComboHTML(R), cls: sideBySide ? 'rp-half' : '' });
+    const A = R.areas;
+    secs.push({ key:'areas', title:'Career Pathways', cls: sideBySide ? 'rp-half' : '',
+      sub: A.basis === 'recommended' ? 'Your recommended subjects can support these career areas.' : (A.basis === 'current' ? 'These career areas fit your personality and the subjects you are taking.' : 'These career areas fit your personality.'),
+      body: rpAreasHTML(R) });
+    secs.push({ key:'final', title:'Your Final Recommendation & Next Steps', sub:'A summary of your results and what to do next.', body: rpFinalHTML(R) });
+    const tones = rpTones(secs.length);
+    const html = secs.map(function(s, i){
+      return rpSection({ id: idp + '-' + s.key, n: i + 1, tone: tones[i], title: s.title, sub: s.sub, body: s.body, cls: s.cls });
+    });
+    // The combination and the career areas sit side by side, as in the mock-up.
+    const ci = secs.findIndex(function(s){ return s.key === 'combo'; });
+    if(ci !== -1 && sideBySide) html.splice(ci, 2, `<div class="rp-duo">${html[ci]}${html[ci + 1]}</div>`);
+    main = html.join('');
+  }
   return `
-  <div class="lr ${opts.print ? 'lr-print' : ''}">
-    ${lrSummaryHTML(R, l)}
-    ${secs.map(function(s, i){ return `<section class="lr-sec"><h2><span class="lr-n">${i + 1}</span>${esc(s[0])}</h2>${s[1]}</section>`; }).join('')}
-    ${disclaimerHTML()}
-  </div>`;
+  <article class="rp ${opts.print ? 'rp-print' : ''}" aria-label="${esc(R.meta.title)}">
+    ${rpHeadHTML(R)}
+    <div class="rp-main">
+      ${rpInfoHTML(R)}
+      ${main}
+      ${disclaimerHTML()}
+    </div>
+  </article>`;
 }
 
 // Screen only: the longer views, one step away, for anyone who wants more.
