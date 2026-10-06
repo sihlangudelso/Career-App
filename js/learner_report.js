@@ -10,6 +10,13 @@
    under the Subject Fit table, where those results are used.
    About 2 pages when printed -- a short report, not a psychometric one.
 
+   The first three sections are one chain, and each says how it follows from
+   the one before:
+     key traits + interests + academic results  ->  Subject Fit  ->  the
+     recommended combination
+   A subject is never recommended on interests and personality alone: without
+   a result for it, the most it can be is "Consider".
+
    Nothing in this file scores anything. Every number and ranking comes
    from the one place that already owns it (personalityTypeInfo,
    buildAcademicProfile, buildSubjectChoiceReport, bestSuitedCareers ...),
@@ -30,12 +37,50 @@ const LR_CONFIG = {
   // An entered result under this is listed as an area to strengthen -- the
   // same line the Subject Choice report uses for its "work on" tips.
   weakBelow: SC_CONFIG.report.workOnBelow,
-  fitRows: 6,                       // most subjects listed under Subject Fit
+  // Subject Fit lists every subject in the two recommended combinations, then
+  // fills up to this many with the learner's next-best subjects.
+  fitRows: 8,
+  // "Strongly Recommended" = a strong match (see lrRecommend) with at least this overall fit.
+  stronglyRecommended: 80,
   careerAreas: { min: 3, max: 4 },  // broad career areas listed
   nextSteps: 3,                     // next steps listed
-  trait: { max: 5, min: 55, least: 3 },  // key traits: up to 5 scoring 55+, never fewer than 3
-  interests: 5,                     // interest areas shown (of the six the assessment scores)
+  trait: { max: 5, min: 55, least: 4 },  // key traits: up to 5 scoring 55+, never fewer than 4
+  interests: 5,                     // interest areas shown (of the six scored)
+  whyMin: 65,                       // a factor must reach this to be named in a "why" line
+  altInterestMin: 50,               // the alternative names the area it adds if the learner's interest there is at least this
 };
+
+// What each key trait means for the learner (one short sentence each).
+const LR_TRAIT_COPY = {
+  analytical:    'You enjoy breaking problems down, looking for patterns and understanding how things work.',
+  investigative: 'You like asking why, digging into questions and finding things out for yourself.',
+  creative:      'You come up with original ideas and enjoy making, designing or imagining new things.',
+  organised:     'You like things in order — clear steps, accurate work and getting the details right.',
+  people:        'You enjoy working with, helping and understanding other people.',
+  persuasive:    'You like taking the lead, sharing your ideas and bringing other people along.',
+  practical:     'You prefer hands-on, real-world tasks to theory on its own.',
+  reflective:    'You like to think ideas through, and often think best with some time to yourself.',
+};
+
+// The same traits as a short reason under a subject ("Analytical thinking · strong Maths results").
+const LR_TRAIT_WHY = {
+  analytical: 'analytical thinking', investigative: 'curiosity', creative: 'creative thinking', organised: 'organised approach',
+  people: 'people skills', persuasive: 'persuasive style', practical: 'practical approach', reflective: 'reflective thinking',
+};
+
+// The interest areas. With the Subject Choice Assessment done, an area's score is
+// the learner's interest in the two subjects they like best within it -- the same
+// answers that give each subject its "interest alignment" in Subject Fit, so the
+// two always agree. Before that, it comes from the personality assessment: the
+// average of the interest dimensions (RIASEC letters) listed here.
+const LR_AREAS = [
+  { id:'science',  name:'Science & Technology',      subjects:['mathematics', 'physicalSciences', 'lifeSciences', 'informationTechnology', 'computerApplicationsTechnology', 'engineeringGraphicsAndDesign'], riasec:['I'] },
+  { id:'business', name:'Business & Finance',        subjects:['accounting', 'businessStudies', 'economics', 'mathematicalLiteracy'], riasec:['E', 'C'] },
+  { id:'society',  name:'People & Society',          subjects:['history', 'socialSciences', 'tourism', 'hospitalityStudies', 'consumerStudies'], riasec:['S'] },
+  { id:'creative', name:'Creative & Design',         subjects:['visualArts', 'dramaticArts', 'music'], riasec:['A'] },
+  { id:'language', name:'Languages & Communication', subjects:['languages'], riasec:['A', 'S'] },
+  { id:'outdoors', name:'Environment & Outdoors',    subjects:['geography', 'agriculturalSciences', 'lifeSciences', 'tourism'], riasec:['R'] },
+];
 
 /* ---------------- small helpers ---------------- */
 function lrAvg(list){
@@ -65,10 +110,16 @@ function lrFit(score){
 
 // "Strong" overall needs no side to be Low/Developing: a strong blend can hide
 // one weak part (strong interest with results still developing is "build the
-// foundation", not a plain strong fit). Capped to Moderate, and flagged.
+// foundation", not a plain strong fit). And it needs the learner's results:
+// interests and personality alone never make a subject, or a combination, a
+// strong fit. Either way it is capped to Moderate, and flagged. `parts` is
+// [academic, interest, personality].
 function lrOverall(score, parts){
   const f = lrFit(score);
-  if(f.key === 's' && parts.some(function(p){ return p && p.key === 'l'; })) return { key:'m', label:'Moderate', word:'Moderate Fit', capped:true };
+  if(f.key === 's'){
+    if(parts.some(function(p){ return p && p.key === 'l'; })) return { key:'m', label:'Moderate', word:'Moderate Fit', capped:true, why:'weak' };
+    if(parts[0] && parts[0].key === 'na') return { key:'m', label:'Moderate', word:'Moderate Fit', capped:true, why:'marks' };
+  }
   return f;
 }
 
@@ -95,23 +146,34 @@ function lrKeyTraits(l){
   const scores = scTraitScores(l);
   const all = Object.keys(SC_TRAITS)
     .filter(function(id){ return scores[id] != null; })
-    .map(function(id, i){ return { id: id, word: lrTraitWord(id), phrase: SC_TRAITS[id].phrase, score: scores[id], i: i }; })
+    .map(function(id, i){ return { id: id, word: lrTraitWord(id), phrase: SC_TRAITS[id].phrase, about: LR_TRAIT_COPY[id], score: scores[id], i: i }; })
     .sort(function(a, b){ return (b.score - a.score) || (a.i - b.i); });
   const T = LR_CONFIG.trait;
   const picked = all.filter(function(t){ return t.score >= T.min; }).slice(0, T.max);
   return picked.length >= T.least ? picked : all.slice(0, T.least);
 }
 
-// Interest areas: the personality assessment's own six dimensions (the ones
-// behind the learner's personality type), strongest first. Ties keep the
-// fixed RIASEC order, exactly as the personality type does.
-function lrInterestBars(l){
-  const r = l.riasec || {};
-  return RIASEC
-    .map(function(d, i){ return { id: d.id, name: d.name, score: r[d.id] == null || r[d.id] === '' ? NaN : Math.max(0, Math.min(100, Number(r[d.id]))), i: i }; })
-    .filter(function(d){ return !isNaN(d.score); })
-    .sort(function(a, b){ return (b.score - a.score) || (a.i - b.i); })
-    .slice(0, LR_CONFIG.interests);
+// Interest areas (see LR_AREAS), strongest first. Ties keep the order of LR_AREAS.
+// `list` is what is shown (the top few); `all` is every scored area, used by the
+// combination's explanation. basis: where the scores came from.
+function lrInterestAreas(l, rep){
+  let basis = null;
+  const byId = {};
+  if(rep){ rep.results.forEach(function(r){ byId[r.id] = r; }); basis = 'subjects'; }
+  else if(l.riasec){ basis = 'personality'; }
+  if(!basis) return { list: [], all: [], basis: null };
+  const all = LR_AREAS.map(function(a, i){
+    let s;
+    if(basis === 'subjects'){
+      s = lrAvg(a.subjects.map(function(id){ return byId[id] ? byId[id].interest.normalised : null; })
+        .filter(function(v){ return v != null; }).sort(function(x, y){ return y - x; }).slice(0, 2));
+    } else {
+      s = lrAvg(a.riasec.map(function(d){ return l.riasec[d] == null || l.riasec[d] === '' ? null : Number(l.riasec[d]); }));
+    }
+    return { id: a.id, name: a.name, score: s == null ? null : Math.max(0, Math.min(100, s)), i: i };
+  }).filter(function(a){ return a.score != null; })
+    .sort(function(a, b){ return (b.score - a.score) || (a.i - b.i); });
+  return { list: all.slice(0, LR_CONFIG.interests), all: all, basis: basis };
 }
 
 // How the learner tends to learn: short "you can ..." phrases, each tied to a
@@ -168,14 +230,15 @@ function lrLearnBest(l){
   return picked.length ? 'You tend to learn best when you can ' + scJoin(picked) + '.' : 'Your answers show a flexible style — you can adapt to how a topic is taught.';
 }
 
-function lrProfile(l){
+function lrProfile(l, rep){
   const p = personalityTypeInfo(l);
   if(!p) return { available:false };
+  const areas = lrInterestAreas(l, rep);
   return {
     available: true,
     code: p.code, names: p.top.map(function(t){ return t.name; }),
     traits: lrKeyTraits(l),
-    interests: lrInterestBars(l),
+    interests: areas.list, interestAll: areas.all, interestBasis: areas.basis,
     learn: lrLearnBest(l),
   };
 }
@@ -213,35 +276,62 @@ function lrCombos(rep){
   }
   return { best: best, alt: alt };
 }
-// Everyone takes Mathematics or Mathematical Literacy, two languages and Life
-// Orientation; the rest of a combination is the electives. When a combination
-// has no Maths slot (humanities, creative ...), the core Maths line follows
-// the report's own Maths lean.
+// Only the subjects the learner has to choose. Home Language, First Additional
+// Language and Life Orientation are not repeated -- everyone takes them. Maths is
+// a choice (Mathematics or Mathematical Literacy), so it is always listed first:
+// from the combination itself when it has a Maths slot, otherwise the learner's
+// own report decides (and when that is undecided, both are named).
 function lrIsMaths(label){ return label.indexOf('Mathematics') === 0 || label.indexOf('Mathematical Literacy') === 0; }
+function lrMathsLean(rep){
+  const rec = rep && rep.mathChoice ? rep.mathChoice.recommended : 'either';
+  if(rec === 'mathematics') return { label: 'Mathematics', ids: ['mathematics'] };
+  if(rec === 'mathematicalLiteracy') return { label: 'Mathematical Literacy', ids: ['mathematicalLiteracy'] };
+  return { label: 'Mathematics or Mathematical Literacy', ids: ['mathematics', 'mathematicalLiteracy'] };
+}
+// `ids` are the subjects to look up (Maths pick included); `subjects` the names shown.
 function lrComboView(c, rep){
-  const labels = c.labels.map(lrShort);
-  const maths = c.labels.filter(lrIsMaths)[0]
-    || (rep && rep.mathChoice && rep.mathChoice.recommended === 'mathematics' ? 'Mathematics'
-      : (rep && rep.mathChoice && rep.mathChoice.recommended === 'mathematicalLiteracy' ? 'Mathematical Literacy' : 'Mathematics or Mathematical Literacy'));
-  return {
-    id: c.id, name: c.name, labels: labels, why: c.why,
-    eitherMaths: c.labels.indexOf('Mathematics or Mathematical Literacy') !== -1,
-    core: [lrShort(maths), 'Home Language and First Additional Language', 'Life Orientation'],
-    electives: c.labels.filter(function(x){ return !lrIsMaths(x); }).map(lrShort),
-  };
+  const lean = lrMathsLean(rep);
+  const hasMaths = c.labels.some(lrIsMaths);
+  const either = c.labels.indexOf('Mathematics or Mathematical Literacy') !== -1;
+  const subjects = [hasMaths ? c.labels.filter(lrIsMaths)[0] : lean.label]
+    .concat(c.labels.filter(function(x){ return !lrIsMaths(x); })).map(lrShort);
+  const ids = c.subjects.slice();
+  (either ? ['mathematics', 'mathematicalLiteracy'] : (hasMaths ? [] : lean.ids)).forEach(function(id){ if(ids.indexOf(id) === -1) ids.push(id); });
+  return { id: c.id, name: c.name, ids: ids, subjects: subjects, why: null };
 }
 
-// The verdict beside each subject. Recommended = a strong match on every side;
-// "May require more effort" = high interest with results still developing, or
-// lower natural alignment; everything in between is worth a conversation.
+// The verdict beside each subject, from the engine's own category for it:
+//   Strongly Recommended -- a strong match and an overall fit of 80 or more
+//   Recommended          -- a strong match (interest, personality and results all support it)
+//   Consider             -- anything in between, and any subject we have no result for
+//   May Require More Effort -- high interest with results still developing, or lower natural alignment
+// A subject is never recommended on interests and personality alone: with no
+// result for it, the most it can be is "Consider".
 function lrRecommend(r, overall){
   const k = r.category.key;
-  if(k === 'lower' || k === 'foundation') return { key:'effort', label:'May require more effort' };
-  if(k === 'strong' && !overall.capped) return { key:'rec', label:'Recommended' };
+  if(k === 'lower' || k === 'foundation') return { key:'effort', label:'May Require More Effort' };
+  if(r.academic.score == null) return { key:'consider', label:'Consider' };
+  if(k === 'strong' && !overall.capped) return overall.score >= LR_CONFIG.stronglyRecommended ? { key:'strong', label:'Strongly Recommended' } : { key:'rec', label:'Recommended' };
   return { key:'consider', label:'Consider' };
 }
 
-// One row of the Subject Fit table.
+// One short line of reasons for a recommended subject: the strongest of its three
+// factors (results, interest, working style), as long as each is a real strength.
+function lrRowWhy(res){
+  const M = LR_CONFIG.whyMin, cand = [];
+  if(res.academic.score != null && res.academic.score >= M) cand.push({ s: res.academic.score, t: 'strong ' + lrShort(scAcademicAreas(res)) + ' results' });
+  const hi = scInterestPhrases(res, 'high', 1);
+  if(res.interest.normalised >= M && hi.length) cand.push({ s: res.interest.normalised, t: 'you enjoy ' + hi[0] });
+  // the trait this subject leans on most (its weight x the learner's score), if the learner really has it
+  const pt = (res.personality.parts || []).filter(function(p){ return p.score >= M; })
+    .sort(function(a, b){ return (b.weight * b.score - a.weight * a.score) || (b.score - a.score); })[0];
+  if(res.personality.score != null && res.personality.score >= M && pt) cand.push({ s: res.personality.score, t: LR_TRAIT_WHY[pt.trait] });
+  cand.sort(function(a, b){ return b.s - a.s; });
+  return cand.length ? scCap(cand.slice(0, 2).map(function(c){ return c.t; }).join(' · ')) : null;
+}
+
+// One row of the Subject Fit table. extra: null = in the best-fit combination,
+// 'alternative' = only in the alternative, 'other' = in neither.
 function lrFitRow(r, extra){
   const academic = lrLevel(r.academic.score, 'academic'), interest = lrLevel(r.interest.normalised), personality = lrLevel(r.personality.score);
   const overall = Object.assign({ score: r.fit.overall }, lrOverall(r.fit.overall, [academic, interest, personality]));
@@ -252,10 +342,52 @@ function lrFitRow(r, extra){
     personality: Object.assign({ score: r.personality.score }, personality),
     overall: overall,
     rec: lrRecommend(r, overall),
+    noMarks: r.academic.score == null,
+    why: null,
     // "build the foundation" / "academically strong -- check your interest" are worth a word.
     note: r.category.key === 'foundation' ? 'High interest — build the foundation'
         : (r.category.key === 'academic' ? 'Academically strong — check your interest' : null),
   };
+}
+
+// Why a combination: the learner's key traits, interests and results that these
+// subjects draw on, then the career areas it keeps open. Every clause comes from
+// the sections above it, so a learner can follow the recommendation back.
+function lrComboWhy(view, ctx, kind){
+  const noun = kind === 'alt' ? 'alternative' : 'combination';
+  const rows = view.ids.map(function(id){ return ctx.byId[id]; }).filter(Boolean);
+  // working style: the learner's own key traits that these subjects lean on
+  const lean = {};
+  rows.forEach(function(r){
+    const pt = SC_SUBJECTS[r.id].personalityTraits || {};
+    Object.keys(pt).forEach(function(t){ lean[t] = (lean[t] || 0) + pt[t]; });
+  });
+  const traits = ctx.traits.filter(function(t){ return lean[t.id]; })
+    .sort(function(a, b){ return (lean[b.id] * b.score - lean[a.id] * a.score) || (a.i - b.i); })
+    .slice(0, 2).map(function(t){ return lrLower(t.word); });
+  // interests: the areas these subjects belong to. For the best fit, the areas shown above with a real
+  // interest behind them; for the alternative, the area(s) it adds -- what makes it a different direction --
+  // as long as the learner has at least some interest there.
+  const inArea = function(a, only){
+    return LR_AREAS.filter(function(x){ return x.id === a.id; })[0].subjects.some(function(sid){ return view.ids.indexOf(sid) !== -1 && (!only || only.indexOf(sid) === -1); });
+  };
+  let areas = [];
+  if(kind === 'alt' && ctx.exclude) areas = ctx.interestAll.filter(function(a){ return a.score >= LR_CONFIG.altInterestMin && inArea(a, ctx.exclude); }).slice(0, 2).map(function(a){ return a.name; });
+  if(!areas.length) areas = ctx.interests.filter(function(a){ return a.score >= LR_CONFIG.trait.min && inArea(a); }).slice(0, 2).map(function(a){ return a.name; });
+  const strong = rows.filter(function(r){ return r.academic.score != null && r.academic.score >= LR_CONFIG.whyMin; })
+    .sort(function(a, b){ return b.academic.score - a.academic.score; }).slice(0, 2).map(function(r){ return lrShort(r.label); });
+  const parts = [];
+  if(traits.length) parts.push('your ' + scJoin(traits) + ' working style');
+  if(areas.length) parts.push('your interest in ' + scJoin(areas));
+  if(strong.length) parts.push('your strong results in ' + scJoin(strong));
+  let text = parts.length
+    ? 'This ' + noun + ' matches ' + scJoin(parts) + '.'
+    : 'This is the closest ' + noun + ' to your answers so far — find out what each subject involves before you decide.';
+  if(ctx.pathNames.length) text += ' It also keeps pathways in ' + scJoin(ctx.pathNames.slice(0, 3)) + ' open.';
+  const weak = rows.filter(function(r){ return r.academic.score != null && r.academic.score < LR_CONFIG.weakBelow; });
+  if(weak.length) text += ' ' + scJoin(weak.slice(0, 2).map(function(r){ return lrShort(r.label); })) + ' may need some extra practice at first.';
+  else if(!rows.some(function(r){ return r.academic.score != null; })) text += ' Add your Grade 9 marks to see how ready you are for it.';
+  return text;
 }
 
 // The subjects a Grade 10-12 learner is actually taking, as Subject Choice ids.
@@ -309,11 +441,11 @@ function lrCareerAreas(l, matches, comboIds){
 
 // Where the learner is likely to thrive, in one honest sentence.
 function lrThrive(rows){
-  // Exactly the subjects the table marks "Recommended", so the two can never disagree.
-  const strong = rows.filter(function(r){ return r.rec.key === 'rec'; }).slice(0, 3);
+  // Exactly the subjects the table marks (Strongly) Recommended, so the two can never disagree.
+  // (Those always have a result behind them -- see lrRecommend.)
+  const strong = rows.filter(function(r){ return r.rec.key === 'rec' || r.rec.key === 'strong'; }).slice(0, 3);
   if(strong.length){
-    const hasMarks = strong.every(function(r){ return r.academic.key !== 'na'; });
-    return 'You are likely to thrive in ' + scJoin(strong.map(function(r){ return r.label; })) + ', where ' + (hasMarks ? 'your interests, working style and results' : 'your interests and working style') + ' line up well.';
+    return 'You are likely to thrive in ' + scJoin(strong.map(function(r){ return r.label; })) + ', where your interests, working style and results line up well.';
   }
   const best = rows.slice(0, 2);
   return best.length ? 'Your closest matches are ' + scJoin(best.map(function(r){ return r.label; })) + ' — worth exploring what each involves day to day before you decide.' : null;
@@ -401,29 +533,32 @@ function buildLearnerReport(l){
 
   // ---- 3 + 4: subject fit and the recommended combination (Grade 9, report done)
   let rows = [], comboIds = [], best = null, alt = null, also = [];
+  const byId = {};
   if(rep){
+    rep.results.forEach(function(r){ byId[r.id] = r; });
     const pair = lrCombos(rep);
     if(pair.best){
-      const byId = {}; rep.results.forEach(function(r){ byId[r.id] = r; });
       best = lrComboView(pair.best, rep); alt = pair.alt ? lrComboView(pair.alt, rep) : null;
-      comboIds = pair.best.subjects.slice();
-      // "Mathematics or Maths Literacy" is an open question: show both rows, each its own scores.
+      comboIds = best.ids.slice();
+      const inBest = {}, inAlt = {};
+      best.ids.forEach(function(id){ inBest[id] = true; });
+      if(alt) alt.ids.forEach(function(id){ inAlt[id] = true; });
+      // Every subject in the two combinations (Maths pick included), then the
+      // learner's next-best subjects, so the table answers "which subjects fit me
+      // best?" as well as "what is in these two combinations?".
       const ids = [];
       const add = function(id){ if(byId[id] && ids.indexOf(id) === -1) ids.push(id); };
-      pair.best.subjects.forEach(function(id){
-        add(id);
-        if(best.eitherMaths && (id === 'mathematics' || id === 'mathematicalLiteracy')){ add('mathematics'); add('mathematicalLiteracy'); comboIds = comboIds.concat(['mathematics', 'mathematicalLiteracy']); }
-      });
-      if(pair.alt) pair.alt.subjects.forEach(add);
-      rows = ids.slice(0, LR_CONFIG.fitRows).map(function(id){
-        const isAlt = pair.best.subjects.indexOf(id) === -1 && !(best.eitherMaths && (id === 'mathematics' || id === 'mathematicalLiteracy'));
-        return lrFitRow(byId[id], isAlt ? 'alternative' : null);
-      });
-      // Best match first (stable: equal scores keep the combination's own order).
+      best.ids.forEach(add);
+      if(alt) alt.ids.forEach(add);
+      rep.results.forEach(function(r){ if(ids.length < LR_CONFIG.fitRows) add(r.id); });
+      rows = ids.map(function(id){ return lrFitRow(byId[id], inBest[id] ? null : (inAlt[id] ? 'alternative' : 'other')); });
+      // Best match first (stable: equal scores keep the order above).
       rows = rows.map(function(r, i){ return { r: r, i: i }; })
         .sort(function(a, b){ return ((b.r.overall.score || 0) - (a.r.overall.score || 0)) || (a.i - b.i); })
         .map(function(x){ return x.r; });
-      // Strong matches that are not in either combination: say so, instead of leaving them out silently.
+      // The recommended subjects say why, in one line.
+      rows.forEach(function(r){ if(!r.extra) r.why = lrRowWhy(byId[r.id]); });
+      // Strong matches that are in neither combination nor the table: say so, instead of leaving them out silently.
       also = rep.top.filter(function(r){ return ids.indexOf(r.id) === -1; }).slice(0, 2).map(function(r){ return lrShort(r.label); });
     } else {
       // No combination could be built: fall back to the strongest individual matches.
@@ -447,6 +582,16 @@ function buildLearnerReport(l){
   R.areas = lrCareerAreas(l, matches, comboIds);
   R.areas.basis = !R.areas.haveCombo ? 'none' : (rep ? 'recommended' : 'current');
 
+  // ---- the combinations explain themselves, from the traits, interests and results above
+  if(best){
+    const why = { byId: byId, traits: profile.available ? profile.traits : [], interests: profile.available ? profile.interests : [], interestAll: profile.available ? profile.interestAll : [] };
+    best.why = lrComboWhy(best, Object.assign({ pathNames: R.areas.ready ? R.areas.list.map(function(a){ return a.faculty.name; }) : [] }, why), 'best');
+    if(alt){
+      const altAreas = lrCareerAreas(l, matches, alt.ids);
+      alt.why = lrComboWhy(alt, Object.assign({ pathNames: altAreas.ready ? altAreas.list.map(function(a){ return a.faculty.name; }) : [], exclude: best.ids }, why), 'alt');
+    }
+  }
+
   // ---- 6: conclusion and next steps
   const ctx = { l: l, p: p, rep: rep, grade9: grade9 };
   const bestRows = rows.filter(function(r){ return !r.extra; });   // the recommendation, not the alternative
@@ -457,7 +602,7 @@ function buildLearnerReport(l){
   };
 
   // ---- the headline table
-  R.summary = lrSummary(l, { p: p, rep: rep, best: best, pairBest: rep ? lrCombos(rep).best : null, rows: rows, academic: academic, matches: matches, grade9: grade9 });
+  R.summary = lrSummary(l, { p: p, rep: rep, best: best, rows: rows, academic: academic, matches: matches, grade9: grade9 });
   return R;
 }
 
@@ -468,8 +613,14 @@ function lrSummary(l, c){
   const rows = [];
   const text = function(area, result){ return { area: area, kind:'text', result: result }; };
   const level = function(area, lv, note){ return { area: area, kind:'level', level: lv, note: note || null }; };
-  if(c.rep && c.pairBest){
-    const res = c.pairBest.subjects.map(function(id){ return c.rep.results.filter(function(r){ return r.id === id; })[0]; }).filter(Boolean);
+  if(c.rep && c.best){
+    const byId = {}; c.rep.results.forEach(function(r){ byId[r.id] = r; });
+    // Maths is counted once: when the report cannot choose between the two, the one that fits better.
+    const ids = c.best.ids.slice();
+    if(ids.indexOf('mathematics') !== -1 && ids.indexOf('mathematicalLiteracy') !== -1){
+      ids.splice(ids.indexOf(byId.mathematics.fit.overall >= byId.mathematicalLiteracy.fit.overall ? 'mathematicalLiteracy' : 'mathematics'), 1);
+    }
+    const res = ids.map(function(id){ return byId[id]; }).filter(Boolean);
     const academic = lrAvg(res.map(function(r){ return r.academic.score; }));
     const noMarks = academic == null;
     const acLv = lrLevel(academic, 'academic');
@@ -477,9 +628,9 @@ function lrSummary(l, c){
     const peLv = lrLevel(lrAvg(res.map(function(r){ return r.personality.score; })));
     const overall = lrOverall(lrAvg(res.map(function(r){ return r.fit.overall; })), [acLv, inLv, peLv]);
     let note = null;
-    if(overall.capped) note = acLv.key === 'l' ? 'Your interests and working style fit well — your current results are still developing.' : 'One part of this fit is lower than the others — see Subject Fit below.';
-    else if(noMarks) note = 'Based on your interests and working style so far.';
-    rows.push(text('Best-fit subjects', c.best.labels.join(', ')));
+    if(noMarks) note = 'Add your Grade 9 marks — a recommendation needs your results as well as your interests.';
+    else if(overall.capped) note = acLv.key === 'l' ? 'Your interests and working style fit well — your current results are still developing.' : 'One part of this fit is lower than the others — see Subject Fit above.';
+    rows.push(text('Best-fit subjects', c.best.subjects.join(', ')));
     rows.push(level('Academic readiness', acLv, noMarks ? 'Add your Grade 9 marks to see this.' : null));
     rows.push(level('Interest alignment', inLv));
     rows.push(level('Personality alignment', peLv));
@@ -570,7 +721,7 @@ function rpProfileHTML(R){
   const pr = R.profile;
   if(!pr.available) return rpEmpty('Take the personality assessment to see your key traits, your interests and how you tend to work.', 'Take the personality assessment', "navigate('assessment')");
   const traits = pr.traits.map(function(t, i){
-    return `<li class="rp-t${i + 1}"><span class="rp-dot">${icon(LR_TRAIT_ICON[t.id] || 'spark', 'rp-ic')}</span><span>${esc(t.word)}</span></li>`;
+    return `<li class="rp-t${i + 1}"><span class="rp-dot">${icon(LR_TRAIT_ICON[t.id] || 'spark', 'rp-ic')}</span><div><b>${esc(t.word)}</b><p>${esc(t.about)}</p></div></li>`;
   }).join('');
   const bars = pr.interests.map(function(x, i){
     return `<li class="rp-t${i + 1}"><span class="rp-iname">${esc(x.name)}</span>${rpBar(x.score)}<b class="rp-ipct">${rpPct(x.score)}</b></li>`;
@@ -585,6 +736,7 @@ function rpProfileHTML(R){
     <div class="rp-pcol rp-pint">
       <h3 class="rp-h3">Your interests</h3>
       <ul class="rp-ibars">${bars}</ul>
+      <p class="rp-basis">${pr.interestBasis === 'subjects' ? 'From your Subject Choice answers — the same answers that give each subject its interest score below.' : 'From your personality assessment. The Subject Choice Assessment sharpens them for each subject.'}</p>
       <p class="rp-type">Your personality type: <b>${esc(pr.code)}</b> — ${esc(pr.names.join(' · '))}</p>
     </div>
   </div>`;
@@ -612,8 +764,8 @@ function rpFitTableHTML(R){
     return `<td data-label="${label}"><div class="rp-cell ${cls}">${m.score == null ? '<span class="rp-nodata">No marks yet</span>' : rpBar(m.score) + '<b class="rp-pct">' + rpPct(m.score) + '</b>'}</div></td>`;
   };
   const rows = f.rows.map(function(r){
-    return `<tr>
-      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra ? '<small class="rp-alt">In the alternative combination</small>' : ''}</th>
+    return `<tr${r.extra === 'other' ? ' class="rp-row-other"' : ''}>
+      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.why ? `<small class="rp-reason">${esc(r.why)}</small>` : ''}${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra === 'alternative' ? '<small class="rp-alt">In the alternative combination</small>' : ''}</th>
       ${cell(r.academic, 'm-ac', 'Academic')}
       ${cell(r.interest, 'm-in', 'Interest')}
       ${cell(r.personality, 'm-pe', 'Personality')}
@@ -633,8 +785,8 @@ function rpFitTableHTML(R){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  ${f.also.length ? `<p class="rp-foot">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
-  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%).${R.combo.mathLine ? ' Mathematics or Mathematical Literacy: ' + esc(lrLower(R.combo.mathLine)) + '.' : ''}</p>`;
+  ${f.also.length ? `<p class="rp-foot rp-screen-only">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
+  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%). A subject is only recommended when your results support it as well as your interests and personality.${R.combo.mathLine ? ' Mathematics or Mathematical Literacy: ' + esc(lrLower(R.combo.mathLine)) + '.' : ''}</p>`;
 }
 function rpFitHTML(R, l){
   const f = R.fit;
@@ -660,13 +812,11 @@ function rpFitHTML(R, l){
 function rpComboCard(c, kind){
   if(!c) return '';
   const best = kind === 'best';
-  const list = function(items){ return `<ul>${items.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>`; };
   return `
   <div class="rp-combo ${kind}">
     <div class="rp-combo-h"><span class="rp-sq">${icon(best ? 'check' : 'switch', 'rp-ic')}</span><div><b>${best ? 'Best-fit combination' : 'Alternative combination'}</b><small>${esc(c.name)}</small></div></div>
     <div class="rp-combo-b">
-      <h4>Core subjects</h4>${list(c.core)}
-      ${c.electives.length ? `<h4>${best ? 'Recommended electives' : 'Electives'}</h4>${list(c.electives)}` : ''}
+      <ul>${c.subjects.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>
       <p class="rp-why">${esc(c.why)}</p>
     </div>
   </div>`;
@@ -679,7 +829,7 @@ function rpComboHTML(R){
   if(!c.best) return `<p class="rp-muted">No subject combination stood out strongly this time — talk through the subjects above with your teacher.</p>`;
   return `
   <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, 'alt') : ''}</div>
-  <p class="rp-foot">Check which combinations your school offers.</p>`;
+  <p class="rp-foot rp-screen-only">Check which combinations your school offers.</p>`;
 }
 
 /* ---- 4: career pathways ---- */

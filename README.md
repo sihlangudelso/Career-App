@@ -286,13 +286,16 @@ the spec before rewording any of it.
 design mock-up and drawn in the iroli brand colours: a branded header and a
 name / grade / school / date bar, then five numbered sections.
 
-1. **Your Learner Profile** — key traits, "how you learn best", and interest bars.
-2. **Subject Fit** — a table of the recommended subjects (academic readiness,
-   interest alignment, personality alignment, overall fit, recommendation), with the
-   learner's strongest results and areas to strengthen under it (the old Academic
-   Snapshot lives here).
+1. **Your Learner Profile** — **Your key traits** (the learner's top 4–5, ranked, each
+   with one sentence on what it means for them), "how you learn best", and **Your
+   interests** (five interest areas, each a 0–100% bar).
+2. **Subject Fit** — a table (academic readiness, interest alignment, personality
+   alignment, each 0–100%, then overall fit and a label), a one-line reason under each
+   recommended subject, and the learner's strongest results and areas to strengthen
+   under it (the old Academic Snapshot lives here).
 3. **Recommended Subject Combination** — the best-fit combination and one
-   alternative, each as core subjects + electives.
+   alternative: just the subjects to choose (Maths first; the compulsory languages and
+   Life Orientation are not repeated), each with a short explanation.
 4. **Career Pathways** — up to four broad career areas, with example careers.
 5. **Your Final Recommendation & Next Steps** — where the learner is likely to
    thrive, where extra effort may be needed, the **summary table** (best-fit
@@ -305,21 +308,37 @@ and the printed copy is only the short report.
 
 It scores nothing itself. `buildLearnerReport(l)` in `js/learner_report.js`
 gathers everything from the code that already owns it — `personalityTypeInfo`,
-`scTraitScores` (key traits), the personality assessment's own RIASEC scores
-(interest bars), `buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit,
+`scTraitScores` (key traits), the Subject Choice interest answers or the personality
+assessment's RIASEC scores (interest areas), `buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit,
 combinations), `bestSuitedCareers` (the example careers, in the same order as
 Career Matches) — into one plain object, and `learnerReportHTML` draws it for
 screen and print, so it cannot disagree with the rest of the app. The words (Very
 Strong / Strong / Moderate / Low) and their cut-offs are `LR_CONFIG` at the top of
 that file.
 
+The first three sections are one chain — *key traits + interests + academic results →
+Subject Fit → recommended combination* — and each says how it follows from the one
+before: the combination's explanation names the learner's own key traits, their interest
+areas, their strong results and the career areas (the same ones as section 4) it keeps
+open.
+
 Things worth knowing:
-- **A strong blend never hides a weak side.** "Strong" overall needs no part to be
-  Low/Developing; otherwise it reads "Moderate Fit" with a note, and a subject is
-  never labelled "Recommended" past that cap. The pill beside each subject follows
-  the Subject Choice engine's own category: strong match → *Recommended*; high
-  interest with results still developing, or lower natural alignment → *May require
-  more effort*; anything else → *Consider*.
+- **A subject is never recommended on interests and personality alone.** The label beside
+  each subject has four levels (`lrRecommend`): *Strongly Recommended* (a strong match
+  and an overall fit of 80+, `LR_CONFIG.stronglyRecommended`), *Recommended* (a strong
+  match), *Consider* (anything in between — and every subject we have no result for, so
+  without marks nothing can be more than Consider) and *May Require More Effort* (high
+  interest with results still developing, or lower natural alignment). The "strong
+  match" test is the Subject Choice engine's own category. Likewise "Strong Fit" in the
+  summary needs the learner's results and no weak side; otherwise it reads "Moderate
+  Fit" with a note. The "likely to thrive" and "extra effort" sentences are built from
+  those same labels, so they cannot disagree with the table.
+- **Interest areas are the same answers as Subject Fit.** With the Subject Choice
+  Assessment done, an area's score is the learner's interest in the two subjects they
+  like best within it (`LR_AREAS` lists them), the very scores behind each subject's
+  "interest alignment"; before that it comes from the personality assessment's interest
+  dimensions. The caption under the bars says which. (Scoring is unchanged: the areas
+  explain and agree with Subject Fit, they do not yet change it or Career Matches.)
 - **"How you learn best" is inferred, not measured.** There is no learning-style
   test: the sentence is read from the learner's personality and work-style answers
   (`LR_LEARN`), and the report says so beneath it.
@@ -343,9 +362,11 @@ Things worth knowing:
   container query), not the screen width, because the report sits beside the sidebar;
   on a phone each subject becomes a small card with three labelled bars.
 - **Print** is the same markup (`.rp-print`), tightened: page 1 is the header, profile
-  and subject fit; page 2 the combination, careers and final recommendation. Cards and
-  rows are kept whole; only Subject Fit may split (its header row repeats), so a long
-  table never leaves a half-empty page.
+  and subject fit; page 2 the combination, careers and final recommendation. The
+  next-best subjects added to the table for context (and the notes only the screen
+  needs) are left out of the paper copy, which keeps every test learner to two pages.
+  Cards and rows are kept whole; only Subject Fit may split (its header row repeats), so
+  a long table never leaves a half-empty page.
 
 ### One story across the app (please keep it that way)
 
