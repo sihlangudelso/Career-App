@@ -13,10 +13,11 @@
 -- Existing learners RLS already covers this (a learner reads/writes their
 -- own row; admins see their scope), so no policy changes are needed.
 --
--- IMPORTANT: run this BEFORE the new app version goes live. The app saves
--- the whole learner row in one upsert, so if this column doesn't exist yet,
--- saving would fail with "Could not save" once a learner finishes the
--- assessment.
+-- IMPORTANT: run this BEFORE the new app version goes live. Without this
+-- column, finishing the assessment cannot be saved (the app says "the app's
+-- database needs an update (subjectChoice)"). If several columns might be
+-- missing, run supabase/catch_up_learner_columns.sql instead -- it adds all of
+-- them in one go.
 --
 -- Safe to run on an existing database -- purely additive.
 

@@ -89,6 +89,9 @@ create table if not exists public.learners (
   "intendedSubjects" text[] default '{}',
   "intendedMathType" text,
   "cellNumber" text,
+  -- Lets someone use the app without claiming a grade/school. Also added by
+  -- supabase/add_exploring_only_column.sql for databases created before it.
+  "exploringOnly" boolean not null default false,
   "displayName" text,
   email text,
   "createdAt" timestamptz not null default now(),
@@ -236,6 +239,11 @@ create policy "learners_select_own_or_admin"
 -- licenseStatus must start 'trial' even on a learner's very first write --
 -- protect_license_status (below) only fires on UPDATE, never INSERT, so
 -- without this a learner's first-ever save could set 'active' directly.
+-- NOTE for the app (js/app.js writeLearner): Postgres checks this policy on an
+-- upsert's proposed row even when the row already exists, and a licensed
+-- learner's row says 'active' -- so the app must never upsert the whole row.
+-- It inserts only a learner's very first save and UPDATEs only the changed
+-- fields after that.
 create policy "learners_insert_own"
   on public.learners for insert
   with check (auth.uid() = id and "licenseStatus" = 'trial');

@@ -138,12 +138,17 @@ function joinBlends(list){
 }
 function genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<5;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
 
-function toast(msg){
+// Stays on screen long enough to read: 2.6s for a short message, up to 9s for a
+// long one (the "could not save" explanations). opts: a number of milliseconds,
+// or { ms, alert } -- alert=true for problems, so a screen reader says it at once.
+function toast(msg, opts){
+  const o = typeof opts === 'number' ? { ms: opts } : (opts || {});
   document.querySelectorAll('.toast').forEach(t=>t.remove());
   const el = document.createElement('div');
   el.className='toast'; el.textContent = msg;
+  el.setAttribute('role', o.alert ? 'alert' : 'status');
   document.body.appendChild(el);
-  setTimeout(()=>el.remove(), 2600);
+  setTimeout(()=>el.remove(), o.ms || Math.min(9000, Math.max(2600, 1400 + String(msg).length * 55)));
 }
 
 /* ---------------- boot / auth ---------------- */
@@ -308,7 +313,9 @@ async function loadLearner(){
     const mini = readMiniAssessment();
     if(mini && mini.answers){
       // Forget the local copy only once the account really has it: it is the only copy.
-      if(await saveLearner({ miniAssessment: { answers: mini.answers, completedAt: mini.completedAt } })) clearMiniAssessment();
+      // Quiet, and put back if it fails: a database without the column must not leave it stuck on the profile
+      // (it would ride along with, and fail, the onboarding save).
+      if(await saveLearnerOrRevert({ miniAssessment: { answers: mini.answers, completedAt: mini.completedAt } }, { quiet:true })) clearMiniAssessment();
     }
   }
 
@@ -378,33 +385,96 @@ function withTimeout(promise, ms){
     Promise.resolve(promise).then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
   });
 }
+// Why a save failed, in terms someone can act on. Supabase/PostgREST errors carry
+// a code; a dropped connection is a TypeError ("Failed to fetch") or our own timeout.
+function classifySaveError(e){
+  const code = e && e.code ? String(e.code) : '';
+  const msg = e ? String(e.message || e.details || e) : '';
+  if(code === 'PGRST204' || code === '42703' || /could not find the '.+' column|column .+ does not exist/i.test(msg)){
+    const m = msg.match(/'([^']+)' column|column (?:[\w."]*\.)?"?(\w+)"? does not exist/i);
+    return { kind:'schema', column: m ? (m[1] || m[2]) : null };
+  }
+  if(code === '42501' || /row-level security|permission denied/i.test(msg)) return { kind:'permission' };
+  if(code === 'PGRST301' || code === 'PGRST303' || /\bjwt\b|invalid token|not authenticated/i.test(msg)) return { kind:'auth' };
+  if(/timed out|failed to fetch|networkerror|network request failed|load failed/i.test(msg) || (e && e.name === 'TypeError')) return { kind:'network' };
+  return { kind:'other', code: code || null };
+}
+// opts: what = what could not be saved ("your answers"), keeps = the learner's
+// entries are still on screen, so say so.
+function saveFailureMessage(err, opts){
+  opts = opts || {};
+  const what = opts.what || 'your changes';
+  const keep = opts.keeps ? ' Your answers are still here.' : '';
+  if(err.kind === 'network') return 'Could not save ' + what + ' — check your connection and try again.' + keep;
+  if(err.kind === 'schema') return 'Could not save ' + what + ' — the app’s database needs an update' + (err.column ? ' (' + err.column + ')' : '') + '. Please tell your administrator.' + keep;
+  if(err.kind === 'auth') return 'Your sign-in has expired — please sign out and sign in again.' + keep;
+  if(err.kind === 'permission') return 'Could not save ' + what + ' — this account is not allowed to change that. Please tell your administrator.' + keep;
+  return 'Could not save ' + what + ' — something went wrong on our side' + (err.code ? ' (' + err.code + ')' : '') + '. Please try again in a moment.' + keep;
+}
+
+// Writes ONLY the fields that changed. The database lets a learner insert their own
+// row only as licenseStatus 'trial' (learners_insert_own in schema.sql), and it checks
+// that against an upsert's proposed row even when the row already exists -- so sending
+// the whole row back (licenseStatus 'active' for every licensed learner) was refused on
+// every single save. An UPDATE of the changed fields is allowed, cannot overwrite
+// something the learner did not touch with a stale copy (another tab, an admin), and
+// means one failed save can never poison the next. Only a learner's very first save
+// is an INSERT (of everything the page holds, which then is just what they entered).
+async function writeLearner(partial){
+  const stamp = { updatedAt: LEARNER.updatedAt, displayName: ME.name, email: ME.email };
+  const run = function(q){ return withTimeout(q, SAVE_TIMEOUT_MS); };
+  const update = async function(){
+    const { data, error } = await run(sb.from('learners').update({ ...partial, ...stamp }).eq('id', ME.id).select('id'));
+    if(error) throw error;
+    return !!(data && data.length);      // false: there is no such row (yet)
+  };
+  const insert = async function(){
+    if(!LEARNER.createdAt) LEARNER.createdAt = todayISO();
+    const body = { ...LEARNER, id: ME.id, displayName: ME.name, email: ME.email };
+    delete body.exists;
+    const { error } = await run(sb.from('learners').insert(body));
+    if(error) throw error;
+  };
+  if(LEARNER.exists){
+    if(!(await update())) await insert();    // the row was removed meanwhile: put it back
+    return;
+  }
+  try{ await insert(); }
+  catch(e){
+    // Already there (another tab or device created it first): save onto it instead.
+    if(e && String(e.code) === '23505' && await update()) return;
+    throw e;
+  }
+}
 // Resolves true if the change is saved (or there is nothing to save to: preview
 // mode), false if the save failed -- callers that must not tell the learner
 // "saved" unless it really was check this (see saveLearnerOrRevert).
-async function saveLearner(partial){
+// opts: what / keeps (see saveFailureMessage), quiet = no toast (background saves).
+async function saveLearner(partial, opts){
   ensureLearnerObj();
   Object.assign(LEARNER, partial);
   LEARNER.updatedAt = todayISO();
   if(PREVIEW_MODE || !ME.id) return true; // memory-only in preview: nothing can fail
   try{
-    if(!LEARNER.createdAt) LEARNER.createdAt = todayISO();
-    const body = { ...LEARNER, id: ME.id, displayName: ME.name, email: ME.email };
-    delete body.exists;
-    const { error } = await withTimeout(sb.from('learners').upsert(body, { onConflict:'id' }), SAVE_TIMEOUT_MS);
-    if(error) throw error;
+    await writeLearner(partial);
     LEARNER.exists = true;
     return true;
-  }catch(e){ toast('Could not save — check your connection and try again.'); console.error(e); return false; }
+  }catch(e){
+    console.error('Could not save the learner profile', e);
+    if(!(opts && opts.quiet)) toast(saveFailureMessage(classifySaveError(e), opts), { alert:true });
+    return false;
+  }
 }
 // For the long forms (assessments, report results, onboarding): save, and if
 // it fails put the in-memory profile back as it was, so no page goes on
 // showing a result that was never saved. The caller keeps the learner's
-// answers on screen / in their draft and lets them tap again.
-async function saveLearnerOrRevert(partial){
+// answers on screen / in their draft and lets them tap again. (saveLearner
+// already told the learner why it failed -- callers do not toast again.)
+async function saveLearnerOrRevert(partial, opts){
   const l = ensureLearnerObj();
   const before = {};
   Object.keys(partial).forEach(k=>{ before[k] = { had: Object.prototype.hasOwnProperty.call(l, k), value: l[k] }; });
-  const ok = await saveLearner(partial);
+  const ok = await saveLearner(partial, opts);
   if(!ok) Object.keys(before).forEach(k=>{ if(before[k].had) l[k] = before[k].value; else delete l[k]; });
   return ok;
 }

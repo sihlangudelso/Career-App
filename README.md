@@ -219,6 +219,10 @@ supabase/
   schema.sql              tables + Row Level Security policies — run once!
   add_*.sql               one-off migrations for databases created before a
                           feature existed (e.g. add_subject_choice_assessment.sql)
+  catch_up_learner_columns.sql
+                          every learner column the app writes, as "add column if not
+                          exists" -- run it once if saving says "the app's database
+                          needs an update" (safe to run again)
 js/
   supabase-config.js      YOUR Supabase URL + anon key — edit this first
   icons.js                small inline SVG icon set
@@ -256,8 +260,10 @@ learner's answers are stored (`learners."subjectChoice"`); the report is
 recomputed from those plus their latest marks and personality results.
 
 **Before deploying:** run `supabase/add_subject_choice_assessment.sql` once in
-the Supabase SQL editor. The app saves a learner's whole row in one go, so
-finishing the assessment would show "Could not save" until that column exists.
+the Supabase SQL editor (or `supabase/catch_up_learner_columns.sql`, which adds this
+and every other learner column in one go). Until the column exists, finishing the
+assessment says "the app's database needs an update (subjectChoice)" and keeps the
+learner's answers on screen.
 
 **Who gets it:** Grade 9 learners choosing their Grade 10 subjects, plus anyone
 who already has saved answers (they keep their report whatever grade they are in
@@ -371,6 +377,17 @@ Learners often use school computers and patchy mobile data, so:
   a save fails (and `saveLearner` gives up after 20 s), the "Saving…" button
   restores its real label, and while a save is in flight (`SAVING` in
   `js/app.js`) taps that would change or repeat it are ignored.
+- **Only what changed is written.** `writeLearner` UPDATEs just the fields being
+  saved; only a learner's very first save is an INSERT. Do not go back to upserting
+  the whole row: the database checks `learners_insert_own` (licenseStatus must be
+  `'trial'`) against an upsert's proposed row even when the row exists, and every
+  licensed learner's row says `'active'`, so that was refused on every save. (It
+  also let a stale copy overwrite a newer one, and one failed save poison the next.)
+- **A failed save says why**, in the toast (`classifySaveError` / `saveFailureMessage`):
+  connection problem, sign-in expired, "not allowed", or "the app's database needs
+  an update (<column>)". That last one means a column the app writes does not exist
+  yet: run `supabase/catch_up_learner_columns.sql`. Any new column the app starts
+  writing needs its migration run before the new code goes live.
 - **Drafts** of in-progress forms live in `localStorage` under
   `iroli_drafts_v1_<learner id>` as `{ v:2, savedAt, drafts }`. They are dropped
   after 14 days, never stored for an admin's preview, not stored for pages that

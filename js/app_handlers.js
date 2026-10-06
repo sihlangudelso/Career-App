@@ -248,7 +248,7 @@ const App = {
   async saveOnboardingNow(){
     const l = ensureLearnerObj();
     if(l.exploringOnly){
-      const savedExploring = await saveLearnerOrRevert({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' });
+      const savedExploring = await saveLearnerOrRevert({ exploringOnly:true, grade:null, school:null, mathType:null, subjects:[], licenseStatus: l.licenseStatus||'trial' }, { what:'your profile', keeps:true });
       if(!savedExploring) return;
       toast('Profile saved.');
       // A mini-assessment-driven signup lands straight in the real
@@ -260,7 +260,12 @@ const App = {
     if(!l.grade){ toast('Please select your grade.'); return; }
     const { school, subjects, subjectMarks } = readOnboardingForm(l.grade);
     if(!school || !school.trim()){ toast('Please add your school name.'); return; }
-    const savedProfile = await saveLearnerOrRevert({ exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects: subjects||[], subjectMarks: l.grade>9?(subjectMarks||{}):null, licenseStatus: l.licenseStatus||'trial' });
+    const profile = { exploringOnly:false, grade:l.grade, school:school.trim(), mathType: l.grade>9? l.mathType:null, subjects: subjects||[], licenseStatus: l.licenseStatus||'trial' };
+    // Subject marks start in Grade 10: send them (or clear old ones) only when there is something to say,
+    // so a Grade 9 learner's profile never depends on that column.
+    if(l.grade>9) profile.subjectMarks = subjectMarks||{};
+    else if(l.subjectMarks != null) profile.subjectMarks = null;
+    const savedProfile = await saveLearnerOrRevert(profile, { what:'your profile', keeps:true });
     if(!savedProfile) return;
     toast('Profile saved.');
     navigate(l.miniAssessment ? 'assessment' : 'home');
@@ -315,12 +320,12 @@ const App = {
     let ok = false;
     // A copy of the answers, so nothing that happens to the draft afterwards
     // can alter what was saved (the optimistic update shares the object).
-    try { ok = await saveLearnerOrRevert({ subjectChoice: { answers: Object.assign({}, d.answers), completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } }); }
+    try { ok = await saveLearnerOrRevert({ subjectChoice: { answers: Object.assign({}, d.answers), completedAt: todayISO(), bankVersion: SC_CONFIG.bankVersion } }, { what:'your answers', keeps:true }); }
     finally { SAVING.sc = false; }
     if(!ok){
       // Keep their answers: the draft is untouched, so tapping again retries.
+      // (saveLearner has already said why it failed.)
       done();
-      toast('Could not save your answers — they are still here. Check your connection and tap the button again.');
       return;
     }
     SUBJECT_CHOICE_DRAFT = null;
@@ -382,7 +387,7 @@ const App = {
       ok = await saveLearnerOrRevert({
         grade9Report: { term: d.term, grade: 9, subjects, socialSciencesSplit: d.socialSciencesSplit, creativeArtsFocus: d.creativeArtsFocus.slice() },
         workStyle,
-      });
+      }, { what:'your results', keeps:true });
     } finally { SAVING.g9 = false; }
     if(!ok){ done(); return; }
     GRADE9_DRAFT = null;
@@ -454,12 +459,12 @@ const App = {
     const done = busyButton('button[onclick="App.assessSubmit()"]', 'Saving…');
     let ok = false;
     // Copies of the raw answers: the optimistic update would otherwise share them with the draft.
-    try { ok = await saveLearnerOrRevert({ riasec, strengths, riasecRaw:d.answers.slice(), strengthsRaw:d.strengths.slice(), assessmentCompletedAt: todayISO() }); }
+    try { ok = await saveLearnerOrRevert({ riasec, strengths, riasecRaw:d.answers.slice(), strengthsRaw:d.strengths.slice(), assessmentCompletedAt: todayISO() }, { what:'your results', keeps:true }); }
     finally { SAVING.assess = false; }
     if(!ok){
       // Keep their answers: they are still in the draft, so tapping again retries.
+      // (saveLearner has already said why it failed.)
       done();
-      toast('Could not save your results — your answers are still here. Check your connection and tap the button again.');
       return;
     }
     ASSESSMENT_DRAFT = null;
