@@ -10,20 +10,28 @@ const App = {
   clearExploreFilters(){ EXPLORE_FILTERS = {}; render(); },
   // ---- anonymous mini-assessment ----
   startAnonFlow(){ MINI_DRAFT.step = 0; MINI_DRAFT.dir = 'fwd'; render(); },
-  miniChoose(key, optionId){
+  miniChoose(key, optionId, el){
+    if(ANSWER_LOCK || !MINI_DRAFT) return;
     MINI_DRAFT.answers[key] = optionId;
-    MINI_DRAFT.dir = 'fwd';
-    const idx = MINI_QUESTIONS.findIndex(q=>q.key===key);
-    const next = idx + 1;
-    if(next >= MINI_QUESTIONS.length){
-      MINI_DRAFT.step = 'results';
-      writeMiniAssessment({ answers: MINI_DRAFT.answers, completedAt: todayISO() });
-    } else {
-      MINI_DRAFT.step = next;
-    }
-    render();
+    pickAnswer(el);
+    // Let the pick animate, then move on -- unless they pressed Back (which
+    // cancels this) or left the quick start in the meantime.
+    afterAnswerHold(function(){
+      const idx = MINI_QUESTIONS.findIndex(q=>q.key===key);
+      if(!MINI_DRAFT || MINI_DRAFT.step !== idx) return;
+      MINI_DRAFT.dir = 'fwd';
+      const next = idx + 1;
+      if(next >= MINI_QUESTIONS.length){
+        MINI_DRAFT.step = 'results';
+        writeMiniAssessment({ answers: MINI_DRAFT.answers, completedAt: todayISO() });
+      } else {
+        MINI_DRAFT.step = next;
+      }
+      render();
+    });
   },
   miniBack(){
+    cancelPendingAnswer();
     MINI_DRAFT.dir = 'back';
     if(MINI_DRAFT.step==='results') MINI_DRAFT.step = MINI_QUESTIONS.length - 1;
     else if(MINI_DRAFT.step===0) MINI_DRAFT.step = 'intro';
@@ -272,10 +280,11 @@ const App = {
     // A save is in flight: changing an answer now would change what is being saved.
     const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
     v = Number(v);
+    const firstTime = d.answers[qid] == null;      // changing an earlier answer must not move the page
     d.answers[qid] = v;
     persistDrafts();
     const row = el && el.closest('.sc-q');
-    if(row) row.querySelectorAll('.sc-scale button').forEach((b,i)=>{ b.classList.toggle('on', i+1===v); b.setAttribute('aria-pressed', i+1===v ? 'true' : 'false'); });
+    pickAnswer(el);
     const total = d.order.length, answered = Object.keys(d.answers).length;
     const bar = document.getElementById('scBar'); if(bar) bar.style.width = Math.round(answered/total*100)+'%';
     const cnt = document.getElementById('scCount'); if(cnt) cnt.textContent = answered;
@@ -284,6 +293,7 @@ const App = {
       const isLast = d.page === scPageCount(d) - 1;
       btn.disabled = isLast ? answered < total : !scPageIds(d).every(id=>d.answers[id]);
     }
+    if(row && firstTime) scrollToNextQuestion(row);
   },
   subjectChoicePage(delta){
     const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
@@ -384,6 +394,7 @@ const App = {
   // ---- assessment ----
   assessGoto(step,dir){
     if(SAVING.assess) return;
+    cancelPendingAnswer();        // Back/Continue during a pick's animation: go now, don't also advance later
     const d = ensureAssessDraft();
     d.retaking = true;
     d.dir = dir || 'fwd';
@@ -395,29 +406,38 @@ const App = {
     const d = ensureAssessDraft();
     App.assessGoto(d.step+1,'fwd');
   },
-  assessChoose(step,val){
-    if(SAVING.assess) return;
+  // A tapped (or slid) answer: store it, show it as picked, and only then slide to
+  // the next question -- the learner sees what they chose. `el` is the tapped
+  // button, or the snap slider. Back/Continue during the pause cancels the advance.
+  assessChoose(step,val,el){
+    if(SAVING.assess || ANSWER_LOCK) return;
     const d = ensureAssessDraft();
+    d.retaking = true;            // they have started: this draft is now worth keeping (see persistDrafts)
     if(step<RIASEC_QUESTIONS.length) d.answers[step]=val; else d.strengths[step-RIASEC_QUESTIONS.length]=val;
-    App.assessGoto(step+1,'fwd');
+    persistDrafts();
+    if(el && el.classList && el.classList.contains('snap')) el.classList.add('locked');
+    else pickAnswer(el || document.querySelector('#app [data-answer-group] [data-v="'+val+'"]'));
+    // An answered question's Continue button is live straight away (it also lets an
+    // impatient learner skip the short pause).
+    const cont = document.querySelector('#app .card .btn-primary');
+    if(cont) cont.disabled = false;
+    afterAnswerHold(function(){
+      // Still on this question? (They may have left the screen.)
+      if(ASSESSMENT_DRAFT === d && d.step === step && ROUTE === 'assessment') App.assessGoto(step+1,'fwd');
+    });
   },
-  assessSlide(step,val){
+  // A slider's value as it changes: store it and unlock Continue. Advancing is
+  // assessSlideCommit's job (finger lifted / Enter), through assessChoose.
+  assessSlide(step,val,el){
     if(SAVING.assess) return;
     const d = ensureAssessDraft();
     const isRiasec = step<RIASEC_QUESTIONS.length;
     if(isRiasec) d.answers[step]=Number(val); else d.strengths[step-RIASEC_QUESTIONS.length]=Number(val);
-    const labels = isRiasec ? RIASEC_SCALE : STRENGTH_SCALE;
-    const elLabel = document.getElementById('qval_'+step);
-    if(elLabel) elLabel.textContent = labels[Number(val)-1];
-    const row = elLabel && elLabel.closest('.slider-row');
-    if(row){
-      row.classList.remove('unanswered');
-      row.querySelectorAll('.slider-ticks span').forEach((el,i)=>el.classList.toggle('on', i+1===Number(val)));
-    }
-    const continueBtn = row && row.closest('.card') && row.closest('.card').querySelector('.btn-primary');
+    const card = el && el.closest ? el.closest('.card') : null;
+    const continueBtn = card && card.querySelector('.btn-primary');
     if(continueBtn) continueBtn.disabled = false;
   },
-  assessSlideCommit(step,val){ App.assessChoose(step, Number(val)); },
+  assessSlideCommit(step,val,el){ App.assessChoose(step, Number(val), el); },
   async assessSubmit(){
     if(SAVING.assess) return;
     const d = ensureAssessDraft();

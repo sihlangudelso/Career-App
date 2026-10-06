@@ -122,9 +122,9 @@ function subjectChoiceQuestionHTML(q, value){
   return `
   <div class="sc-q" id="scq_${q.id}">
     <div class="sc-qt">${esc(q.text)}</div>
-    <div class="sc-scale" role="group" aria-label="${esc(q.text)}">
+    <div class="sc-scale" role="group" aria-label="${esc(q.text)}" data-answer-group>
       ${[1, 2, 3, 4, 5].map(function(n){
-        return `<button class="${value === n ? 'on' : ''}" aria-pressed="${value === n}" onclick="App.subjectChoiceAnswer('${q.id}',${n},this)"><span class="n">${n}</span><span class="l">${esc(SC_CONFIG.scaleLabels[n - 1])}</span></button>`;
+        return `<button class="${value === n ? 'on' : ''}" data-v="${n}" aria-pressed="${value === n}" onclick="App.subjectChoiceAnswer('${q.id}',${n},this)"><span class="n">${n}</span><span class="l">${esc(SC_CONFIG.scaleLabels[n - 1])}</span></button>`;
       }).join('')}
     </div>
   </div>`;

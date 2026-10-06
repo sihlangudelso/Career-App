@@ -159,8 +159,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 .chip-select{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;background:var(--surface);}
 .chip-select.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 
-.likert{display:flex;gap:8px;margin-top:10px;}
-.likert button{flex:1;padding:10px 4px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:12px;font-weight:600;color:var(--muted);}
+.likert{display:flex;gap:6px;margin-top:10px;}
+.likert button{flex:1 1 0;min-width:0;padding:10px 2px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:clamp(10.5px,3.1vw,12px);font-weight:600;color:var(--muted);}
 .likert button.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 .qcard{margin-bottom:22px;}
 .qcard .qn{font-size:11.5px;color:var(--muted);font-weight:700;}
@@ -173,13 +173,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 .q-anim.back{animation-name:qSlideBack;}
 @media(prefers-reduced-motion:reduce){.q-anim{animation:none;}}
 
-.scale-dots-row{display:flex;gap:10px;justify-content:center;margin:14px 0 8px;flex-wrap:wrap;}
-.dot-btn{width:52px;height:52px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-family:var(--font-head);font-weight:700;font-size:17px;color:var(--muted);}
+.scale-dots-row{display:flex;gap:10px;justify-content:center;margin:14px 0 8px;}
+.dot-btn{flex:1 1 0;min-width:0;max-width:52px;aspect-ratio:1/1;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-family:var(--font-head);font-weight:700;font-size:17px;color:var(--muted);}
 .dot-btn.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 .scale-dots-caps{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:0 6px;}
 
-.emoji-scale{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap;}
-.emoji-btn{width:56px;height:56px;border-radius:16px;border:2px solid var(--line);background:var(--surface);font-size:26px;display:flex;align-items:center;justify-content:center;line-height:1;}
+.emoji-scale{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;}
+.emoji-btn{flex:1 1 0;min-width:0;max-width:56px;aspect-ratio:1/1;border-radius:16px;border:2px solid var(--line);background:var(--surface);font-size:26px;display:flex;align-items:center;justify-content:center;line-height:1;}
 .emoji-btn.on{background:var(--tint-violet);border-color:var(--indigo);}
 
 /* One glyph per button (not a 5-star string per button) so nothing
@@ -189,18 +189,63 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 .star-btn.on{color:var(--indigo);}
 
 .slider-row{margin-bottom:18px;}
-.slider-row .sl-top{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px;}
-.slider-ticks{display:flex;justify-content:space-between;padding:0 3px;margin-top:-6px;font-size:11.5px;font-weight:600;color:var(--muted);}
-.slider-ticks span.on{color:var(--indigo);}
-input[type=range]{width:100%;accent-color:var(--indigo);height:8px;border-radius:999px;cursor:pointer;margin:10px 0;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:var(--indigo);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
-input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--indigo);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
-input[type=range]::-moz-range-track{height:8px;border-radius:999px;}
-/* Unanswered slider question: greyed out so it reads as "not yet answered"
-   rather than a neutral/middle answer someone actually chose. */
-.slider-row.unanswered input[type=range]{accent-color:var(--muted);opacity:.55;}
-.slider-row.unanswered input[type=range]::-webkit-slider-thumb{background:var(--muted);}
-.slider-row.unanswered input[type=range]::-moz-range-thumb{background:var(--muted);}
+.slider-row .sl-top{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:600;margin-bottom:2px;}
+.slider-row .sl-top span:last-child{text-align:right;}
+
+/* ---------- Answer feedback (js/answer_inputs.js) ----------
+   The chosen option pops and sends out a ring, so the learner SEES what they
+   picked before the next question slides in. Options carry data-v and sit in a
+   data-answer-group; data-dim="1" fades the others while the choice is confirmed. */
+@keyframes ansPop{0%{transform:scale(1);}38%{transform:scale(1.18);}70%{transform:scale(.97);}100%{transform:scale(1);}}
+@keyframes ansRing{0%{box-shadow:0 0 0 0 rgba(90,75,224,.5);}100%{box-shadow:0 0 0 16px rgba(90,75,224,0);}}
+@keyframes ansEmoji{0%{transform:scale(1) rotate(0);}30%{transform:scale(1.4) rotate(-12deg);}60%{transform:scale(1.2) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
+@keyframes ansStar{0%{transform:scale(.55);opacity:.45;}55%{transform:scale(1.32);opacity:1;}100%{transform:scale(1);opacity:1;}}
+@keyframes ansCheck{from{transform:scale(0) rotate(-35deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
+[data-answer-group] > [data-v]{-webkit-tap-highlight-color:transparent;transition:opacity .25s ease,background-color .2s ease,border-color .2s ease,color .2s ease,transform .15s ease,box-shadow .15s ease;}
+[data-answer-group] > [data-v]:active{transform:scale(.95);}
+[data-answer-group][data-dim="1"].has-pick > [data-v]:not(.on){opacity:.38;}
+button[data-v].picked{animation:ansPop .4s cubic-bezier(.2,.9,.3,1.25),ansRing .62s ease-out;}
+.emoji-btn.picked span{display:inline-block;animation:ansEmoji .55s ease-out;}
+.star-btn.picked{animation:none;}
+.star-btn.pop{animation:ansStar .42s cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--i,0) * 55ms);}
+.tile{position:relative;}
+.tile.on{border-color:var(--indigo);background:var(--tint-violet);}
+.tile.picked::after{content:'✓';position:absolute;top:8px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--indigo);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:ansCheck .3s cubic-bezier(.2,.9,.3,1.4) both;}
+
+/* ---------- Snap slider (js/answer_inputs.js) ----------
+   A touch-first replacement for <input type=range>: a big hit area, a thumb that
+   follows the finger smoothly and springs to the nearest of five stops when let
+   go, and tapping any stop -- including the parked middle one -- answers.
+   touch-action:pan-y keeps vertical swipes scrolling the page while sideways
+   drags belong to the slider. */
+.snap{--p:50;position:relative;padding:22px 18px 2px;margin:0 0 4px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;cursor:pointer;border-radius:14px;outline:none;}
+.snap:focus-visible{box-shadow:0 0 0 3px var(--tint-line);}
+.snap.locked{pointer-events:none;}
+.snap-track{position:relative;height:10px;border-radius:999px;background:var(--line);}
+.snap-fill{position:absolute;left:0;top:0;bottom:0;width:calc(var(--p) * 1%);border-radius:999px;background:linear-gradient(90deg,var(--indigo),#8A7BF2);transition:width .32s cubic-bezier(.2,.9,.3,1.12);}
+.snap.unanswered .snap-fill,.snap.bipolar .snap-fill{width:0;}
+.snap-stop{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--surface);border:2.5px solid var(--line);transition:background-color .2s,border-color .2s;}
+.snap-stop.reached{background:var(--indigo);border-color:var(--indigo);}
+.snap-thumb{position:absolute;top:50%;left:calc(var(--p) * 1%);width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:var(--indigo);border:4px solid #fff;box-shadow:0 2px 8px rgba(40,30,120,.38);z-index:2;transition:left .32s cubic-bezier(.2,.9,.3,1.2),transform .16s ease,background-color .2s,border-color .2s;}
+/* Not answered yet: a hollow thumb parked on the middle stop, gently pulsing.
+   Tap it (or drag it) to answer -- tapping it answers 3. */
+.snap.unanswered .snap-thumb{background:var(--surface);border:3px dashed var(--indigo);box-shadow:0 1px 6px rgba(40,30,120,.18);animation:snapHint 1.9s ease-in-out infinite;}
+@keyframes snapHint{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+.snap.dragging .snap-thumb,.snap.dragging .snap-fill{transition:none;}
+.snap.pressing .snap-thumb{transform:scale(1.14);animation:none;}
+.snap.picked .snap-thumb{animation:ansPop .4s cubic-bezier(.2,.9,.3,1.25),ansRing .62s ease-out;}
+.snap-ticks{position:relative;height:20px;margin-top:12px;}
+.snap-ticks span{position:absolute;top:0;transform:translateX(-50%);font-size:12px;font-weight:700;color:var(--muted);transition:color .2s,transform .2s;}
+.snap-ticks span.on{color:var(--ink);transform:translateX(-50%) scale(1.25);}
+.snap-cap{text-align:center;font-weight:700;font-size:14.5px;margin:6px 0 2px;min-height:21px;color:var(--ink);}
+.snap.unanswered .snap-cap{color:var(--muted);font-weight:600;}
+.snap-cap.flip{animation:snapCap .25s ease-out;}
+@keyframes snapCap{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+/* Less motion on request: the choice is still confirmed (colour, ring-free), just without movement. */
+@media(prefers-reduced-motion:reduce){
+  button[data-v].picked,.emoji-btn.picked span,.star-btn.pop,.tile.picked::after,.snap.picked .snap-thumb,.snap-cap.flip,.snap.unanswered .snap-thumb{animation:none;}
+  .snap-thumb,.snap-fill,.snap-stop,.snap-ticks span,[data-answer-group] > [data-v]{transition:none;}
+}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{text-align:left;font-size:11.5px;text-transform:none;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap;}

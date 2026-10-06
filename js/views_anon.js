@@ -81,9 +81,9 @@ function viewAnonMini(){
       <div class="aps-bar" style="margin-bottom:18px;"><div style="width:${pct}%"></div></div>
       <div class="card ${animClass}">
         <h3 style="margin-bottom:14px;">${esc(q.title)}</h3>
-        <div class="grid grid-2" style="gap:10px;">
+        <div class="grid grid-2" style="gap:10px;" data-answer-group data-dim="1">
           ${q.options.map(o=>`
-            <button class="tile" style="padding:14px;" onclick="App.miniChoose('${q.key}','${o.id}')">
+            <button class="tile" data-v="${o.id}" style="padding:14px;" onclick="App.miniChoose('${q.key}','${o.id}',this)">
               <h3 style="font-size:14px;margin:0 0 4px;">${esc(o.label)}</h3>
               ${o.desc?`<p style="margin:0;font-size:12.5px;color:var(--muted);">${esc(o.desc)}</p>`:''}
             </button>`).join('')}

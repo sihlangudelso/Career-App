@@ -225,6 +225,8 @@ js/
   data.js                 careers, faculties, assessment questions, subjects
   app.js                  auth bootstrap, Postgres data layer, matching engine
   auth-ui.js              sign-in / sign-up screen
+  answer_inputs.js        how an answer feels: the pick animation, the pause before the next
+                          question, and the touch-first snap slider (see below)
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
   views_learner.js        onboarding, dashboard, assessment, careers, APS…
   subject_choice_config.js  Grade 9 Subject Choice Assessment: ALL tunable settings
@@ -307,6 +309,31 @@ Learners often use school computers and patchy mobile data, so:
   resets the drafts and returns home with a message instead of looping.
 - **The 4-question quick start** is kept on the device until the account has
   saved it.
+
+### Answer animations and sliders
+
+Every question screen (personality assessment, Subject Choice, the Grade 9
+work-style sliders, the 4-question quick start) goes through
+`js/answer_inputs.js`, so they all feel the same:
+
+- **The pick is shown.** The chosen option pops and sends out a ring (stars
+  light up one after another, emoji bounce, quick-start tiles get a tick), and on
+  the one-question-at-a-time screens the other options fade. The app then waits
+  `ANSWER_HOLD_MS` (480 ms, top of `answer_inputs.js`) before sliding to the next
+  question. Back or Continue during that pause cancels the wait; taps during it
+  are ignored. Subject Choice has six questions per page, so after a *first-time*
+  answer it glides to the next unanswered one instead (never when an earlier
+  answer is changed).
+- **Sliders are a "snap slider", not `<input type=range>`.** The thumb follows the
+  finger exactly, then springs to the nearest of five stops. Tapping any stop, or
+  the parked middle thumb, answers — a native range input only reports a *change*,
+  so an untouched slider could never be answered "3" without dragging away and
+  back. `touch-action: pan-y` keeps vertical swipes scrolling the page; a gesture
+  the browser takes over (a scroll) records nothing. Keyboard: arrows move, Enter
+  or Space confirm.
+- Options carry `data-v` and sit in a `data-answer-group`; the look is in
+  `style.css` under "Answer feedback" and "Snap slider". With "reduce motion" on,
+  the movement is dropped and the pause shortens to 200 ms.
 
 ### Admin preview
 

@@ -377,14 +377,15 @@ function grade9ReportStepHTML(d, l){
 function grade9WorkStyleStepHTML(d, l){
   const allAnswered = WORK_STYLE_QUESTIONS.every(q=>d.workStyle[q.key]>0);
   return `
-  ${pageHeadHTML('Grade 9 Report Results', 'Step 2 of 2 — a few quick questions about how you like to work — there are no right answers.')}
+  ${pageHeadHTML('Grade 9 Report Results', 'Step 2 of 2 — a few quick questions about how you like to work — there are no right answers. Tap a number or drag the dot.')}
   <div class="card">
     ${WORK_STYLE_QUESTIONS.map(q=>{
       const answered = d.workStyle[q.key]>0;
-      const v = answered ? d.workStyle[q.key] : 3;
+      // What each stop means, for screen readers (the ends are shown above the slider).
+      const texts = ['Much closer to: '+q.left, 'A little closer to: '+q.left, 'Right in the middle', 'A little closer to: '+q.right, 'Much closer to: '+q.right];
       return `<div class="slider-row ${answered?'':'unanswered'}">
         <div class="sl-top"><span>${esc(q.left)}</span><span>${esc(q.right)}</span></div>
-        <input type="range" min="1" max="5" value="${v}" oninput="App.grade9SetWorkStyle('${q.key}', this.value, this)"/>
+        ${snapSliderHTML({ kind:'g9', id:q.key, value:d.workStyle[q.key], label:q.left+' or '+q.right, texts:texts, bipolar:true })}
       </div>`;
     }).join('')}
     <div style="margin-top:8px;display:flex;gap:10px;">
@@ -404,35 +405,32 @@ const RIASEC_EMOJI = ['😠','🙁','😐','🙂','😄'];
 function assessWidgetHTML(step, kind, value){
   const style = assessStyleFor(step);
   const labels = kind==='strength' ? STRENGTH_SCALE : RIASEC_SCALE;
+  // Every option carries data-v and sits in a data-answer-group, so the shared
+  // pickAnswer() (js/answer_inputs.js) can play the pick animation on it before
+  // the next question slides in.
   if(style==='dots'){
     return `<div class="scale-dots">
-      <div class="scale-dots-row">${[1,2,3,4,5].map(n=>`<button class="dot-btn ${value===n?'on':''}" onclick="App.assessChoose(${step},${n})">${n}</button>`).join('')}</div>
+      <div class="scale-dots-row" data-answer-group data-dim="1">${[1,2,3,4,5].map(n=>`<button class="dot-btn ${value===n?'on':''}" data-v="${n}" aria-pressed="${value===n}" aria-label="${n} — ${esc(labels[n-1])}" onclick="App.assessChoose(${step},${n},this)">${n}</button>`).join('')}</div>
       <div class="scale-dots-caps"><span>${labels[0]}</span><span>${labels[4]}</span></div>
     </div>`;
   }
   if(style==='slider'){
-    // A native range input always needs some numeric position to render at,
-    // but an untouched question must not look like an answer was already
-    // given -- so the thumb sits at the midpoint only visually (greyed out
-    // via .unanswered), while the real value stays unset until dragged.
-    const answered = !!value;
-    const v = answered ? value : 3;
-    return `<div class="slider-row ${answered?'':'unanswered'}">
-      <input type="range" min="1" max="5" value="${v}" oninput="App.assessSlide(${step},this.value)" onchange="App.assessSlideCommit(${step},this.value)"/>
-      <div class="slider-ticks">${[1,2,3,4,5].map(n=>`<span class="${answered && v===n?'on':''}">${n}</span>`).join('')}</div>
-      <div class="sl-top" style="justify-content:center;"><span id="qval_${step}">${answered ? esc(labels[v-1]) : 'Drag the slider to answer'}</span></div>
-    </div>`;
+    // An untouched slider shows its thumb parked on the middle stop, hollow, as
+    // a hint -- but no answer exists until the learner taps or drags, and
+    // tapping the middle stop answers 3 (a native range input could not: it only
+    // reports a change). See snapSliderHTML() in js/answer_inputs.js.
+    return snapSliderHTML({ kind:'assess', id:step, value:value, label:'Your answer, from 1 to 5', texts:labels, showCaption:true });
   }
   if(style==='emoji'){
     if(kind==='strength'){
       // A conventional cumulative star rating (button N fills stars 1..N) --
       // one glyph per hit target, not a 5-glyph string per button, so
       // nothing overflows/overlaps at any button size.
-      return `<div class="star-scale">${[1,2,3,4,5].map(n=>`<button class="star-btn ${value>=n?'on':''}" onclick="App.assessChoose(${step},${n})" aria-label="${esc(labels[n-1])}">${value>=n?'★':'☆'}</button>`).join('')}</div>`;
+      return `<div class="star-scale" data-answer-group data-cumulative="1">${[1,2,3,4,5].map(n=>`<button class="star-btn ${value>=n?'on':''}" data-v="${n}" aria-pressed="${value>=n}" onclick="App.assessChoose(${step},${n},this)" aria-label="${esc(labels[n-1])}">${value>=n?'★':'☆'}</button>`).join('')}</div>`
     }
-    return `<div class="emoji-scale">${RIASEC_EMOJI.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})" title="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
+    return `<div class="emoji-scale" data-answer-group data-dim="1">${RIASEC_EMOJI.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="App.assessChoose(${step},${i+1},this)" title="${esc(labels[i])}" aria-label="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
   }
-  return `<div class="likert">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" onclick="App.assessChoose(${step},${i+1})">${lb}</button>`).join('')}</div>`;
+  return `<div class="likert" data-answer-group data-dim="1">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="App.assessChoose(${step},${i+1},this)">${lb}</button>`).join('')}</div>`;
 }
 
 function ensureAssessDraft(){
