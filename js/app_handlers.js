@@ -478,7 +478,22 @@ const App = {
     render();
     toast('Personality assessment complete!');
   },
-  assessRetake(){ ASSESSMENT_DRAFT=null; const d=ensureAssessDraft(); d.retaking=true; d.step=0; render(); },
+  // A retake starts clean: every question unanswered, from the first. (ensureAssessDraft
+  // would pre-fill the draft from the saved answers, so a retake looked half done and
+  // Continue was live on questions they had not touched.) The saved results are
+  // not touched until the new attempt is finished and saved -- leave halfway and they
+  // are still there.
+  assessRetake(){
+    if(SAVING.assess) return;
+    cancelPendingAnswer();
+    ASSESSMENT_DRAFT = {
+      step: 0, dir: 'fwd', retaking: true,        // retaking: show the questions, not the results page
+      answers: Array(RIASEC_QUESTIONS.length).fill(0),
+      strengths: STRENGTH_KEYS.map(function(){ return 0; }),
+    };
+    persistDrafts();
+    render(); window.scrollTo(0,0); focusPageHeading();
+  },
 
   // ---- report: intended subjects ----
   async toggleIntendedSubject(subject){

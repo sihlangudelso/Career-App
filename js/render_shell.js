@@ -1,6 +1,11 @@
 const LEARNER_NAV = [
   { r:'home', label:'Dashboard', ic:'home' },
   { r:'report', label:'Your Report', short:'Report', ic:'chart' },
+  // Grade 9 learners only (see currentNav): the marks from their school report,
+  // which the assessments below use to see how ready they are for each subject.
+  // menuOnly: the phone's bottom bar keeps the five places it always had; this one
+  // is in the menu there, in the same spot -- above the assessments.
+  { r:'grade9-report', label:'Grade 9 Report Results', short:'Grade 9', ic:'clipboard', grade9Only:true, menuOnly:true },
   { r:'assessment', label:'Personality Assessment', short:'Personality', ic:'spark' },
   // Right after the personality assessment it builds on -- and inside the
   // first five entries, the ones the mobile bottom bar shows.
@@ -40,10 +45,12 @@ function currentNav(){
   if(IS_ADMIN && !PREVIEW_MODE) return ADMIN_NAV;
   const gate = learnerGate(LEARNER);
   if(gate) return GATED_NAV[gate];
+  // Entering Grade 9 report results is for Grade 9 learners only.
+  const nav = LEARNER_NAV.filter(n=>!n.grade9Only || (LEARNER && isGrade9Learner(LEARNER)));
   // The Subject Choice Assessment is for Grade 9 learners (and anyone who
   // already has a saved report) -- nobody else is offered it.
-  if(LEARNER && !subjectChoiceAvailable(LEARNER)) return LEARNER_NAV.filter(n=>n.r!=='subject-choice');
-  return LEARNER_NAV;
+  if(LEARNER && !subjectChoiceAvailable(LEARNER)) return nav.filter(n=>n.r!=='subject-choice');
+  return nav;
 }
 
 function navigate(route, param){
@@ -130,7 +137,7 @@ function topbarHTML(){
 }
 
 function bottomNavHTML(){
-  const nav = currentNav().slice(0,5);
+  const nav = currentNav().filter(n=>!n.menuOnly).slice(0,5);
   return nav.map(n=>`
     <button class="${ROUTE===n.r?'active':''}" onclick="navigate('${n.r}')">
       ${icon(n.ic)}<span>${n.short || n.label.split(' ')[0]}</span>

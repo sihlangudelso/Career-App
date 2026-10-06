@@ -442,6 +442,20 @@ work-style sliders, the 4-question quick start) goes through
 - Options carry `data-v` and sit in a `data-answer-group`; the look is in
   `style.css` under "Answer feedback" and "Snap slider". With "reduce motion" on,
   the movement is dropped and the pause shortens to 200 ms.
+- **Retaking starts clean.** "Retake assessment" (personality) and "Retake" (Subject
+  Choice) open a blank attempt: nothing pre-selected, from the first question. The
+  saved results are only replaced when the new attempt is finished and saved, so
+  leaving halfway keeps the old ones.
+
+### Navigation
+
+`LEARNER_NAV` in `js/render_shell.js` drives the sidebar, the phone's menu sheet and
+(its first five entries) the phone's bottom bar. **Grade 9 Report Results** sits above
+the two assessments for Grade 9 learners only (`grade9Only`): it is where the marks
+that the assessments use are entered. It is `menuOnly`, so the phone's bottom bar keeps
+the five places it always had (Dashboard, Report, Personality, Subjects, Career) and
+this one lives in the menu there, in the same spot; delete `menuOnly` to put it in the
+bar (it would push Career out).
 
 ### Admin preview
 
