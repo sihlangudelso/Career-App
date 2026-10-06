@@ -354,7 +354,151 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 .ov-k{font-size:11px;font-weight:700;color:var(--muted);}
 @media(max-width:640px){.ov-support{margin-left:0;}.ov-code{font-size:44px;}}
 
+/* ---------- Learner report (js/learner_report.js) ----------
+   One short report: a summary table, then six sections. The same markup is
+   used on screen and in the printed copy (.lr-print), which is tightened to
+   land at about 2-3 pages. Pills are light tints with dark text, like the
+   other badges, so they read in both themes. */
+.lr{max-width:900px;}
+.lr-sum{background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--indigo);border-radius:var(--radius-lg);padding:20px 22px 16px;margin:0 0 4px;box-shadow:var(--shadow-soft);}
+.lr-sum h2{font-size:19px;margin:0 0 6px;}
+.lr-sumtable{width:100%;border-collapse:collapse;}
+.lr-sumtable th,.lr-sumtable td{padding:12px 6px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;white-space:normal;}
+.lr-sumtable tr:last-child th,.lr-sumtable tr:last-child td{border-bottom:0;}
+.lr-sumtable th{width:40%;font-size:13.5px;font-weight:600;color:var(--muted);}
+.lr-sumtable td{font-size:15.5px;font-weight:700;}
+.lr-overall th{color:var(--ink);font-weight:700;}
+.lr-overall th,.lr-overall td{padding-top:15px;}
+.lr-pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:700;line-height:1.3;white-space:nowrap;}
+.lr-vs{background:var(--indigo);color:#fff;}
+.lr-s{background:var(--tint-violet);color:#4A2DB8;}
+.lr-m{background:var(--tint-blue);color:#2A3FB8;}
+.lr-l{background:var(--tint-pink);color:#9C2682;}
+.lr-na{background:#F1F2F6;color:#5E5A78;}
+.lr-pill.lr-fit{font-size:15px;padding:6px 16px;}
+.lr-pill.lr-fit.lr-s{background:var(--indigo);color:#fff;}
+.lr-note{font-size:12.5px;font-weight:500;color:var(--muted);margin-top:4px;}
+.lr-todo{font-weight:600;color:var(--muted);}
+.lr-foot{font-size:12.5px;color:var(--muted);margin:12px 0 0;}
+.lr-k{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.lr-sec{margin:26px 0 0;}
+.lr-sec > h2{display:flex;align-items:center;gap:10px;font-size:18px;margin:0 0 12px;}
+.lr-n{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--indigo);color:#fff;font-size:14px;font-weight:700;flex-shrink:0;}
+.lr-card{margin:0;}
+.lr-actions{margin-top:12px;}
+.lr-intro{margin:0 0 12px;}
+.lr-startlist{list-style:none;margin:0;padding:0;display:grid;gap:10px;}
+.lr-startlist li{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;}
+.lr-startlist b{display:block;}
+.lr-startlist span{display:block;font-size:13px;color:var(--muted);}
+/* 1 profile */
+.lr-type{display:flex;gap:18px;align-items:center;margin-bottom:12px;}
+.lr-code{font-family:var(--font-head);font-size:48px;font-weight:800;line-height:1;color:var(--indigo);flex-shrink:0;}
+.lr-typenames{font-weight:700;margin-bottom:2px;}
+.lr-typebody p{margin:0;font-size:14px;}
+.lr-dl{margin:0;display:grid;gap:12px;}
+.lr-dl dt{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.lr-dl dd{margin:0;font-size:14.5px;}
+/* 2 academic */
+.lr-src{font-size:12.5px;color:var(--muted);margin-bottom:10px;}
+.lr-bars{display:grid;gap:7px;margin-bottom:14px;}
+.lr-bar{display:grid;grid-template-columns:minmax(110px,38%) 1fr 44px;align-items:center;gap:10px;font-size:13.5px;}
+.lr-bn{font-weight:600;line-height:1.25;}
+.lr-bt{display:block;height:9px;border-radius:999px;background:var(--line);overflow:hidden;}
+.lr-bt i{display:block;height:100%;border-radius:999px;background:#A89CF0;}
+.lr-bar.top .lr-bt i{background:var(--indigo);}
+.lr-bar.low .lr-bt i{background:#F0A53A;}
+.lr-bp{text-align:right;font-weight:700;}
+.lr-two{gap:14px;}
+.lr-two > div{font-size:13.5px;}
+/* 3 subject fit */
+.lr-table{width:100%;border-collapse:collapse;}
+.lr-table th{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--line);white-space:normal;}
+.lr-table td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle;}
+.lr-table tbody tr:last-child td{border-bottom:0;}
+.lr-subject b{font-size:14.5px;}
+.lr-tag{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:middle;}
+/* 4 combination */
+.lr-combos{gap:14px;}
+.lr-combo{border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;}
+.lr-combo.best{border-color:var(--indigo);}
+.lr-combo-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+.lr-combo-k{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);}
+.lr-combo-n{font-weight:700;margin-bottom:8px;}
+.lr-why{font-size:13.5px;margin:10px 0 0;}
+/* 5 career areas: two columns where there is room */
+.lr-areas{display:grid;grid-template-columns:1fr;gap:10px;}
+@media(min-width:700px){.lr-areas{grid-template-columns:1fr 1fr;}}
+.lr-area{margin:0;padding:14px 16px;}
+.lr-area-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px;}
+.lr-area-h b{font-size:15.5px;}
+.lr-area-o{margin:0 0 8px;font-size:13.5px;color:var(--muted);}
+.lr-area-m{font-size:13.5px;margin-top:3px;}
+.lr-area-m span{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-right:6px;}
+/* 6 final */
+.lr-fin{margin-bottom:14px;}
+.lr-fin p{margin:0 0 6px;}
+.lr-steps{margin:4px 0 0;padding-left:20px;}
+.lr-steps li{margin-bottom:8px;}
+.lr-act{display:inline-block;margin-left:6px;}
+.lr-more{margin-top:26px;padding-top:16px;border-top:1px dashed var(--line);}
+.lr-morelinks{display:flex;flex-wrap:wrap;gap:8px;}
+.lr-print-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.lr-print-head h1{font-size:22px;margin:0;}
+@media(max-width:640px){
+  .lr-sum{padding:16px 16px 12px;}
+  .lr-code{font-size:40px;}
+  .lr-type{gap:14px;}
+  .lr-bar{grid-template-columns:minmax(96px,40%) 1fr 40px;gap:8px;}
+  .lr-table thead{display:none;}
+  .lr-table,.lr-table tbody{display:block;width:100%;}
+  .lr-table tr{display:flex;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line);}
+  .lr-table tbody tr:last-child{border-bottom:0;}
+  .lr-table td{display:block;width:50%;border:0;padding:5px 0;}
+  .lr-table td::before{content:attr(data-label);display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:3px;}
+  .lr-table td.lr-subject{width:100%;padding-bottom:6px;}
+  .lr-table td.lr-subject::before{content:none;}
+  .lr-startlist li{flex-direction:column;align-items:stretch;}
+}
+/* The printed copy: tighter, so the report lands at about 2-3 pages. */
+.lr-print{max-width:none;font-size:12px;line-height:1.4;}
+.lr-print .lr-sum{box-shadow:none;padding:14px 16px;}
+.lr-print .lr-sec{margin-top:12px;}
+.lr-print .lr-sec > h2{font-size:15px;margin-bottom:8px;}
+.lr-print .lr-n{width:22px;height:22px;font-size:12px;}
+.lr-print .card{padding:10px 12px;box-shadow:none;margin-bottom:6px;}
+.lr-print .lr-bars{gap:4px;margin-bottom:10px;}
+.lr-print .lr-bar{font-size:11.5px;gap:8px;}
+.lr-print .lr-table td{padding:6px;}
+.lr-print .lr-code{font-size:36px;}
+.lr-print .lr-areas{grid-template-columns:1fr 1fr;gap:8px;}
+.lr-print .lr-area{padding:9px 11px;}
+.lr-print .lr-area-o{font-size:11.5px;margin-bottom:5px;}
+.lr-print .lr-area-m{font-size:11.5px;}
+.lr-print .lr-bars.many{grid-template-columns:1fr 1fr;column-gap:20px;}
+.lr-print .lr-dl{grid-template-columns:1fr 1fr;gap:8px 18px;}
+.lr-print .lr-dl > div:last-child:nth-child(3){grid-column:1 / -1;}
+.lr-print .lr-table td{padding:4px 6px;}
+.lr-print .lr-foot{margin-top:8px;font-size:11px;}
+.lr-print .lr-combo{padding:10px 12px;}
+.lr-print .lr-why{font-size:12px;margin-top:6px;}
+.lr-print .disclaimer{font-size:11px;padding:8px 12px;margin-top:12px;}
+.lr-print .lr-fin{margin-bottom:6px;}
+.lr-print .lr-fin p{margin-bottom:3px;}
+.lr-print .lr-steps li{margin-bottom:3px;}
+.lr-print .lr-type{margin-bottom:8px;gap:12px;}
+.lr-print .lr-sumtable th,.lr-print .lr-sumtable td{padding:6px 6px;}
+.lr-print .lr-sum h2{font-size:16px;margin-bottom:2px;}
+@media print{
+  @page{size:A4;margin:14mm;}
+  .lr-sec,.lr-sum,.lr-area,.lr-combo{break-inside:avoid;}
+  .lr-pill,.lr-n,.lr-bt i,.lr-vs,.lr-fit{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
 /* ---------- Mobile ---------- */
+/* The bottom bar is a phone/tablet control: it has no styling of its own on a wide screen,
+   so without this its buttons showed up, unstyled, at the foot of every page. */
+.bottom-nav{display:none;}
 @media(max-width:900px){
   .app-shell{flex-direction:column;}
   .sidebar{display:none;}

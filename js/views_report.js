@@ -1,16 +1,17 @@
 /* ---------------- Your Career & Subject Choice Report ---------------- */
-// One report, organised as in-page tabs (not six separate nav items),
-// matching the navigation structure asked for: Overview / My Profile /
-// Career Pathways / Careers / Subjects / Next Steps. Each tab is added in
-// its own phase as it's built -- REPORT_TABS grows as the report does.
-const REPORT_TABS = [
-  { id:'overview', label:'Overview' },
-  { id:'profile', label:'My Profile' },
-  { id:'pathways', label:'Career Pathways' },
-  { id:'careers', label:'Careers' },
-  { id:'academic', label:'Academic Strengths' },
-  { id:'subjects', label:'Subjects' },
-  { id:'next-steps', label:'Next Steps' },
+// The report is ONE short page -- a summary table and six sections, built by
+// js/learner_report.js. The longer views that used to be tabs (career
+// pathways, careers, academic strengths, subjects, profile, next steps) are
+// still here, one step away from the "More detail" row at the bottom, and
+// navigate('report', <id>) still opens each. The printed copy is only the
+// short report.
+const REPORT_DETAILS = [
+  { id:'profile', label:'My Profile', sub:'Your results, interests and work style in one picture.' },
+  { id:'pathways', label:'Career Pathways', sub:'Broad fields that fit you, before specific careers.' },
+  { id:'careers', label:'Careers Worth Exploring', sub:'Several careers worth a look — not a single best answer.' },
+  { id:'academic', label:'Academic Strengths', sub:'Your entered results and what they mean for your pathways.' },
+  { id:'subjects', label:'Subjects', sub:'What your top pathways rely on, and the subjects you are leaning toward.' },
+  { id:'next-steps', label:'Next Steps', sub:'A personalised list of what to do next.' },
 ];
 // Display metadata for buildSubjectRelevanceTiers' 4 tiers -- never
 // implies an optional subject is compulsory; each label is distinct from
@@ -24,62 +25,37 @@ const SUBJECT_TIER_META = {
 
 function viewReport(){
   const l = ensureLearnerObj();
-  const tab = (ROUTE_PARAM && REPORT_TABS.some(t=>t.id===ROUTE_PARAM)) ? ROUTE_PARAM : 'overview';
-  const body =
-    tab==='overview' ? reportOverviewHTML(l) :
-    tab==='profile' ? learnerProfileBodyHTML(l) :
-    tab==='pathways' ? reportPathwaysHTML(l) :
-    tab==='careers' ? reportCareersHTML(l) :
-    tab==='academic' ? reportAcademicHTML(l) :
-    tab==='subjects' ? reportSubjectsHTML(l) :
-    tab==='next-steps' ? reportNextStepsHTML(l) :
-    reportOverviewHTML(l);
+  const R = buildLearnerReport(l);
+  const detail = REPORT_DETAILS.filter(function(d){ return d.id === ROUTE_PARAM; })[0];
+  if(detail){
+    const body = detail.id === 'profile' ? learnerProfileBodyHTML(l)
+      : detail.id === 'pathways' ? reportPathwaysHTML(l)
+      : detail.id === 'careers' ? reportCareersHTML(l)
+      : detail.id === 'academic' ? reportAcademicHTML(l)
+      : detail.id === 'subjects' ? reportSubjectsHTML(l)
+      : reportNextStepsHTML(l);
+    return `
+    ${pageHeadHTML(detail.label, detail.sub)}
+    <button class="btn btn-ghost btn-sm" style="margin-bottom:18px;" onclick="navigate('report')">← Back to your report</button>
+    ${body}
+    <div class="print-only">${reportPrintHTML(l, R)}</div>`;
+  }
   return `
-  ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point for exploring careers and ' + nextSubjectsPhrase(l) + ' — not a prediction of your future.')}
-  <div class="filter-bar" style="margin-bottom:10px;">
-    ${REPORT_TABS.map(t=>`<button class="chip-select ${tab===t.id?'on':''}" onclick="navigate('report','${t.id}')">${esc(t.label)}</button>`).join('')}
-  </div>
-  <button class="btn btn-ghost btn-sm" style="margin-bottom:18px;" onclick="window.print()">${icon('download')} Print / Save as PDF</button>
-  ${body}
-  <div class="print-only">${reportPrintHTML(l)}</div>`;
+  ${pageHeadHTML('Your Career & Subject Choice Report', 'A starting point, not a prediction of your future.')}
+  ${reportIdentityHTML(l, false)}
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:6px;" onclick="window.print()">${icon('download')} Print / Save as PDF</button>
+  ${learnerReportHTML(l, R)}
+  ${reportMoreDetailHTML(l, R)}
+  <div class="print-only">${reportPrintHTML(l, R)}</div>`;
 }
 
-// Part 1 — report header: learner name/grade/school/assessment date + the
-// required non-deterministic-sounding intro sentence. Shown once, at the
-// top of Overview, not repeated on every tab (the tab bar above already
-// makes clear this is all one report).
-function reportHeaderHTML(l){
+// Slim one-line identity: name, grade, school and when the personality assessment was done.
+function reportIdentityHTML(l, withName){
   const dateStr = l.assessmentCompletedAt
     ? new Date(l.assessmentCompletedAt).toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' })
     : null;
-  return `
-  <div class="card" style="margin-bottom:18px;">
-    <div class="grid grid-3">
-      <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Learner</div><div style="font-weight:700;">${esc(ME.name||'You')}</div></div>
-      <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Grade</div><div style="font-weight:700;">${l.grade?('Grade '+l.grade):'—'}</div></div>
-      <div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">School</div><div style="font-weight:700;">${esc(l.school||'—')}</div></div>
-    </div>
-    ${dateStr?`<div class="page-sub" style="margin-top:10px;">Personality assessment completed ${esc(dateStr)}</div>`:''}
-    <p style="margin:12px 0 0;">Your results combine your interests, working style and academic performance to help you explore career pathways and make more informed ${isGrade9Learner(l) ? 'Grade 10 ' : ''}subject choices.</p>
-  </div>`;
-}
-
-// Part 10 — Overview: the one page that pulls the report together. It
-// leads with the three things a learner most wants to know -- their Grade
-// 10 subject recommendations, their personality type and their best-suited
-// careers -- then explains how those fit together, and everything else in
-// the report follows. Each block reads from ONE canonical source, and says
-// which: subjects from the Subject Choice Assessment, personality type from
-// the personality assessment (personalityTypeInfo), careers from the same
-// bestSuitedCareers() ranking the Career Matches page uses. Never a separate,
-// potentially-drifting summary calculation.
-
-// Slim one-line identity (the large header card above is kept for print).
-function reportIdentityHTML(l){
-  const dateStr = l.assessmentCompletedAt
-    ? new Date(l.assessmentCompletedAt).toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' })
-    : null;
-  const parts = [ME.name || 'You', l.grade ? ('Grade ' + l.grade) : null, l.school || null].filter(Boolean);
+  // On screen the avatar chip beside the title already shows the name; the printed copy needs it.
+  const parts = [withName === false ? null : (ME.name || 'You'), l.grade ? ('Grade ' + l.grade) : null, l.school || null].filter(Boolean);
   return `<div class="page-sub ov-identity">${esc(parts.join(' · '))}${dateStr ? ' · Personality assessment completed ' + esc(dateStr) : ''}</div>`;
 }
 
@@ -113,161 +89,12 @@ function careerSupportLineHTML(sup){
   </div>`;
 }
 
-// Top subject matches as rows (name, category, match %), shared by the
-// Overview and the Subjects tab so they can never list different subjects.
+// Top subject matches as rows (name, category, match %), used by the Subjects
+// page so it lists the same subjects as the Subject Choice report.
 function recommendedSubjectRowsHTML(rep){
   return rep.top.length
     ? rep.top.map(r=>`<div class="ov-item"><div><b>${esc(r.label)}</b><div class="ov-sub"><span class="badge ${r.category.badge}">${esc(r.category.label)}</span></div></div><div class="ov-pct">${Math.round(r.fit.overall)}%</div></div>`).join('')
     : `<p class="page-sub" style="margin:0 0 6px;">No subject stood out strongly this time — your full subject report shows what is worth exploring.</p>`;
-}
-
-function overviewSubjectsHTML(l, src){
-  const g9 = isGrade9Learner(l);
-  // A Grade 9 learner's Grade 10 recommendations. For anyone else, before they
-  // have a saved Subject Choice report, this block is the subjects their best
-  // careers rely on -- named as that, not as a personal recommendation.
-  const generic = (src.kind === 'provisional' || src.kind === 'none') && !g9;
-  const heading = generic ? 'Subjects your top careers rely on' : (g9 ? 'Grade 10 subject recommendations' : 'Subject recommendations');
-  const title = (badge)=>`<div class="section-title" style="margin-top:0;"><h2>${heading}</h2>${badge}</div>`;
-  if(src.kind === 'assessment'){
-    const rep = src.report;
-    return `${title('<span class="badge badge-good">From your Subject Choice Assessment</span>')}
-    <div class="card" style="margin-bottom:6px;">
-      ${recommendedSubjectRowsHTML(rep)}
-      <p class="ov-math"><b>Mathematics or Mathematical Literacy:</b> ${esc(scMathLeanLabel(rep.mathChoice))}</p>
-      <button class="btn btn-ghost btn-sm" onclick="navigate('subject-choice')">See your full subject report</button>
-    </div>`;
-  }
-  if(src.kind === 'needsPersonality'){
-    return `${title('')}
-    <div class="card"><p>Your Subject Choice answers are saved. Take the personality assessment to see your ${g9 ? 'Grade 10 subject' : 'subject'} recommendations — it only takes a few minutes.</p>
-      <button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button></div>`;
-  }
-  if(src.kind === 'provisional'){
-    const canTake = subjectChoiceAvailable(l);
-    const extra = canTake
-      ? ' The Subject Choice Assessment gives a personalised recommendation based on what you enjoy, how you work and how you are performing.'
-      : (l.exploringOnly ? ' The Subject Choice Assessment is for Grade 9 learners choosing Grade 10 subjects.' : '');
-    const action = canTake
-      ? `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Take the Subject Choice Assessment</button>`
-      : (l.exploringOnly ? `<button class="btn btn-ghost btn-sm" onclick="navigate('profile')">Set up a school-learner profile</button>` : '');
-    return `${title('<span class="badge badge-explore">' + (g9 ? 'Based on your career pathways so far' : 'From your career pathways') + '</span>')}
-    <div class="card">
-      ${src.list.slice(0, 5).map(s=>`<div class="ov-item"><div><b>${esc(s.subject)}</b><div class="ov-sub page-sub">${esc(SUBJECT_TIER_META[s.tier].label)}</div></div></div>`).join('')}
-      <p class="page-sub" style="margin:10px 0;">These are the subjects your strongest career pathways lean on.${extra}</p>
-      ${action}
-    </div>`;
-  }
-  // nothing to base a list on yet
-  return `${title('')}
-  <div class="card"><p class="page-sub" style="margin:0 0 10px;">${g9
-      ? 'Your Grade 10 subject recommendations will appear here once you have added your results and taken the Subject Choice Assessment.'
-      : 'The subjects your best-suited careers rely on will appear here once you have taken the personality assessment.'}</p>
-    ${g9
-      ? `<button class="btn btn-primary btn-sm" onclick="navigate('subject-choice')">Start the Subject Choice Assessment</button>`
-      : `<button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button>`}</div>`;
-}
-
-function overviewPersonalityHTML(l){
-  const p = personalityTypeInfo(l);
-  const title = `<div class="section-title"><h2>Your personality type</h2></div>`;
-  if(!p){
-    return `${title}<div class="card"><p class="page-sub" style="margin:0 0 10px;">Take the personality assessment to discover your type — it also shapes your career matches.</p>
-      <button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button></div>`;
-  }
-  return `${title}
-  <div class="card">
-    <div class="ov-type">
-      <div class="ov-code">${esc(p.code)}</div>
-      <div style="flex:1;min-width:200px;">
-        <div class="ov-names">${esc(p.top[0].name)} · ${esc(p.top[1].name)}</div>
-        <p style="margin:0;">${esc(p.summary)}</p>
-      </div>
-    </div>
-    ${p.strengths.length ? `<div class="ov-label">Your top strengths</div><div class="pill-list">${p.strengths.map(s=>`<span class="pill rec">${esc(s.label)}</span>`).join('')}</div>` : ''}
-    <p class="page-sub" style="margin:12px 0 10px;">A starting point for exploring careers, not a fixed label.</p>
-    <button class="btn btn-ghost btn-sm" onclick="navigate('report','profile')">See your full profile</button>
-  </div>`;
-}
-
-function overviewCareersHTML(l, matches, rep){
-  const title = `<div class="section-title"><h2>Best-suited careers</h2></div>`;
-  if(!l.assessmentCompletedAt || !matches.length){
-    return `${title}<div class="card"><p class="page-sub" style="margin:0 0 10px;">Take the personality assessment to see careers matched to your interests, strengths and results.</p>
-      <button class="btn btn-primary btn-sm" onclick="navigate('assessment')">Take the personality assessment</button></div>`;
-  }
-  return `${title}
-  ${matches.map(m=>`<div class="ov-career">${careerRowHTML(m.career, m.score, l, m.category, { route:'report', param:'overview' })}${rep ? careerSupportLineHTML(careerSubjectSupport(m.career, rep)) : ''}</div>`).join('')}
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-    <button class="btn btn-ghost btn-sm" onclick="navigate('matches')">See all career matches</button>
-    <button class="btn btn-ghost btn-sm" onclick="navigate('report','careers')">Careers in your strongest pathways</button>
-  </div>`;
-}
-
-function overviewFitHTML(sentences){
-  if(!sentences.length) return '';
-  return `<div class="section-title"><h2>How these fit together</h2></div>
-  <div class="card">${sentences.map((s, i)=>`<p style="margin:0 0 ${i === sentences.length - 1 ? 0 : 8}px;">${esc(s)}</p>`).join('')}</div>`;
-}
-
-// The three headline blocks + how they fit together. Shared by the
-// Overview tab and the printed report.
-function reportOverviewCoreHTML(l){
-  const src = reportSubjectSource(l);
-  const rep = src.kind === 'assessment' ? src.report : null;
-  const matches = l.assessmentCompletedAt ? bestSuitedCareers(l, 5) : [];
-  const fit = rep ? reconcileCareersAndSubjects(matches, rep) : [];
-  return `${overviewSubjectsHTML(l, src)}${overviewPersonalityHTML(l)}${overviewCareersHTML(l, matches, rep)}${overviewFitHTML(fit)}`;
-}
-
-function reportOverviewHTML(l){
-  const identity = reportIdentityHTML(l);
-  const topDomains = computeStrengthDomains(l).filter(d=>d.hasEvidence).slice(0,3);
-  if(!topDomains.length && !scHasSavedAnswers(l)){
-    const entry = resultsEntryLinkHTML(l);
-    return `${identity}<div class="empty-state">${icon('target')}<p>Complete the <a href="#" onclick="navigate('assessment');return false;">personality assessment</a>${entry ? ' or enter your ' + entry : ''} to build your report.</p></div>`;
-  }
-  const pathways = computePathwayMatches(l).filter(p=>p.alignment!=null).slice(0,3);
-  const guidanceNeeded = isGuidanceRequired(l);
-
-  let attentionMsg = '', attentionAction = '';
-  if(guidanceNeeded){
-    const top = pathways[0];
-    const conflict = top && subjectConflictForFaculty(l, top.faculty.id);
-    if(conflict && conflict.hasConflict){
-      attentionMsg = conflict.reason;
-    } else if(!l.intendedSubjects || !l.intendedSubjects.length){
-      attentionMsg = 'You haven’t noted which Grade 10 subjects you’re leaning toward yet — add them in the Subjects tab of this report so we can check they support your strongest pathways.';
-      attentionAction = `<br/><button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="navigate('report','subjects')">Add my subjects</button>`;
-    } else {
-      attentionMsg = 'Your current results suggest one of your strongest pathways could use some academic support — see the Subjects and Academic Strengths sections for details.';
-    }
-  }
-
-  return `
-  ${identity}
-  ${reportOverviewCoreHTML(l)}
-
-  <div class="section-title"><h2>More from your report</h2></div>
-  ${topDomains.length ? `
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Your strongest areas</h3>
-    <p class="page-sub" style="margin-bottom:10px;">Where your results and interests are strongest together:</p>
-    <div class="pill-list">${topDomains.map(d=>`<span class="pill rec">${esc(d.domain.name)}</span>`).join('')}</div>
-  </div>` : ''}
-
-  ${pathways.length ? `
-  <div class="card" style="margin-bottom:18px;">
-    <h3>Your strongest pathways</h3>
-    ${pathways.map(p=>{ const al=alignmentLabel(p.alignment); return `<div class="kv"><b>${esc(p.faculty.name)}</b><span class="badge ${al.c}">${esc(al.t)}</span></div>`; }).join('')}
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="navigate('report','pathways')">See all pathways</button>
-  </div>` : ''}
-
-  ${guidanceNeeded ? `
-  <div class="disclaimer warn" style="margin-bottom:18px;">${icon('warn','ic')}<div><b>1 area needs your attention</b><br/>${esc(attentionMsg)}${attentionAction}</div></div>` : ''}
-
-  <button class="btn btn-primary" onclick="navigate('report','profile')">${icon('chevron')} View Full Report</button>
-  `;
 }
 
 // Part 3/4 — "Career Areas That Align With You" + "Why this pathway
@@ -490,28 +317,16 @@ function reportNextStepsHTML(l){
   `;
 }
 
-// Part 6 — the structured, printable full report (native browser
-// print-to-PDF via the @media print rules in style.css, not a
-// screenshot-based library): every section concatenated in one
-// document, always present in the DOM but hidden on screen (.print-only)
-// and shown only when printing, so "Print / Save as PDF" captures the
-// whole report in one go regardless of which tab is currently open.
-function reportPrintHTML(l){
-  const sections = [
-    { title:'Overview', html: reportOverviewCoreHTML(l) },
-    { title:'Your Profile', html: learnerProfileBodyHTML(l) },
-    { title:'Career Pathways', html: reportPathwaysHTML(l) },
-    { title:'Careers Worth Exploring', html: reportCareersHTML(l) },
-    { title:'Your Academic Strengths', html: reportAcademicHTML(l) },
-    { title: isGrade9Learner(l) ? 'Subjects to Consider for Grade 10' : 'Subjects to Consider', html: reportSubjectsHTML(l) },
-    { title:'Your Next Steps', html: reportNextStepsHTML(l) },
-  ];
+// The printed copy is just the short report (about 2-3 pages): always in the
+// page but hidden on screen (.print-only), and shown only when printing, so
+// "Print / Save as PDF" captures the report whichever page is open. The
+// longer views are not part of it.
+function reportPrintHTML(l, R){
+  R = R || buildLearnerReport(l);
   return `
-  <div style="text-align:center;margin-bottom:24px;">
+  <div class="lr-print-head">
     <img class="brand-mark-img" src="assets/logo-mark.png" alt="Iroli"/>
-    <h1>Your Career &amp; Subject Choice Report</h1>
+    <div><h1>Your Career &amp; Subject Choice Report</h1>${reportIdentityHTML(l)}</div>
   </div>
-  ${reportHeaderHTML(l)}
-  ${sections.map(s=>`<h2 style="margin-top:28px;">${esc(s.title)}</h2>${s.html}`).join('')}
-  `;
+  ${learnerReportHTML(l, R, { print:true })}`;
 }

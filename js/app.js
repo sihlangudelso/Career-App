@@ -870,7 +870,7 @@ function facultyAlignmentFit(learner, facultyId){
   // genuine interest signal. Every FACULTIES entry has careers, so the
   // array-length guard above never caught this; the real gate is whether
   // the learner has actually completed the assessment. Every consumer of
-  // this (reportOverviewHTML/reportPathwaysHTML/reportCareersHTML/
+  // this (buildLearnerReport/reportPathwaysHTML/reportCareersHTML/
   // reportAcademicHTML/reportSubjectsHTML) already correctly filters on
   // `alignment!=null` -- they just never saw a real null to filter on.
   const alignment = learner.assessmentCompletedAt ? avg(evals.map(e=>e.interestFit)) : null;
@@ -983,10 +983,10 @@ function hollandCode(riasec){
 }
 // The learner's personality type, in one place: the two strongest RIASEC
 // dimensions from the personality assessment (their Holland code), with
-// plain-language names and their top strengths. Used by the report
-// overview, the assessment results page and the subject choice report so
-// they can never describe the same learner differently. Null until the
-// personality assessment is done.
+// plain-language names and their top strengths. Used by the learner report,
+// the assessment results page and the subject choice report so they can
+// never describe the same learner differently. Null until the personality
+// assessment is done.
 function personalityTypeInfo(l){
   if(!l || !l.riasec || !l.assessmentCompletedAt) return null;
   const code = hollandCode(l.riasec);
@@ -1134,12 +1134,12 @@ function buildSubjectRelevanceTiers(learner){
   }
   return tiers;
 }
-// Shared "does this learner need extra guidance right now" check -- used
-// both by the learner's own Overview ("1 area needs your attention") and
-// the school dashboard's per-learner flag, so there's one definition, not
-// two. Never fires before the assessment is done -- that's a
-// data-completeness gap, not a guidance one; there's nothing concrete to
-// flag yet.
+// Shared "does this learner need extra guidance right now" check -- the
+// school dashboard's per-learner flag. (The learner's own report raises the
+// same subject-career conflict through subjectConflictForFaculty, in its
+// next steps, so there is still one definition of a conflict, not two.)
+// Never fires before the assessment is done -- that's a data-completeness
+// gap, not a guidance one; there's nothing concrete to flag yet.
 function isGuidanceRequired(learner){
   if(!learner.assessmentCompletedAt) return false;
   const top = computePathwayMatches(learner)[0];
@@ -1159,13 +1159,13 @@ function buildNextSteps(learner){
   const pathways = computePathwayMatches(learner).filter(p=>p.alignment!=null).slice(0,3);
   if(pathways.length) steps.push(`Explore your top ${pathways.length===1?'pathway':'pathways'}: ${pathways.map(p=>p.faculty.name).join(', ')}.`);
   const matches = bestSuitedCareers(learner, 3);
-  if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} — your best-suited careers on the Overview.`);
+  if(matches.length) steps.push(`Read more about ${matches.map(m=>m.career.name).join(', ')} — your best-suited careers, listed in your report.`);
   if(subjectChoiceAvailable(learner)){
     if(learner.subjectChoice && learner.subjectChoice.completedAt) steps.push('Read your Subject Choice report and talk it through with your Life Orientation teacher or subject counsellor.');
     else steps.push('Take the Subject Choice Assessment for a personalised look at which Grade 10 subjects fit you.');
   }
   if(learner.intendedSubjects && learner.intendedSubjects.length) steps.push('Review your intended ' + nextSubjectsPhrase(learner) + ' against the pathways above.');
-  else steps.push('Note down which ' + nextSubjectsPhrase(learner) + ' you’re currently leaning toward, in the Subjects tab of your report.');
+  else steps.push('Note down which ' + nextSubjectsPhrase(learner) + ' you’re currently leaning toward — in your report under More detail, Subjects.');
   const conflict = pathways[0] && subjectConflictForFaculty(learner, pathways[0].faculty.id);
   if(conflict && conflict.hasConflict) steps.push('Discuss your subject choice with a teacher, parent or career adviser before finalising it.');
   const profile = buildAcademicProfile(learner);

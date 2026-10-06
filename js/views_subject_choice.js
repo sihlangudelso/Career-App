@@ -206,12 +206,13 @@ function subjectChoiceReportHTML(l){
   const m = rep.mathChoice;
   const mathLean = scMathLeanLabel(m);
   const pti = personalityTypeInfo(l);
-  // The same best-suited careers (and explanation) as the report overview,
+  // The same best-suited careers (and explanation) as the learner report,
   // so the two pages can't name different careers for the same learner.
   const matches = bestSuitedCareers(l, 5);
   const fit = reconcileCareersAndSubjects(matches, rep);
   return `
   ${pageHeadHTML('Your Subject Choice Report', 'Based on what you enjoy, how you naturally work and how you are currently performing.')}
+  <button class="btn btn-ghost btn-sm" style="margin-bottom:14px;" onclick="navigate('report')">← See your summary report</button>
   ${!rep.ready.complete ? `<p class="page-sub" style="margin-bottom:14px;">This report uses the ${rep.answered} of ${rep.total} questions you answered. The question set has grown since you took it — retake to include everything.</p>` : ''}
 
   <div class="section-title"><h2>1. Your subject choice profile</h2></div>

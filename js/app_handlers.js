@@ -329,8 +329,8 @@ const App = {
       navigate('assessment'); focusPageHeading();
       return;
     }
-    toast('Your subject results are ready!');
-    navigate('subject-choice'); focusPageHeading();
+    toast('Your report is ready!');
+    navigate('report'); focusPageHeading();
   },
 
   // ---- Grade 9 report results + work style ----
@@ -463,11 +463,11 @@ const App = {
       return;
     }
     ASSESSMENT_DRAFT = null;
-    // The Subject Choice report needs this assessment -- if they were sent
-    // here from it, take them straight back to their subject results.
+    // The subject results need this assessment -- if they were sent here from
+    // the Subject Choice Assessment, take them straight to their report.
     if(firstCompletion && LEARNER && LEARNER.subjectChoice && LEARNER.subjectChoice.completedAt){
-      toast('Personality assessment complete — here are your subject results!');
-      navigate('subject-choice');
+      toast('Personality assessment complete — your report is ready!');
+      navigate('report');
       return;
     }
     render();

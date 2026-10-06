@@ -598,7 +598,9 @@ function scBuildProfile(answers, results){
     families: fams.map(function(f){ return { id: f, label: SC_FAMILIES[f].label, score: famScores[f] }; }),
   };
 }
-function scBuildWorkOn(focusResults){
+// Practice tips for the learning areas the recommended subjects build on --
+// only where a mark is under the line. Empty when there is nothing to work on.
+function scWorkOnTips(focusResults){
   const byArea = {};
   focusResults.forEach(function(r){
     r.academic.weakAreas.forEach(function(w){
@@ -611,6 +613,12 @@ function scBuildWorkOn(focusResults){
     .sort(function(a, b){ return a.pct - b.pct; })
     .slice(0, SC_CONFIG.report.workOnMax)
     .map(function(a){ return SC_AREA_TIPS[a.area] + ' This matters for ' + scJoin(a.subjects.slice(0, 3)) + '.'; });
+  return tips;
+}
+// The same tips, or -- when there are none -- a reassurance (only when there
+// are marks to base it on) or a prompt to add marks.
+function scBuildWorkOn(focusResults){
+  const tips = scWorkOnTips(focusResults);
   if(!tips.length){
     // Only reassure when there are marks to base it on.
     const withMarks = focusResults.filter(function(r){ return r.academic.score != null; });
@@ -681,6 +689,7 @@ function buildSubjectChoiceReport(learner){
     mathChoice: mathChoice,
     combos: combos,
     workOn: scBuildWorkOn(focus),
+    workOnTips: scWorkOnTips(focus),
     careers: getCareerPathwaysForSubjects(focusIds, results),
     traits: personality.traits,
   };

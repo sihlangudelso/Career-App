@@ -225,6 +225,8 @@ js/
   data.js                 careers, faculties, assessment questions, subjects
   app.js                  auth bootstrap, Postgres data layer, matching engine
   auth-ui.js              sign-in / sign-up screen
+  learner_report.js       the learner report: a summary table + six sections (the model, and the
+                          screen and printed markup)
   answer_inputs.js        how an answer feels: the pick animation, the pause before the next
                           question, and the touch-first snap slider (see below)
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
@@ -272,6 +274,36 @@ came from the original specification are kept as written (see the comment above
 as breaking a "never say cannot" rule — it is the owner's own reassurance. Check
 the spec before rewording any of it.
 
+### The learner report
+
+**Your Report** is one short report — about 2–3 printed pages — in this fixed
+shape: a headline **summary table** (best-fit subjects, academic readiness,
+interest alignment, personality alignment, overall recommendation), then
+1 Learner Profile, 2 Academic Snapshot, 3 Subject Fit, 4 Recommended Subject
+Combination, 5 Career Pathways, 6 Final Recommendation & Action. The longer
+views that used to be tabs (career pathways, careers, academic strengths,
+subjects, profile, next steps) are one step away under "More detail", and the
+printed copy is only the short report.
+
+It scores nothing itself. `buildLearnerReport(l)` in `js/learner_report.js`
+gathers everything from the code that already owns it — `personalityTypeInfo`,
+`buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit, combinations),
+`bestSuitedCareers` (the example careers, in the same order as Career Matches) —
+into one plain object, and `learnerReportHTML` draws it for screen and print, so
+it cannot disagree with the rest of the app. The words (Very Strong / Strong /
+Moderate / Low) and their cut-offs are `LR_CONFIG` at the top of that file.
+
+Two rules worth knowing:
+- **A strong blend never hides a weak side.** "Strong" overall needs no part to be
+  Low/Developing; otherwise it reads "Moderate Fit" with a note (strong interest
+  with results still developing is "build the foundation", not a plain strong fit).
+- **Every learner gets a report that fits them.** Grade 9 with a finished Subject
+  Choice Assessment gets all six sections; a Grade 10–12 or exploring learner has no
+  "Recommended Subject Combination" and sees the subjects their careers rely on
+  instead; someone with nothing done yet sees a "Start here" card, never an empty
+  table. Finishing the Subject Choice or personality assessment lands on the report;
+  the Subject Choice Assessment keeps its own detailed subject-by-subject page.
+
 ### One story across the app (please keep it that way)
 
 A learner is shown their personality type, best careers and Grade 10 subjects
@@ -285,6 +317,7 @@ re-derive them:
 | Personality type (e.g. `IR`) | `personalityTypeInfo(l)` — top two RIASEC dimensions from the **Personality Assessment** | `js/app.js` |
 | Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first). **Empty until the personality assessment is done**: before it every career ties, so a "top three" would be arbitrary | `js/app.js` |
 | Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list ("the subjects your top careers rely on" for anyone who is not in Grade 9) | `js/views_report.js` |
+| The learner report | `buildLearnerReport(l)` — the summary table and six sections, built only from the rows above | `js/learner_report.js` |
 | Who sees what | `isGrade9Learner`, `subjectChoiceAvailable`, `learnerGate` (profile / activation screen), `resultsEntryLinkHTML` (where a learner adds marks) | `js/app.js` |
 | How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
 
