@@ -14,15 +14,18 @@
      Overall         <- weighted mix of the three (SC_CONFIG.weights)
 
    To add a subject: add it to SC_SUBJECTS, give it questions in
-   SC_QUESTIONS (weights can also spread onto other subjects), and
+   SC_BANK (weights can also spread onto other subjects) and put at least
+   one of them in SC_ASKED_IDS so learners are asked it, and
    (optionally) add it to a combination in SC_COMBOS.
    ============================================================ */
 
 const SC_CONFIG = {
-  // Bump when the question bank changes in a way old answers shouldn't be
-  // blended with (stored alongside a learner's answers).
-  bankVersion: 1,
-  questionsPerPage: 6,
+  // Stored alongside a learner's answers: 1 = every question in SC_BANK was asked
+  // (113); 2 = the shorter set in SC_ASKED_IDS. Both are scored together, so
+  // answers from an earlier version still count and nothing needs migrating.
+  // Bump it again if the questions change in a way old answers should not be
+  // blended with.
+  bankVersion: 2,
   scaleLabels: ['Definitely not me', 'Not really me', 'Sometimes me', 'Mostly me', 'Definitely me'],
 
   // Overall subject score = interest*0.40 + personality*0.25 + academic*0.35.
@@ -511,8 +514,10 @@ const SC_COMBOS = [
    numbers = a weaker link). `trait` is the underlying interest the
    question reveals (must be one of its main subject's interestTraits,
    except the general questions).
+   The whole bank is used for scoring, but a learner is only ASKED the
+   questions in SC_ASKED_IDS, below the bank.
    ------------------------------------------------------------ */
-const SC_QUESTIONS = [
+const SC_BANK = [
   // ---- Languages / English
   { id: 'q_lang_01', trait: 'Reading', text: 'Do you enjoy reading stories, articles or things that make you think?', weights: { languages: 1, history: 0.4, socialSciences: 0.3, dramaticArts: 0.2 } },
   { id: 'q_lang_02', trait: 'Argument', text: 'If you disagree with someone, do you enjoy explaining your side clearly?', weights: { languages: 1, history: 0.5, socialSciences: 0.3, businessStudies: 0.3, economics: 0.2 } },
@@ -674,7 +679,27 @@ const SC_QUESTIONS = [
 // A question's "main" subject (the one with weight 1), or 'general' if it
 // spreads across several. Used only to shuffle questions so no two about
 // the same subject sit next to each other.
-SC_QUESTIONS.forEach(function(q){
+SC_BANK.forEach(function(q){
   const main = Object.keys(q.weights).find(function(k){ return q.weights[k] === 1; });
   q.primary = main || 'general';
 });
+
+/* ------------------------------------------------------------
+   The questions a learner is actually asked.
+   Asking all of the bank took far too long (113 questions), so a learner
+   answers the 35 below: about 5 minutes, the same length as the personality
+   assessment. They were not picked by hand. Simulated learners with known
+   interests answered the whole bank, and questions were added one at a time,
+   each the one that best recovered those interests under this file's own
+   scoring rule -- with at least one question for every subject and no two
+   about the same trait of the same subject. In that test 35 questions
+   recovered about 94% as much of a learner's real interest in each subject as
+   all 113 (42 would recover 96%), so the rest added mostly time. Run through
+   the whole report (with personality and marks), the best-fit combination came
+   out the same as with all 113 answers for about four learners in five.
+   Scoring still uses every answer there is: someone who answered more (an
+   earlier, longer version) keeps those answers counting.
+   To change what is asked, edit this list (ids from SC_BANK).
+   ------------------------------------------------------------ */
+const SC_ASKED_IDS = ['q_lang_03', 'q_lang_05', 'q_math_02', 'q_math_05', 'q_mlit_04', 'q_mlit_05', 'q_phys_03', 'q_phys_04', 'q_life_01', 'q_life_04', 'q_bus_02', 'q_bus_04', 'q_acc_02', 'q_acc_04', 'q_econ_01', 'q_econ_02', 'q_hist_01', 'q_geo_01', 'q_geo_03', 'q_tour_03', 'q_cat_01', 'q_cat_04', 'q_it_04', 'q_egd_03', 'q_egd_05', 'q_vis_04', 'q_vis_05', 'q_dra_04', 'q_mus_01', 'q_con_01', 'q_con_04', 'q_hos_04', 'q_agr_03', 'q_agr_05', 'q_soc_04'];
+const SC_QUESTIONS = SC_BANK.filter(function(q){ return SC_ASKED_IDS.indexOf(q.id) !== -1; });

@@ -402,15 +402,19 @@ const RIASEC_SCALE = ['Strongly disagree','Disagree','Neutral','Agree','Strongly
 const STRENGTH_SCALE = ['Not a strength','A little','Somewhat','Strong','A real strength'];
 const RIASEC_EMOJI = ['😠','🙁','😐','🙂','😄'];
 
+// kind: 'riasec' and 'strength' are the personality assessment's two parts; 'subject' is a
+// Subject Choice question -- the same widgets, with that assessment's own scale and handler.
 function assessWidgetHTML(step, kind, value){
   const style = assessStyleFor(step);
-  const labels = kind==='strength' ? STRENGTH_SCALE : RIASEC_SCALE;
+  const sub = kind==='subject';
+  const labels = sub ? SC_CONFIG.scaleLabels : (kind==='strength' ? STRENGTH_SCALE : RIASEC_SCALE);
+  const choose = sub ? 'App.subjectChoiceChoose' : 'App.assessChoose';
   // Every option carries data-v and sits in a data-answer-group, so the shared
   // pickAnswer() (js/answer_inputs.js) can play the pick animation on it before
   // the next question slides in.
   if(style==='dots'){
     return `<div class="scale-dots">
-      <div class="scale-dots-row" data-answer-group data-dim="1">${[1,2,3,4,5].map(n=>`<button class="dot-btn ${value===n?'on':''}" data-v="${n}" aria-pressed="${value===n}" aria-label="${n} — ${esc(labels[n-1])}" onclick="App.assessChoose(${step},${n},this)">${n}</button>`).join('')}</div>
+      <div class="scale-dots-row" data-answer-group data-dim="1">${[1,2,3,4,5].map(n=>`<button class="dot-btn ${value===n?'on':''}" data-v="${n}" aria-pressed="${value===n}" aria-label="${n} — ${esc(labels[n-1])}" onclick="${choose}(${step},${n},this)">${n}</button>`).join('')}</div>
       <div class="scale-dots-caps"><span>${labels[0]}</span><span>${labels[4]}</span></div>
     </div>`;
   }
@@ -419,18 +423,19 @@ function assessWidgetHTML(step, kind, value){
     // a hint -- but no answer exists until the learner taps or drags, and
     // tapping the middle stop answers 3 (a native range input could not: it only
     // reports a change). See snapSliderHTML() in js/answer_inputs.js.
-    return snapSliderHTML({ kind:'assess', id:step, value:value, label:'Your answer, from 1 to 5', texts:labels, showCaption:true });
+    return snapSliderHTML({ kind: sub ? 'sc' : 'assess', id:step, value:value, label:'Your answer, from 1 to 5', texts:labels, showCaption:true });
   }
   if(style==='emoji'){
     if(kind==='strength'){
       // A conventional cumulative star rating (button N fills stars 1..N) --
       // one glyph per hit target, not a 5-glyph string per button, so
       // nothing overflows/overlaps at any button size.
-      return `<div class="star-scale" data-answer-group data-cumulative="1">${[1,2,3,4,5].map(n=>`<button class="star-btn ${value>=n?'on':''}" data-v="${n}" aria-pressed="${value>=n}" onclick="App.assessChoose(${step},${n},this)" aria-label="${esc(labels[n-1])}">${value>=n?'★':'☆'}</button>`).join('')}</div>`
+      return `<div class="star-scale" data-answer-group data-cumulative="1">${[1,2,3,4,5].map(n=>`<button class="star-btn ${value>=n?'on':''}" data-v="${n}" aria-pressed="${value>=n}" onclick="${choose}(${step},${n},this)" aria-label="${esc(labels[n-1])}">${value>=n?'★':'☆'}</button>`).join('')}</div>`
     }
-    return `<div class="emoji-scale" data-answer-group data-dim="1">${RIASEC_EMOJI.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="App.assessChoose(${step},${i+1},this)" title="${esc(labels[i])}" aria-label="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
+    return `<div class="emoji-scale" data-answer-group data-dim="1">${RIASEC_EMOJI.map((e,i)=>`<button class="emoji-btn ${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="${choose}(${step},${i+1},this)" title="${esc(labels[i])}" aria-label="${esc(labels[i])}"><span>${e}</span></button>`).join('')}</div>`;
   }
-  return `<div class="likert" data-answer-group data-dim="1">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="App.assessChoose(${step},${i+1},this)">${lb}</button>`).join('')}</div>`;
+  // Subject Choice's answers are phrases ("Definitely not me"), too long for five across a phone.
+  return `<div class="likert ${sub ? 'long' : ''}" data-answer-group data-dim="1">${labels.map((lb,i)=>`<button class="${value===i+1?'on':''}" data-v="${i+1}" aria-pressed="${value===i+1}" onclick="${choose}(${step},${i+1},this)">${lb}</button>`).join('')}</div>`;
 }
 
 function ensureAssessDraft(){

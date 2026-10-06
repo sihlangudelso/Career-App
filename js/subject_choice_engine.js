@@ -108,7 +108,9 @@ function calculateSubjectInterestScores(answers){
   Object.keys(SC_SUBJECTS).forEach(function(id){
     out[id] = { raw: 0, min: 0, max: 0, weightSum: 0, count: 0, normalised: null, traits: {}, traitList: [] };
   });
-  SC_QUESTIONS.forEach(function(q){
+  // Every answer there is counts, not just the ones asked today (SC_BANK), so a learner
+  // who answered an earlier, longer version keeps all of it.
+  SC_BANK.forEach(function(q){
     const a = Number(answers && answers[q.id]);
     if(!(a >= 1 && a <= 5)) return;
     Object.keys(q.weights).forEach(function(sid){
@@ -567,7 +569,7 @@ function scBuildProfile(answers, results){
   // Learner-level interest traits: average answer per trait across the
   // questions that belong to a specific subject.
   const acc = {};
-  SC_QUESTIONS.forEach(function(q){
+  SC_BANK.forEach(function(q){
     const a = Number(answers[q.id]);
     if(q.primary === 'general' || !(a >= 1 && a <= 5)) return;
     const t = acc[q.trait] || (acc[q.trait] = { sum: 0, n: 0 });

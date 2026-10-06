@@ -277,38 +277,53 @@ const App = {
   subjectChoiceStartOver(){
     if(SAVING.sc) return;
     if(!confirm('Start over? The answers on this attempt will be cleared.')) return;
+    cancelPendingAnswer();
     SUBJECT_CHOICE_DRAFT = null; render(); window.scrollTo(0,0); focusPageHeading();
   },
-  // Patches the page in place (no full re-render) so the learner's scroll
-  // position doesn't jump after every tap -- same approach as grade9SetWorkStyle.
-  subjectChoiceAnswer(qid, v, el){
-    // A save is in flight: changing an answer now would change what is being saved.
-    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
-    v = Number(v);
-    const firstTime = d.answers[qid] == null;      // changing an earlier answer must not move the page
-    d.answers[qid] = v;
+  // A tapped (or slid) answer: store it, show it as picked, and only then move on to the
+  // next question -- the learner sees what they chose. `el` is the tapped button, or the
+  // snap slider. Back/Continue during the pause cancels the move. (Same as assessChoose.)
+  subjectChoiceChoose(step, val, el){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc || ANSWER_LOCK) return;
+    const qid = d.order[step]; if(!qid) return;
+    d.answers[qid] = Number(val); d.step = step;
     persistDrafts();
-    const row = el && el.closest('.sc-q');
-    pickAnswer(el);
-    const total = d.order.length, answered = Object.keys(d.answers).length;
-    const bar = document.getElementById('scBar'); if(bar) bar.style.width = Math.round(answered/total*100)+'%';
-    const cnt = document.getElementById('scCount'); if(cnt) cnt.textContent = answered;
-    const btn = document.getElementById('scNext');
-    if(btn){
-      const isLast = d.page === scPageCount(d) - 1;
-      btn.disabled = isLast ? answered < total : !scPageIds(d).every(id=>d.answers[id]);
-    }
-    if(row && firstTime) scrollToNextQuestion(row);
+    if(el && el.classList && el.classList.contains('snap')) el.classList.add('locked');
+    else pickAnswer(el || document.querySelector('#app [data-answer-group] [data-v="'+val+'"]'));
+    // An answered question's Continue button is live straight away (it also lets an
+    // impatient learner skip the short pause).
+    const cont = document.querySelector('#app .card .btn-primary');
+    if(cont) cont.disabled = false;
+    afterAnswerHold(function(){
+      // Still on this question? (They may have left the screen.)
+      if(SUBJECT_CHOICE_DRAFT === d && d.step === step && ROUTE === 'subject-choice') App.subjectChoiceGoto(step + 1, 'fwd');
+    });
   },
-  subjectChoicePage(delta){
+  // A slider's value as it changes: store it and unlock Continue. Moving on is
+  // subjectChoiceSlideCommit's job (finger lifted / Enter), through subjectChoiceChoose.
+  subjectChoiceSlide(step, val, el){
     const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
-    d.page = clamp(d.page + delta, 0, scPageCount(d) - 1);
-    d.dir = delta < 0 ? 'back' : 'fwd';
+    const qid = d.order[step]; if(!qid) return;
+    d.answers[qid] = Number(val);
+    const card = el && el.closest ? el.closest('.card') : null;
+    const continueBtn = card && card.querySelector('.btn-primary');
+    if(continueBtn) continueBtn.disabled = false;
+  },
+  subjectChoiceSlideCommit(step, val, el){ App.subjectChoiceChoose(step, Number(val), el); },
+  subjectChoiceGoto(step, dir){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;
+    cancelPendingAnswer();        // Back/Continue during a pick's animation: go now, don't also advance later
+    d.dir = dir || 'fwd';
+    d.step = clamp(Math.floor(step), 0, d.order.length);
+    persistDrafts();
     render(); window.scrollTo(0,0);
-    // The old Next/Back button is gone after the re-render; without this,
-    // keyboard focus falls back to the top of the whole document.
-    focusPageHeading();
-    announce('Part ' + (d.page + 1) + ' of ' + scPageCount(d));
+    announce(d.step >= d.order.length ? 'All ' + d.order.length + ' questions answered' : 'Question ' + (d.step + 1) + ' of ' + d.order.length);
+  },
+  subjectChoiceBack(){ const d = SUBJECT_CHOICE_DRAFT; if(d) App.subjectChoiceGoto(d.step - 1, 'back'); },
+  subjectChoiceNext(){
+    const d = SUBJECT_CHOICE_DRAFT; if(!d) return;
+    if(!d.answers[d.order[d.step]]) return;          // an unanswered question cannot be skipped
+    App.subjectChoiceGoto(d.step + 1, 'fwd');
   },
   async subjectChoiceFinish(){
     const d = SUBJECT_CHOICE_DRAFT; if(!d || SAVING.sc) return;

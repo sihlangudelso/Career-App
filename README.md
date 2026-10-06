@@ -247,17 +247,47 @@ js/
 
 An additional assessment that sits alongside the personality assessment (it
 does not replace it). It scores 21 Grade 10 subject areas on three things
-and blends them — **interest** (what the learner enjoys, from 113 indirect
-questions), **personality alignment** (from the existing personality
+and blends them — **interest** (what the learner enjoys, from 35 short,
+indirect questions), **personality alignment** (from the existing personality
 assessment) and **academic readiness** (from their Grade 9 report or current
 marks) — by default 40% / 25% / 35%.
 
+The questions are shown **one per screen**, exactly like the personality
+assessment: a progress bar, one question card, the same four answer styles
+(labelled buttons, numbered dots, the snap slider, faces — the style cycles with
+the question number), the pick animation, an automatic move to the next question,
+and Back / Continue. The order is shuffled per learner so a subject's two
+questions are never back to back. A half-finished attempt is kept on the device
+and resumed (`scSanitizeDraft` repairs drafts saved by an older version or damaged
+in storage).
+
 Everything you might want to change is in `js/subject_choice_config.js`:
 `SC_CONFIG.weights`, the readiness bands and thresholds, `SC_SUBJECTS` (add a
-subject here), `SC_QUESTIONS` (each question's `weights` say which subjects its
-answer feeds), `SC_COMBOS`, and the fixed wording in `SC_COPY`. Only the
-learner's answers are stored (`learners."subjectChoice"`); the report is
-recomputed from those plus their latest marks and personality results.
+subject here), `SC_BANK` (every question, 113 of them — each question's `weights`
+say which subjects its answer feeds), `SC_ASKED_IDS` (the 35 that are actually
+asked; `SC_QUESTIONS` is just that subset), `SC_COMBOS`, and the fixed wording in
+`SC_COPY`. Only the learner's answers are stored (`learners."subjectChoice"`,
+with a `bankVersion`); the report is recomputed from those plus their latest marks
+and personality results.
+
+**Why 35 of the 113.** 113 questions was far too long for a learner to finish.
+The 35 were picked by simulation (seeded learners with a hidden "true" interest
+in each subject; greedy forward selection of the questions that recover those
+interests best, at most one question per subject and trait pairing — see the
+comment above `SC_ASKED_IDS`). Measured, the short set recovers about 94% of what
+all 113 do (0.758 vs 0.804 correlation on held-out simulated learners). Pushed
+through the real engine on 467 simulated learners, the short set gave the same best
+subject combination for 79.7%, the same Mathematics / Maths Literacy lean for 91%,
+the same recommendation category for 91% of subjects, and moved a subject's overall
+match by 2.5 points on average. To trade length for accuracy, change `SC_ASKED_IDS`
+(the intro text, progress bar, question order and "complete" check all follow it).
+Changing it after learners have answered means those learners are asked to retake
+for the new questions — their old answers still count in the meantime.
+**Learners who took the earlier 113-question version keep their report exactly as it
+was**: scoring still reads every answer in `SC_BANK`, and a check over 1,000 simulated
+learners with 113 answers found no difference in either report or the visible text.
+"Complete" means every *asked* question is answered. Retaking replaces the saved
+answers with the 35.
 
 **Before deploying:** run `supabase/add_subject_choice_assessment.sql` once in
 the Supabase SQL editor (or `supabase/catch_up_learner_columns.sql`, which adds this
@@ -429,9 +459,10 @@ work-style sliders, the 4-question quick start) goes through
   the one-question-at-a-time screens the other options fade. The app then waits
   `ANSWER_HOLD_MS` (480 ms, top of `answer_inputs.js`) before sliding to the next
   question. Back or Continue during that pause cancels the wait; taps during it
-  are ignored. Subject Choice has six questions per page, so after a *first-time*
-  answer it glides to the next unanswered one instead (never when an earlier
-  answer is changed).
+  are ignored. Subject Choice behaves the same way (one question per screen, built
+  from the same `assessWidgetHTML`); its answers are phrases ("Definitely not me"),
+  so on a phone (≤ 480 px) the labelled-button style stacks instead of sitting five
+  across (`.likert.long`).
 - **Sliders are a "snap slider", not `<input type=range>`.** The thumb follows the
   finger exactly, then springs to the nearest of five stops. Tapping any stop, or
   the parked middle thumb, answers — a native range input only reports a *change*,

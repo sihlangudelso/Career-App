@@ -25,33 +25,40 @@ function scHasSavedAnswers(l){
   const sc = l.subjectChoice;
   return !!(sc && sc.answers && Object.keys(sc.answers).length);
 }
-function scPageCount(d){ return Math.ceil(d.order.length / SC_CONFIG.questionsPerPage); }
-function scPageIds(d){
-  const per = SC_CONFIG.questionsPerPage;
-  return d.order.slice(d.page * per, d.page * per + per);
-}
-// A draft restored from storage may predate a change to the question bank:
-// drop questions that no longer exist, append new ones, and clamp the page.
+// A draft restored from storage may predate a change to the questions (an
+// earlier version asked all 113, six to a page): keep only questions still asked and
+// answers still valid, rebuild the order if it is not exactly today's questions, and put
+// the learner on a question that exists (an old draft counted pages, so it resumes at the
+// first question not yet answered). Field types are checked too, not just presence: a
+// draft that came back from storage in an unexpected shape must be repaired, never crash.
 function scSanitizeDraft(d){
-  // Field types are checked too, not just presence: a draft that came back
-  // from storage in an unexpected shape must be repaired, never crash the page.
-  d.order = (Array.isArray(d.order) ? d.order : []).filter(function(id){ return SC_Q_BY_ID[id]; });
-  const inOrder = {};
-  d.order.forEach(function(id){ inOrder[id] = true; });
-  SC_QUESTIONS.forEach(function(q){ if(!inOrder[q.id]) d.order.push(q.id); });
   const clean = {};
   const given = (d.answers && typeof d.answers === 'object' && !Array.isArray(d.answers)) ? d.answers : {};
   Object.keys(given).forEach(function(id){
     const v = Number(given[id]);
-    if(SC_Q_BY_ID[id] && v >= 1 && v <= 5) clean[id] = v;
+    if(SC_Q_BY_ID[id] && Number.isInteger(v) && v >= 1 && v <= 5) clean[id] = v;
   });
   d.answers = clean;
-  d.page = clamp(Number(d.page) || 0, 0, scPageCount(d) - 1);
+  const order = (Array.isArray(d.order) ? d.order : []).filter(function(id, i, all){ return SC_Q_BY_ID[id] && all.indexOf(id) === i; });
+  if(order.length === SC_QUESTIONS.length){
+    d.order = order;
+  } else {
+    if(!(Number(d.seed) >= 0)) d.seed = (Date.now() ^ scHashString(String(ME.id || 'anon'))) >>> 0;
+    d.order = scBuildQuestionOrder(Number(d.seed));
+  }
+  // A learner only ever stands on a question once every question before it is answered
+  // (Continue needs an answer), so the furthest they can be is the first unanswered one --
+  // or the "all done" screen when nothing is left. Anything beyond that is a damaged draft.
+  const firstOpen = d.order.findIndex(function(id){ return !clean[id]; });
+  const furthest = firstOpen === -1 ? d.order.length : firstOpen;
+  if(typeof d.step !== 'number' || isNaN(d.step)) d.step = furthest;
+  d.step = clamp(Math.floor(d.step), 0, furthest);
+  delete d.page;
   return d;
 }
 function newSubjectChoiceDraft(){
   const seed = (Date.now() ^ scHashString(String(ME.id || 'anon'))) >>> 0;
-  return { seed: seed, order: scBuildQuestionOrder(seed), page: 0, answers: {} };
+  return { seed: seed, order: scBuildQuestionOrder(seed), step: 0, dir: 'fwd', answers: {} };
 }
 
 function viewSubjectChoice(){
@@ -118,37 +125,42 @@ function subjectChoiceIntroHTML(l){
 }
 
 /* ---------------- the questions ---------------- */
-function subjectChoiceQuestionHTML(q, value){
-  return `
-  <div class="sc-q" id="scq_${q.id}">
-    <div class="sc-qt">${esc(q.text)}</div>
-    <div class="sc-scale" role="group" aria-label="${esc(q.text)}" data-answer-group>
-      ${[1, 2, 3, 4, 5].map(function(n){
-        return `<button class="${value === n ? 'on' : ''}" data-v="${n}" aria-pressed="${value === n}" onclick="App.subjectChoiceAnswer('${q.id}',${n},this)"><span class="n">${n}</span><span class="l">${esc(SC_CONFIG.scaleLabels[n - 1])}</span></button>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
+// One question per screen, laid out exactly like the personality assessment: a progress
+// bar, the question, the same answer styles (text buttons, numbered dots, a slider,
+// faces), the pick animation and a pause before the next question slides in.
 function subjectChoiceQuestionsHTML(d, l){
-  const total = d.order.length;
-  const pages = scPageCount(d);
-  const answered = Object.keys(d.answers).length;
-  const ids = scPageIds(d);
-  const pageDone = ids.every(function(id){ return d.answers[id]; });
-  const isLast = d.page === pages - 1;
+  const total = d.order.length, step = d.step;
   const personalityDone = !!l.assessmentCompletedAt;
-  const nextLabel = isLast ? (personalityDone ? 'See my subject results' : 'Save & take the personality assessment') : 'Next';
-  const nextAction = isLast ? 'App.subjectChoiceFinish()' : 'App.subjectChoicePage(1)';
-  const nextOff = isLast ? answered < total : !pageDone;
+  if(step >= total){
+    return `
+    ${pageHeadHTML('Nice work!', 'You’ve answered every question.')}
+    <div class="card q-anim" style="text-align:center;padding:40px 24px;">
+      ${icon('trophy')}
+      <h3 style="margin-top:10px;">All ${total} questions done</h3>
+      <p class="page-sub">${personalityDone ? 'Ready to see which Grade 10 subjects fit you best?' : 'Next, a quick look at how you naturally work — then your subject results.'}</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+        <button class="btn btn-ghost" onclick="App.subjectChoiceGoto(${total - 1},'back')">Back</button>
+        <button class="btn btn-primary" id="scNext" onclick="App.subjectChoiceFinish()">${icon('check')} ${personalityDone ? 'See my subject results' : 'Save & take the personality assessment'}</button>
+      </div>
+      <div class="sc-foot"><button class="link-btn" onclick="App.subjectChoiceStartOver()">Start over</button></div>
+    </div>`;
+  }
+  const q = SC_Q_BY_ID[d.order[step]];
+  const value = d.answers[q.id] || 0;
+  const pct = Math.round(step / total * 100);
+  const animClass = 'q-anim' + (d.dir === 'back' ? ' back' : '');
   return `
-  ${pageHeadHTML('Subject Choice Assessment', 'Part ' + (d.page + 1) + ' of ' + pages + ' — go with your first instinct. There are no wrong answers.')}
-  <div class="aps-bar" style="margin-bottom:6px;"><div id="scBar" style="width:${Math.round(answered / total * 100)}%"></div></div>
-  <div class="page-sub" style="margin-bottom:14px;"><span id="scCount">${answered}</span> of ${total} answered</div>
-  <div class="card q-anim${d.dir === 'back' ? ' back' : ''}">
-    ${ids.map(function(id){ return subjectChoiceQuestionHTML(SC_Q_BY_ID[id], d.answers[id]); }).join('')}
-    <div class="sc-nav">
-      ${d.page > 0 ? `<button class="btn btn-ghost" onclick="App.subjectChoicePage(-1)">Back</button>` : ''}
-      <button class="btn btn-primary" id="scNext" ${nextOff ? 'disabled' : ''} onclick="${nextAction}">${nextLabel}</button>
+  ${pageHeadHTML('Subject Choice Assessment', `Question ${step + 1} of ${total} — go with your first instinct. There are no wrong answers.`)}
+  <div class="aps-bar" style="margin-bottom:18px;"><div style="width:${pct}%"></div></div>
+  <div class="card ${animClass}">
+    <div class="qcard" style="margin-bottom:8px;">
+      <div class="qn">QUESTION ${step + 1} OF ${total}</div>
+      <div class="qt" style="font-size:19px;margin:10px 0 4px;">${esc(q.text)}</div>
+    </div>
+    ${assessWidgetHTML(step, 'subject', value)}
+    <div style="display:flex;gap:10px;margin-top:22px;justify-content:center;">
+      ${step > 0 ? `<button class="btn btn-ghost" onclick="App.subjectChoiceBack()">Back</button>` : ''}
+      <button class="btn btn-primary" ${value ? '' : 'disabled'} onclick="App.subjectChoiceNext()">Continue</button>
     </div>
     <div class="sc-foot"><button class="link-btn" onclick="App.subjectChoiceStartOver()">Start over</button></div>
   </div>`;

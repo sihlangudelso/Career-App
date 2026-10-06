@@ -27,7 +27,6 @@
 let ANSWER_HOLD_MS = 480;
 let ANSWER_LOCK = false;     // a pick is animating: further answer taps wait
 let ANSWER_TIMER = null;
-let ANSWER_SCROLL_TIMER = null;
 
 function prefersReducedMotion(){
   try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
@@ -80,28 +79,6 @@ function pickAnswer(btn){
   if(cumulative) group.querySelectorAll('[data-v].on').forEach(function(b){ b.classList.add('pop'); });
 }
 
-// On a long page of questions (Subject Choice), glide to the next unanswered
-// one after an answer has been confirmed -- or to the Next button when the
-// page is complete. Only called for a first-time answer, so changing an
-// earlier answer never moves the page under the learner's thumb.
-function scrollToNextQuestion(row){
-  clearTimeout(ANSWER_SCROLL_TIMER);
-  ANSWER_SCROLL_TIMER = setTimeout(function(){
-    const questions = Array.prototype.slice.call(document.querySelectorAll('#app .sc-q'));
-    const open = questions.filter(function(q){ return !q.querySelector('.sc-scale button.on'); });
-    let target = open.filter(function(q){ return row.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING; })[0] || open[0];
-    const isButton = !target;
-    if(isButton) target = document.getElementById('scNext');
-    if(!target) return;
-    const bar = document.getElementById('topbarEl'), nav = document.getElementById('bottomNavEl');
-    const topSafe = (bar && bar.offsetHeight) || 0, bottomSafe = (nav && nav.offsetHeight) || 0;
-    const r = target.getBoundingClientRect(), vh = window.innerHeight;
-    if(r.top >= topSafe + 8 && r.bottom <= vh - bottomSafe - 8) return;       // already comfortably in view
-    const top = window.scrollY + r.top - (isButton ? vh * 0.55 : topSafe + 24);
-    window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-  }, prefersReducedMotion() ? 100 : 380);
-}
-
 /* ---------------- the snap slider ---------------- */
 // Five stops, values 1-5. `data-value` holds the chosen stop (0 = not answered
 // yet: the thumb is "parked" on the middle stop, drawn hollow, and tapping it
@@ -112,7 +89,7 @@ const SNAP_MAX = 5;
 function attrEsc(s){ return esc(s).replace(/"/g, '&quot;'); }
 function snapPct(v){ return (v - 1) / (SNAP_MAX - 1) * 100; }
 
-// o: { kind:'assess'|'g9', id, value (0 = unanswered), label (for screen readers),
+// o: { kind:'assess'|'sc'|'g9', id, value (0 = unanswered), label (for screen readers),
 //      texts:[5 strings] (spoken value, and the caption when showCaption), showCaption, bipolar }
 // `bipolar` sliders run between two opposite ends (no filled bar: the stop
 // itself is the answer); the others fill from the left like a rating scale.
@@ -190,6 +167,10 @@ function snapStore(el, v, commit){
     const step = Number(el.dataset.id);
     App.assessSlide(step, v, el);
     if(commit) App.assessSlideCommit(step, v, el);
+  } else if(kind === 'sc'){
+    const step = Number(el.dataset.id);
+    App.subjectChoiceSlide(step, v, el);
+    if(commit) App.subjectChoiceSlideCommit(step, v, el);
   }
 }
 function snapCommit(el, v){
@@ -201,7 +182,7 @@ function snapCommit(el, v){
 // A save in flight, or an answer already confirming, means this slider must not change.
 function snapBusy(el){
   const kind = el.dataset.kind;
-  return (kind === 'g9' && SAVING.g9) || (kind === 'assess' && (SAVING.assess || ANSWER_LOCK));
+  return (kind === 'g9' && SAVING.g9) || (kind === 'assess' && (SAVING.assess || ANSWER_LOCK)) || (kind === 'sc' && (SAVING.sc || ANSWER_LOCK));
 }
 
 let SNAP_ACTIVE = null;
