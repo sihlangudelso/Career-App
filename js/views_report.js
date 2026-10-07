@@ -71,7 +71,7 @@ function reportSubjectSource(l){
 // learner's subject results -- how the careers and subjects relate.
 function careerSupportLineHTML(sup){
   if(!sup || (!sup.required.length && !sup.helpful.length)) return '';
-  const label = { explore:'worth exploring', effort:'needs extra effort', possible:'not highlighted' };
+  const label = { explore:'worth exploring', effort:'needs extra effort', possible:'not highlighted', aspirational:'aspirational for now' };
   const pill = (s, cls)=>`<span class="pill ${cls}">${esc(s.subject)}${s.status === 'recommended' ? ' ✓' : ' · ' + label[s.status]}</span>`;
   return `<div class="pill-list ov-support">
     ${sup.required.length ? `<span class="ov-k">Needs</span>${sup.required.map(s=>pill(s, 'req')).join('')}` : ''}

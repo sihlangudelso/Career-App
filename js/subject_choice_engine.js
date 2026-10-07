@@ -214,11 +214,22 @@ function calculateAcademicReadiness(learner){
     });
     const coverage = totalW > 0 ? den / totalW : 0;
     const score = (den > 0 && coverage >= SC_CONFIG.minAcademicCoverage) ? num / den : null;
+    // `markScore` is the plain weighted result of the learning areas the subject builds on
+    // (what the report may quote); `score` is the readiness used in the fit, which is the
+    // same number except for Mathematical Literacy (below).
     out[id] = {
-      score: score, band: scReadinessBand(score), inputs: score == null ? [] : used, coverage: coverage,
+      score: score, markScore: score, band: scReadinessBand(score), inputs: score == null ? [] : used, coverage: coverage,
       weakAreas: score == null ? [] : used.filter(function(u){ return u.pct < SC_CONFIG.report.workOnBelow; }),
     };
   });
+  // Mathematical Literacy builds on the same Grade 9 Mathematics result but asks for far less
+  // abstract algebra, so that result counts for more towards it (SC_CONFIG.math.litLift).
+  const lit = out.mathematicalLiteracy, lift = SC_CONFIG.math.litLift;
+  if(lit && lit.score != null && lift > 0){
+    lit.score = lit.score + lift * (100 - lit.score) / 100;
+    lit.band = scReadinessBand(lit.score);
+    lit.lifted = true;
+  }
   return out;
 }
 
@@ -270,7 +281,8 @@ function scAcademicAreas(res){
 // is weighted, so it is not described as a plain average.
 function scAcademicEvidence(res){
   const multi = res.academic.inputs.length > 1;
-  return scAcademicAreas(res) + ' results (' + (multi ? 'together about ' : '') + Math.round(res.academic.score) + '%)';
+  const mark = res.academic.markScore != null ? res.academic.markScore : res.academic.score;
+  return scAcademicAreas(res) + ' results (' + (multi ? 'together about ' : '') + Math.round(mark) + '%)';
 }
 function scFoundationPhrase(band){
   if(band.key === 'strong' || band.key === 'good') return 'a solid foundation';
@@ -330,6 +342,8 @@ function scThrive(res){
   const nf = res.fit.naturalFitLevel, band = res.academic.band;
   const tier = band ? band.tier : null;
   const weakNames = scJoin(res.academic.weakAreas.slice(0, 2).map(function(w){ return scAreaName(w.area); }));
+  // The Grade 9 learning areas the subject builds on -- the only results a Grade 9 learner has.
+  const areas = scAcademicAreas(res);
   const nat = scNaturalClause(res, label);
   // These two cards already say the same thing elsewhere ("consider" for a
   // foundation card, "consider" and the line above it for an academic card),
@@ -338,17 +352,17 @@ function scThrive(res){
   const threeYearsShownElsewhere = res.category.key === 'academic';
   let explanation;
   if(nat.tone === 'good'){
-    if(tier === 'Strong') explanation = nat.text + ', and your current results suggest you are well placed to feel comfortable in it.';
+    if(tier === 'Strong') explanation = nat.text + ', and your ' + areas + ' results suggest you are well placed to feel comfortable in it.';
     else if(tier === null) explanation = nat.text + '. We do not yet have marks that map onto it, so we do not know yet how ready you are.';
     else {
       const effort = band && band.key === 'reasonable' ? 'some of the work may need extra attention at first' : 'some of the work may feel challenging at first';
       explanation = nat.text + '. However, your current ' + (weakNames ? weakNames + ' results' : 'results') + ' suggest ' + effort + '.' + (tipShownElsewhere ? '' : ' ' + s.foundationTip);
     }
   } else if(nat.tone === 'partly'){
-    if(tier === 'Strong') explanation = 'Your results are strong for ' + label + '. ' + nat.text + ', so it is worth finding out what the subject involves day to day.';
+    if(tier === 'Strong') explanation = 'Your ' + areas + ' results are a strong foundation for ' + label + '. ' + nat.text + ', so it is worth finding out what the subject involves day to day.';
     else explanation = nat.text + '.' + (band ? ' Your current results suggest ' + scFoundationPhrase(band) + '.' : '');
   } else {
-    if(tier === 'Strong') explanation = 'Your results show you could do well in ' + label + ', although it currently shows less alignment with what you enjoy and how you like to work.' + (threeYearsShownElsewhere ? '' : ' Think about whether you would enjoy it for three years.');
+    if(tier === 'Strong') explanation = 'Your ' + areas + ' results suggest you are well placed for ' + label + ', although it currently shows less alignment with what you enjoy and how you like to work.' + (threeYearsShownElsewhere ? '' : ' Think about whether you would enjoy it for three years.');
     else explanation = nat.text + ', so it is worth finding out what it involves day to day before you decide.';
   }
   return {
@@ -393,80 +407,175 @@ function generateSubjectFeedback(res){
 }
 
 /* ---------------- Mathematics vs Mathematical Literacy ---------------- */
+// How strongly the learner's likely pathways need Mathematics (not Mathematical
+// Literacy): the share of their best-suited careers (favourites count double) whose
+// required subjects include it, blended with how much Mathematics their top subjects
+// usually lean on. `careers` names the Mathematics careers they are likely to want, for
+// the "careers you want need Mathematics" explanation and the aspirational pathway.
+// This measures what they WANT, so it is read from their interests and working style
+// only: with marks in the ranking, a low Mathematics result would push the very careers
+// they hope for out of view and the report would stop mentioning them.
 function scMathPathwayNeed(results, learner){
   const M = SC_CONFIG.math;
   let careerNeed = null;
+  const careers = [];
   if(typeof computeMatches === 'function' && typeof CAREERS !== 'undefined'){
     try {
-      // The same ordering as the best-suited careers shown to the learner.
-      const top = bestSuitedCareers(learner, M.careerSample);
+      const unmarked = Object.assign({}, learner, { subjectMarks: {}, grade9Report: null });
+      const top = bestSuitedCareers(unmarked, M.careerSample);
       const fav = {};
       (learner.favourites || []).forEach(function(id){ fav[id] = true; });
+      const needs = function(c){ return (c.requiredSubjects || []).indexOf('Mathematics') !== -1; };
+      const entry = function(c){
+        return { id: c.id, name: c.name, favourite: !!fav[c.id], req: (c.requiredSubjects || []).map(function(n){ return SC_CAREER_SUBJECT_IDS[n]; }).filter(Boolean) };
+      };
       let num = 0, den = 0;
       top.forEach(function(m){
         const w = fav[m.career.id] ? 2 : 1;
-        den += w; if((m.career.requiredSubjects || []).indexOf('Mathematics') !== -1) num += w;
+        den += w;
+        if(needs(m.career)){ num += w; careers.push(entry(m.career)); }
       });
       (learner.favourites || []).forEach(function(id){
         if(top.some(function(m){ return m.career.id === id; })) return;
         const c = CAREERS.find(function(x){ return x.id === id; });
         if(!c) return;
-        den += 2; if((c.requiredSubjects || []).indexOf('Mathematics') !== -1) num += 2;
+        den += 2;
+        if(needs(c)){ num += 2; careers.push(entry(c)); }
       });
       careerNeed = den > 0 ? num / den : null;
     } catch(e){ careerNeed = null; }
   }
+  // The subjects they like and suit best (interest and working style, not results).
+  const liking = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
   const others = results.filter(function(r){ return r.id !== 'mathematics' && r.id !== 'mathematicalLiteracy'; })
-    .sort(function(a, b){ return b.fit.overall - a.fit.overall; }).slice(0, 5);
+    .sort(function(a, b){ return liking(b) - liking(a); }).slice(0, 5);
   let sNum = 0, sDen = 0;
   others.forEach(function(r){
     const req = SC_SUBJECTS[r.id].mathRequirement;
-    sNum += r.fit.overall * (req ? SC_CONFIG.mathRequirementValue[req] : 0); sDen += r.fit.overall;
+    sNum += liking(r) * (req ? SC_CONFIG.mathRequirementValue[req] : 0); sDen += liking(r);
   });
   const subjectNeed = sDen > 0 ? sNum / sDen : null;
   const parts = [careerNeed, subjectNeed].filter(function(v){ return v != null; });
   const value = parts.length ? scMean(parts) : null;
   const level = value == null ? 'unknown' : (value >= M.needHigh ? 'high' : (value < M.needLow ? 'low' : 'medium'));
-  return { value: value, level: level, careerNeed: careerNeed, subjectNeed: subjectNeed };
+  careers.sort(function(a, b){ return (b.favourite ? 1 : 0) - (a.favourite ? 1 : 0); });
+  return { value: value, level: level, careerNeed: careerNeed, subjectNeed: subjectNeed, careers: careers.slice(0, 4) };
 }
+
+// Which of the two the learner's results point to, and why. The deciding fact is the
+// learner's Grade 9 Mathematics result (SC_CONFIG.math.bands); interests and the careers
+// they want only decide where the result alone does not (see the config comment).
+//   pick     'mathematics' | 'mathematicalLiteracy' | 'either' (not enough to decide)
+//   support  Mathematics is picked although readiness is still developing
+//   variant  the OTHER option, worth showing as a second combination:
+//            'aspirational' (Mathematical Literacy now, Mathematics as the goal) or
+//            'safer' (Mathematics with support, with the Mathematical Literacy route beside it)
 function decideMathPathway(results, learner){
-  const M = SC_CONFIG.math;
+  const M = SC_CONFIG.math, B = M.bands;
   const byId = {};
   results.forEach(function(r){ byId[r.id] = r; });
   const math = byId.mathematics;
   const need = scMathPathwayNeed(results, learner);
-  let recommended = 'either', message = SC_COPY.mathEither;
-  if(math){
-    const readiness = math.academic.score;
-    const hasMarks = readiness != null;
-    const weak = hasMarks && readiness < M.weakReadiness;
-    if(need.level === 'high'){
-      recommended = 'mathematics';
-      message = weak ? SC_COPY.mathHighNeedWeak : (hasMarks ? SC_COPY.mathHighNeedOk : SC_COPY.mathHighNeedNoMarks);
-    } else if(math.interest.normalised < M.interestLow && (math.personality.score == null || math.personality.score < M.alignmentLow) && need.level === 'low'
-              && (!hasMarks || readiness < M.litMaxReadiness)){
-      recommended = 'mathematicalLiteracy';
-      message = SC_COPY.mathLowNeed;
-    } else if(math.fit.overall >= M.strongOverall && !weak){
-      recommended = 'mathematics';
-      message = hasMarks ? SC_COPY.mathStrongFit : SC_COPY.mathStrongFitNoMarks;
-    } else if(math.interest.level === 'High' && weak){
-      recommended = 'mathematics';
-      message = SC_COPY.mathInterestWeak;
+  const raw = scAreaPct(learner, 'Mathematics');
+  const pct = raw == null ? null : Math.round(raw);
+  const interest = math ? math.interest.normalised : null;
+  // Do they want careers that need Mathematics?
+  const wants = need.level === 'high' ? 'strong'
+    : (need.level === 'medium' && interest != null && interest >= M.interestAspires ? 'some' : 'none');
+  // Does Mathematics support their interests and pathways? (Only matters where the result alone is enough.)
+  const supports = need.level === 'high' || need.level === 'medium' || (interest != null && interest >= M.interestSupports);
+  const fill = function(t){ return t.replace(/\{pct\}/g, String(pct)); };
+  let tier, pick = 'either', support = false, variant = null, message, headline;
+  if(pct == null){
+    tier = 'none'; message = SC_COPY.mathNone; headline = 'Add your Grade 9 Mathematics result to decide';
+  } else if(pct >= B.strong){
+    tier = 'strong'; pick = supports ? 'mathematics' : 'either';
+    message = fill(supports ? SC_COPY.mathStrong : SC_COPY.mathStrongEither);
+    headline = supports ? 'Mathematics is recommended' : 'Both options are open to you';
+  } else if(pct >= B.suitable){
+    tier = 'suitable'; pick = supports ? 'mathematics' : 'either';
+    message = fill(supports ? SC_COPY.mathSuitable : SC_COPY.mathSuitableEither);
+    headline = supports ? 'Mathematics is a suitable choice' : 'Both options are worth talking through';
+  } else if(pct >= B.developing){
+    tier = 'developing';
+    if(wants === 'strong'){
+      pick = 'mathematics'; support = true; variant = 'safer';
+      message = fill(SC_COPY.mathDevelopingWant); headline = 'Mathematics may be considered, with extra support';
+    } else {
+      pick = 'mathematicalLiteracy'; variant = wants === 'none' ? null : 'aspirational';
+      message = fill(SC_COPY.mathDevelopingLit); headline = 'Mathematical Literacy is currently the stronger academic fit';
     }
+  } else {
+    tier = pct >= B.low ? 'low' : 'veryLow';
+    pick = 'mathematicalLiteracy'; variant = wants === 'none' ? null : 'aspirational';
+    message = fill(tier === 'low' ? SC_COPY.mathLow : SC_COPY.mathVeryLow);
+    headline = tier === 'low' ? 'Mathematical Literacy is currently the stronger academic fit' : 'Mathematical Literacy is the main recommendation';
   }
   return {
-    recommended: recommended, message: message, always: SC_COPY.mathAlways, need: need,
+    recommended: pick, pick: pick, tier: tier, pct: pct, support: support, wants: wants, supports: supports, variant: variant,
+    headline: headline, message: message,
+    // Careers they want that need Mathematics: said separately from the subject choice.
+    careerNote: wants !== 'none' && pick !== 'mathematics' ? SC_COPY.mathCareerNeed : null,
+    litNote: SC_COPY.mathLitRespect,
+    always: SC_COPY.mathAlways, need: need,
     mathematics: math ? { overall: math.fit.overall, interest: math.interest.normalised, academic: math.academic.score, alignment: math.personality.score } : null,
   };
 }
 
-// Short label for the Maths vs Mathematical Literacy decision (shared by
-// the subject report and the report overview, so both say the same thing).
+// The subjects the Maths decision rules out as a recommendation right now.
+function scSetAsideBy(mc){
+  const out = {};
+  if(!mc) return out;
+  if(mc.pick === 'mathematicalLiteracy'){
+    out.mathematics = true;
+    Object.keys(SC_SUBJECTS).forEach(function(id){ if(SC_SUBJECTS[id].mathRequirement === 'strong') out[id] = true; });
+  } else if(mc.pick === 'mathematics') out.mathematicalLiteracy = true;
+  return out;
+}
+
+// Short label for the Maths decision (shared by the subject report and the learner report,
+// so both say the same thing).
 function scMathLeanLabel(m){
   if(!m) return 'Worth talking through both';
-  return m.recommended === 'mathematics' ? 'Leaning towards Mathematics'
-    : (m.recommended === 'mathematicalLiteracy' ? 'Leaning towards Mathematical Literacy' : 'Worth talking through both');
+  if(m.pick === 'mathematics') return m.support ? 'Mathematics, with extra support' : 'Mathematics';
+  if(m.pick === 'mathematicalLiteracy') return m.variant === 'aspirational' ? 'Mathematical Literacy (Mathematics as an aspiration)' : 'Mathematical Literacy';
+  return 'Worth talking through both';
+}
+
+// The Mathematics and Mathematical Literacy cards say what the learner's Mathematics
+// result means for each, in line with the decision above them. Only where the decision
+// sets one of them aside (or asks for support); otherwise the usual reasoning stands.
+function scApplyMathFeedback(res, mc){
+  const isMaths = res.id === 'mathematics';
+  const pct = mc.pct;
+  const hi = scInterestPhrases(res, 'high', 1);
+  const aligned = res.interest.level === 'High' || res.personality.level === 'High';
+  const likes = !aligned ? '' : (hi.length ? 'Your interest in ' + hi[0] + ' lines up well with ' : 'Your interests line up well with ') + SC_SUBJECTS[res.id].label + ', but ';
+  let why = null, consider = null;
+  if(mc.pick === 'mathematicalLiteracy'){
+    if(isMaths){
+      why = [likes + (likes ? 'your' : 'Your') + ' current Mathematics result (' + pct + '%) indicates that your academic foundation still needs significant development.',
+        mc.wants === 'none' ? 'Mathematical Literacy is currently the stronger academic fit for you.' : 'That makes Mathematics an aspirational choice for now rather than the safest recommendation.'];
+      consider = 'If you want careers that need Mathematics, build your foundation first and talk it through with your Mathematics teacher, Life Orientation teacher and parent/guardian.';
+    } else {
+      why = ['Your current Mathematics result (' + pct + '%) suggests that Mathematical Literacy may provide a stronger academic fit while still supporting many business, humanities and service-related career pathways.'];
+      if(aligned) why.push('It also matches how you like to work' + (hi.length ? ' and your interest in ' + hi[0] : '') + '.');
+      consider = 'Mathematical Literacy is a respected subject — check that the careers you like do not specifically require Mathematics.';
+    }
+  } else if(mc.pick === 'mathematics' && mc.support){
+    if(isMaths){
+      why = [likes + (likes ? 'your' : 'Your') + ' Grade 9 Mathematics result (' + pct + '%) means your readiness is still developing.',
+        'Mathematics may be considered because you are interested in careers that need it, but it would take extra support and regular practice.'];
+      consider = 'Talk it through with your Mathematics teacher, Life Orientation teacher and parent/guardian before you decide.';
+    } else {
+      why = ['With your Grade 9 Mathematics result at ' + pct + '%, Mathematical Literacy is the safer route while your Mathematics foundation develops.'];
+      consider = 'Mathematical Literacy is a respected subject — check that the careers you like do not specifically require Mathematics.';
+    }
+  }
+  if(!why) return;
+  res.feedback.why = why;
+  res.feedback.consider = consider;
+  res.feedback.thrive.explanation = why.join(' ');
 }
 
 /* ---------------- combinations ---------------- */
@@ -490,13 +599,23 @@ function scComboWhy(subjectIds, byId, closest){
   if(withMarks.length){
     const label = function(ids){ return scJoin(ids.map(function(id){ return SC_SUBJECTS[id].label; })); };
     const weak = withMarks.filter(function(id){ return byId[id].academic.score < SC_CONFIG.report.workOnBelow; });
-    if(weak.length) why += ' Your current results suggest ' + label(weak) + ' would benefit from some extra attention.';
-    else if(withMarks.length === subjectIds.length) why += ' Your current results support this combination.';
-    else why += ' Your current results support ' + label(withMarks) + '; we do not yet have marks for the others.';
+    if(weak.length){
+      // Said in Grade 9 learning areas, which are what the learner has results for.
+      const areas = [];
+      weak.forEach(function(id){ byId[id].academic.weakAreas.forEach(function(w){ const n = scAreaName(w.area); if(areas.indexOf(n) === -1) areas.push(n); }); });
+      why += areas.length
+        ? ' Your ' + scJoin(areas) + ' results are still developing, which matters for ' + label(weak) + ' — expect to put in some extra practice.'
+        : ' ' + scCap(label(weak)) + ' would benefit from some extra attention.';
+    }
+    else if(withMarks.length === subjectIds.length) why += ' Your current results suggest you are ready for this combination.';
+    else why += ' Your current results suggest you are ready for ' + label(withMarks) + '; we do not yet have marks for the others.';
   }
   return why;
 }
-function generateSubjectCombinations(results, mathChoice){
+// Every distinct combination the templates can make with this Mathematics pick, best
+// first. `metric` scores one subject: overall fit for a recommendation; natural fit
+// (interest and personality only) for an aspirational pathway the marks do not yet support.
+function scCombosFor(results, pick, metric){
   const byId = {};
   results.forEach(function(r){ byId[r.id] = r; });
   const found = [];
@@ -505,23 +624,22 @@ function generateSubjectCombinations(results, mathChoice){
     let ok = true;
     tpl.slots.forEach(function(slot){
       if(!ok) return;
-      // A pathway built on Mathematics is not offered beside a lean towards Maths Literacy.
-      if(slot.length === 1 && slot[0] === 'mathematics' && mathChoice && mathChoice.recommended === 'mathematicalLiteracy'){ ok = false; return; }
+      // A pathway built on Mathematics is not offered beside Mathematical Literacy.
+      if(slot.length === 1 && slot[0] === 'mathematics' && pick === 'mathematicalLiteracy'){ ok = false; return; }
       let candidates = slot.slice();
       let eitherMaths = false;
       if(slot.length === 1 && slot[0] === 'mathChoice'){
-        const rec = mathChoice ? mathChoice.recommended : 'either';
-        if(rec === 'either'){ candidates = ['mathematics', 'mathematicalLiteracy']; eitherMaths = true; }
-        else candidates = [rec];
+        if(pick === 'either'){ candidates = ['mathematics', 'mathematicalLiteracy']; eitherMaths = true; }
+        else candidates = [pick];
       }
       candidates = candidates.filter(function(id){ return byId[id] && !used[id]; });
       if(!candidates.length){ ok = false; return; }
-      candidates.sort(function(a, b){ return byId[b].fit.overall - byId[a].fit.overall; });
+      candidates.sort(function(a, b){ return metric(byId[b]) - metric(byId[a]); });
       chosen.push(candidates[0]); used[candidates[0]] = true;
       labels.push(eitherMaths ? 'Mathematics or Mathematical Literacy' : SC_SUBJECTS[candidates[0]].label);
     });
     if(!ok) return;
-    found.push({ id: tpl.id, name: tpl.name, subjects: chosen, labels: labels, score: scMean(chosen.map(function(id){ return byId[id].fit.overall; })) });
+    found.push({ id: tpl.id, name: tpl.name, subjects: chosen, labels: labels, score: scMean(chosen.map(function(id){ return metric(byId[id]); })) });
   });
   found.sort(function(a, b){ return b.score - a.score; });
   const seen = {}, unique = [];
@@ -529,11 +647,54 @@ function generateSubjectCombinations(results, mathChoice){
     const key = c.subjects.slice().sort().join('|');
     if(!seen[key]){ seen[key] = true; unique.push(c); }
   });
+  return unique;
+}
+function generateSubjectCombinations(results, mathChoice){
+  const byId = {};
+  results.forEach(function(r){ byId[r.id] = r; });
+  const unique = scCombosFor(results, mathChoice ? mathChoice.pick : 'either', function(r){ return r.fit.overall; });
   let picked = unique.filter(function(c){ return c.score >= SC_CONFIG.report.minComboScore; });
   if(!picked.length) picked = unique.slice(0, 1);
   return picked.slice(0, SC_CONFIG.report.combos).map(function(c){
     return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, why: scComboWhy(c.subjects, byId, c.score < SC_CONFIG.report.minComboScore) };
   });
+}
+// The second combination beside the recommended one, when the Maths decision calls for it:
+//   aspirational -- Mathematical Literacy is recommended, but they want Mathematics careers: the
+//                   Mathematics combination that fits what they enjoy and the careers they want,
+//                   chosen by interest and working style because their marks do not (yet) support it
+//   safer        -- Mathematics is recommended with extra support: the best Mathematical Literacy
+//                   combination, for a learner who would rather build their foundation first
+function scVariantCombo(results, mc){
+  if(!mc || !mc.variant) return null;
+  const aspirational = mc.variant === 'aspirational';
+  const byId = {};
+  results.forEach(function(r){ byId[r.id] = r; });
+  const natural = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
+  let found = scCombosFor(results, aspirational ? 'mathematics' : 'mathematicalLiteracy', aspirational ? natural : function(r){ return r.fit.overall; });
+  // Both variants are built round the Maths option they stand for.
+  const has = aspirational ? 'mathematics' : 'mathematicalLiteracy';
+  found = found.filter(function(c){ return c.subjects.indexOf(has) !== -1; });
+  if(!found.length) return null;
+  // Among the Mathematics combinations, prefer the one that covers the most of the careers they want.
+  const wanted = (mc.need && mc.need.careers) || [];
+  const coverage = function(c){
+    if(!wanted.length) return 0;
+    return wanted.filter(function(w){ return w.req.every(function(id){ return c.subjects.indexOf(id) !== -1; }); }).length / wanted.length;
+  };
+  found.sort(function(a, b){ return (b.score + (aspirational ? 15 * coverage(b) : 0)) - (a.score + (aspirational ? 15 * coverage(a) : 0)); });
+  const c = found[0];
+  const pathways = getCareerPathwaysForSubjects(c.subjects, results).pathways.slice(0, 3);
+  const open = pathways.length ? scJoin(pathways) : 'more';
+  let why;
+  if(aspirational){
+    const effort = mc.tier === 'developing' ? 'it would take extra support and regular practice before choosing this option'
+      : (mc.tier === 'low' ? 'significant improvement would be needed before choosing this option' : 'substantial improvement would be needed before choosing this option');
+    why = 'This Mathematics pathway could keep additional ' + open + ' careers open, but your current Mathematics result (' + mc.pct + '%) means ' + effort + '.';
+  } else {
+    why = 'A safer route if you would rather build your Mathematics foundation first: it fits your results as they are now' + (pathways.length ? ' and keeps pathways in ' + open + ' open' : '') + '.';
+  }
+  return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, kind: mc.variant, why: why };
 }
 
 /* ---------------- career connection ---------------- */
@@ -581,8 +742,10 @@ function scBuildProfile(answers, results){
     .slice(0, SC_CONFIG.profile.topTraits);
   const famScores = {};
   Object.keys(SC_FAMILIES).forEach(function(f){
-    const rs = results.filter(function(r){ return r.family === f; }).sort(function(a, b){ return b.fit.overall - a.fit.overall; }).slice(0, 2);
-    if(rs.length) famScores[f] = scMean(rs.map(function(r){ return r.fit.overall; }));
+    // Alignment is interests and working style; results are a separate part of the picture.
+    const align = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
+    const rs = results.filter(function(r){ return r.family === f; }).sort(function(a, b){ return align(b) - align(a); }).slice(0, 2);
+    if(rs.length) famScores[f] = scMean(rs.map(align));
   });
   const fams = Object.keys(famScores).sort(function(a, b){ return famScores[b] - famScores[a]; });
   const summary = [];
@@ -662,16 +825,28 @@ function buildSubjectChoiceReport(learner){
   });
   results.forEach(function(r){ r.feedback = generateSubjectFeedback(r); });
 
+  // Mathematics or Mathematical Literacy is decided first: it settles which of the two can be
+  // a recommendation, and everything below (matches, combinations, careers) follows from it.
+  const mathChoice = decideMathPathway(results, learner);
+  results.forEach(function(r){
+    if(r.id === 'mathematics' || r.id === 'mathematicalLiteracy') scApplyMathFeedback(r, mathChoice);
+  });
+  // What the decision sets aside is not listed as a match in its own right: the Maths card
+  // (and, where there is one, the second combination) explains it. With Mathematical Literacy
+  // that includes the subjects that need Mathematics, not Mathematical Literacy, to be taken.
+  const setAside = scSetAsideBy(mathChoice);
+
   const sorted = results.slice().sort(function(a, b){ return b.fit.overall - a.fit.overall; });
-  const nonLower = sorted.filter(function(r){ return r.category.key !== 'lower'; });
+  const listable = sorted.filter(function(r){ return !setAside[r.id]; });
+  const nonLower = listable.filter(function(r){ return r.category.key !== 'lower'; });
   const top = nonLower.filter(function(r){ return r.category.key === 'strong' || r.category.key === 'foundation'; }).slice(0, R.topMatches);
   nonLower.forEach(function(r){ if(top.length < R.minTopMatches && top.indexOf(r) === -1) top.push(r); });
   top.sort(function(a, b){ return b.fit.overall - a.fit.overall; });
   const explore = nonLower.filter(function(r){ return top.indexOf(r) === -1; }).slice(0, R.exploreMax);
-  const effort = sorted.filter(function(r){ return r.category.key === 'lower'; }).reverse().slice(0, R.effortMax);
+  const effort = listable.filter(function(r){ return r.category.key === 'lower'; }).reverse().slice(0, R.effortMax);
 
-  const mathChoice = decideMathPathway(results, learner);
   const combos = generateSubjectCombinations(results, mathChoice);
+  const variant = scVariantCombo(results, mathChoice);
   const focusIds = [];
   top.forEach(function(r){ if(focusIds.indexOf(r.id) === -1) focusIds.push(r.id); });
   if(combos[0]) combos[0].subjects.forEach(function(id){ if(focusIds.indexOf(id) === -1) focusIds.push(id); });
@@ -690,6 +865,7 @@ function buildSubjectChoiceReport(learner){
     top: top, explore: explore, effort: effort,
     mathChoice: mathChoice,
     combos: combos,
+    variant: variant,
     workOn: scBuildWorkOn(focus),
     workOnTips: scWorkOnTips(focus),
     careers: getCareerPathwaysForSubjects(focusIds, results),
@@ -719,8 +895,8 @@ Object.keys(SC_SUBJECTS).forEach(function(id){
 // Maths vs Mathematical Literacy decision instead of its own card.
 function scSubjectStatus(report, id){
   if(id === 'mathematics'){
-    const rec = report.mathChoice ? report.mathChoice.recommended : 'either';
-    return rec === 'mathematics' ? 'recommended' : (rec === 'either' ? 'explore' : 'effort');
+    const rec = report.mathChoice ? report.mathChoice.pick : 'either';
+    return rec === 'mathematics' ? 'recommended' : (rec === 'either' ? 'explore' : 'aspirational');
   }
   if(report.top.some(function(r){ return r.id === id; })) return 'recommended';
   if(report.explore.some(function(r){ return r.id === id; })) return 'explore';
@@ -753,7 +929,7 @@ function careerSubjectSupport(career, report){
 }
 
 function scGapPhrase(subject, status){
-  if(subject === 'Mathematics' && status === 'effort') return 'is the subject your results currently lean away from (towards Mathematical Literacy)';
+  if(subject === 'Mathematics' && status === 'aspirational') return 'is an aspirational choice for now — your Grade 9 Mathematics result currently points to Mathematical Literacy';
   if(subject === 'Mathematics' && status === 'explore') return 'is still open for you — your subject results suggest talking through Mathematics and Mathematical Literacy';
   if(status === 'explore') return 'sits under “subjects worth exploring” in your subject results';
   if(status === 'effort') return 'currently shows lower natural alignment in your subject results';

@@ -216,7 +216,6 @@ function subjectChoiceReportHTML(l){
   const pctOf = function(x){ return Math.round(x * 100); };
   const letter = function(i){ return String.fromCharCode(65 + i); };
   const m = rep.mathChoice;
-  const mathLean = scMathLeanLabel(m);
   const pti = personalityTypeInfo(l);
   // The same best-suited careers (and explanation) as the learner report,
   // so the two pages can't name different careers for the same learner.
@@ -241,8 +240,10 @@ function subjectChoiceReportHTML(l){
 
   <div class="card" style="margin-top:16px;">
     <h3>Mathematics or Mathematical Literacy?</h3>
-    ${scBadge(mathLean, 'badge-good')}
+    ${scBadge(m.headline, m.pick === 'either' ? 'badge-explore' : 'badge-good')}
     <p style="margin-top:10px;">${esc(m.message)}</p>
+    ${m.careerNote ? `<p>${esc(m.careerNote)}</p>` : ''}
+    ${m.pick !== 'mathematics' ? `<p class="page-sub">${esc(m.litNote)}</p>` : ''}
     <p class="page-sub">${esc(m.always)}</p>
   </div>
 
@@ -271,7 +272,14 @@ function subjectChoiceReportHTML(l){
       <p class="page-sub" style="margin:0;">Overall fit ${Math.round(c.score)}%</p>
     </div>`; }).join('')}
   </div>
-  <p class="page-sub" style="margin-top:10px;">These are starting points, not streams — you can mix and match.</p>
+  ${rep.variant ? `
+  <div class="card" style="margin-top:14px;border-style:dashed;">
+    <div class="page-sub" style="font-size:12px;font-weight:700;">${rep.variant.kind === 'aspirational' ? 'Aspirational pathway — not the safest choice yet' : 'A safer alternative'}</div>
+    <h3>${esc(rep.variant.name)}</h3>
+    <div class="pill-list" style="margin-bottom:10px;">${rep.variant.labels.map(function(n){ return `<span class="pill">${esc(n)}</span>`; }).join('')}</div>
+    <p>${esc(rep.variant.why)}</p>
+  </div>` : ''}
+  <p class="page-sub" style="margin-top:10px;">These are starting points, not streams — you can mix and match. ${esc(SC_COPY.schoolOffers)}</p>
 
   <div class="section-title"><h2>6. What you should work on</h2></div>
   <div class="card"><ul style="margin:0;padding-left:20px;">${rep.workOn.map(function(t){ return `<li style="margin-bottom:6px;">${esc(t)}</li>`; }).join('')}</ul></div>
