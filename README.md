@@ -230,7 +230,8 @@ js/
   app.js                  auth bootstrap, Postgres data layer, matching engine
   auth-ui.js              sign-in / sign-up screen
   learner_report.js       the learner report: five sections laid out like the design mock-up (the
-                          model, and the screen and printed markup)
+                          model, and the screen markup)
+  report_pdf.js           the same report as a four-page A4 PDF (see "The PDF" below)
   answer_inputs.js        how an answer feels: the pick animation, the pause before the next
                           question, and the touch-first snap slider (see below)
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
@@ -312,68 +313,110 @@ the spec before rewording any of it.
 
 ### The learner report
 
-**Your Report** is one short report — two printed A4 pages — laid out like the
-design mock-up and drawn in the iroli brand colours: a branded header and a
-name / grade / school / date bar, then five numbered sections.
+**Your Report** is one short report on screen — five numbered sections in a branded
+layout drawn in the iroli brand colours — and a separate, deliberately composed
+**four-page A4 PDF** ("Print / Save as PDF", see *The PDF* below). Both read the same
+object, `buildLearnerReport(l)`, so they cannot disagree.
 
 1. **Your Learner Profile** — **Your key traits** (the learner's top 4–5, ranked, each
-   with one sentence on what it means for them), "how you learn best", and **Your
-   interests** (five interest areas, each a 0–100% bar).
-2. **Subject Fit** — a table (academic readiness, interest alignment, personality
-   alignment, each 0–100%, then overall fit and a label), a one-line reason under each
-   recommended subject, and the learner's strongest results and areas to strengthen
-   under it (the old Academic Snapshot lives here).
-3. **Recommended Subject Combination** — the best-fit combination and one
-   alternative: just the subjects to choose (Maths first; the compulsory languages and
-   Life Orientation are not repeated), each with a short explanation.
-4. **Career Pathways** — up to four broad career areas, with example careers.
-5. **Your Final Recommendation & Next Steps** — where the learner is likely to
-   thrive, where extra effort may be needed, the **summary table** (best-fit
-   subjects, academic readiness, interest alignment, personality alignment, overall
-   recommendation) and three next steps.
+   with one sentence on what it means for them), how they like to work, "how you learn
+   best", **Your interests** (five interest areas, each a 0–100% bar) and their
+   personality type.
+2. **Subject Fit** — each subject with **academic readiness, interest alignment and
+   personality alignment kept as three separate numbers**, then overall fit and a label;
+   a one-line personalised reason under every subject; the **Mathematics or
+   Mathematical Literacy** card; and the learner's strongest results and areas to
+   strengthen.
+3. **Recommended Subject Combination** — the best-fit combination and a second one that
+   is deliberately not "equally safe" (see below): just the subjects to choose (Maths
+   first; the compulsory languages and Life Orientation are not repeated).
+4. **Career Pathways** — up to four broad career areas, each labelled from BOTH how well
+   it matches the learner and whether their results support it, with example careers.
+5. **Your Final Recommendation & Next Steps** — four answers (where the learner is likely
+   to thrive, which subjects fit best right now, which areas to improve, which pathways
+   could open if they improve), the summary and the next steps.
 
 The longer views that used to be tabs (career pathways, careers, academic
 strengths, subjects, profile, next steps) are one step away under "More detail",
-and the printed copy is only the short report.
+and the PDF is only the short report.
 
 It scores nothing itself. `buildLearnerReport(l)` in `js/learner_report.js`
 gathers everything from the code that already owns it — `personalityTypeInfo`,
 `scTraitScores` (key traits), the Subject Choice interest answers or the personality
 assessment's RIASEC scores (interest areas), `buildAcademicProfile`, `buildSubjectChoiceReport` (subject fit,
-combinations), `bestSuitedCareers` (the example careers, in the same order as
-Career Matches) — into one plain object, and `learnerReportHTML` draws it for
-screen and print, so it cannot disagree with the rest of the app. The words (Very
-Strong / Strong / Moderate / Low) and their cut-offs are `LR_CONFIG` at the top of
-that file.
+combinations, the Maths decision), `bestSuitedCareers` (the example careers, in the same order as
+Career Matches) — into one plain object, and `learnerReportHTML` / `reportA4HTML` draw it, so it cannot
+disagree with the rest of the app. The words (Very Strong / Strong / Moderate / Low) and their
+cut-offs are `LR_CONFIG` at the top of that file.
 
 The first three sections are one chain — *key traits + interests + academic results →
 Subject Fit → recommended combination* — and each says how it follows from the one
-before: the combination's explanation names the learner's own key traits, their interest
-areas, their strong results and the career areas (the same ones as section 4) it keeps
-open.
+before.
+
+#### Mathematics or Mathematical Literacy
+
+Interests and personality never make Mathematics the safe choice on their own. The decision
+(`decideMathPathway`, thresholds in `SC_CONFIG.math.bands`, wording in `SC_COPY`) starts from
+the learner's **actual Grade 9 Mathematics result**:
+
+| Result | Recommendation |
+|---|---|
+| 60% and above | Mathematics, where it supports their interests and pathways (otherwise "both are open") |
+| 50–59% | Mathematics is suitable; steady effort still matters |
+| 40–49% | Mathematics only if they strongly want careers that need it — clearly "readiness still developing", with extra support (and a safer Mathematical Literacy route beside it); otherwise Mathematical Literacy |
+| below 40% | Mathematical Literacy by default (the stronger current academic fit) |
+| below 30% | Mathematical Literacy is the main recommendation; Mathematics appears only as an aspirational pathway |
+| no result | no decision is invented — the report asks for the mark |
+
+"Strongly wants careers that need Mathematics" (`wants`) is read from interests and working
+style only (the best-suited careers ranked with the marks left out, plus the subjects they like
+best) — with marks in the ranking a low Mathematics result would hide the very careers they hope
+for. When Mathematical Literacy is recommended and they do want Mathematics careers, the report
+says both things separately: the **best subject choice for now** and **what the careers they want
+would need**, shows an **Aspirational Mathematics pathway** combination beside the best fit, labels
+Mathematics-heavy career areas and careers "Aspirational — Mathematics required" and never calls
+them a strong fit. Mathematical Literacy is described as a respected subject that keeps many pathways
+open, never as the lesser one.
+
+Two assumptions to know about (both in `SC_CONFIG.math`): `litLift` — Mathematical Literacy asks for
+much less abstract algebra, so the same Maths result counts for more towards it (its readiness is the
+Maths result plus 25% of the points missing to 100; an approximation, set it to 0 to use the plain
+mark); and `interestSupports` / `interestAspires`, which decide when Mathematics "supports their
+pathways" and when a medium pathway need counts as wanting Mathematics careers.
 
 Things worth knowing:
+- **The sections must agree.** `lrCheckReport(R)` runs when the report is built: a subject is never
+  recommended in one place and set aside in another, a Mathematics-heavy pathway is never a strong fit
+  beside a Mathematical Literacy decision, the final answers name only recommended subjects, and so on.
+  Problems are warned in the console (never shown to the learner) and the test suites assert there are none.
+- **Results are named by the Grade 9 learning area they come from.** A Grade 9 learner has no Business
+  Studies, Accounting or Economics result, so the report says "your EMS and language results, together
+  with your interest in Business & Finance, suggest a good fit" (the learning areas each subject builds
+  on are `academicInputs` in `SC_SUBJECTS`), never "your strong Business Studies results".
 - **A subject is never recommended on interests and personality alone.** The label beside
-  each subject has four levels (`lrRecommend`): *Strongly Recommended* (a strong match
+  each subject has five levels (`lrRecommend`): *Strongly Recommended* (a strong match
   and an overall fit of 80+, `LR_CONFIG.stronglyRecommended`), *Recommended* (a strong
   match), *Consider* (anything in between — and every subject we have no result for, so
-  without marks nothing can be more than Consider) and *May Require More Effort* (high
-  interest with results still developing, or lower natural alignment). The "strong
-  match" test is the Subject Choice engine's own category. Likewise "Strong Fit" in the
-  summary needs the learner's results and no weak side; otherwise it reads "Moderate
-  Fit" with a note. The "likely to thrive" and "extra effort" sentences are built from
-  those same labels, so they cannot disagree with the table.
+  without marks nothing can be more than Consider), *May Require More Effort* (high
+  interest with results still developing, or lower natural alignment) and *Aspirational*
+  (they would like it, but it needs Mathematics their results do not yet support). Mathematics and
+  Mathematical Literacy follow the Maths decision instead of the usual categories. Likewise "Strong
+  Fit" in the summary needs the learner's results and no weak side.
+- **Career areas are judged on two things** (`lrCareerAreas`, `LR_CONFIG.pathway`): alignment (interests
+  and personality) and readiness (the learner's results for the subjects the area's careers require),
+  and labelled *Strong Fit*, *Good Fit*, *Explore*, *Academic Readiness Developing* or *Aspirational*.
+  Careers that need Mathematics (or a subject that needs it, such as Physical Sciences) are flagged when
+  Mathematical Literacy is the recommendation; realistic areas are listed first.
 - **Interest areas are the same answers as Subject Fit.** With the Subject Choice
   Assessment done, an area's score is the learner's interest in the two subjects they
   like best within it (`LR_AREAS` lists them), the very scores behind each subject's
   "interest alignment"; before that it comes from the personality assessment's interest
-  dimensions. The caption under the bars says which. (Scoring is unchanged: the areas
-  explain and agree with Subject Fit, they do not yet change it or Career Matches.)
+  dimensions. The caption under the bars says which.
 - **"How you learn best" is inferred, not measured.** There is no learning-style
   test: the sentence is read from the learner's personality and work-style answers
   (`LR_LEARN`), and the report says so beneath it.
 - **Every learner gets a report that fits them.** Grade 9 with a finished Subject
-  Choice Assessment gets all five sections; a Grade 10–12 or exploring learner has no
+  Choice Assessment gets all of it; a Grade 10–12 or exploring learner has no
   "Recommended Subject Combination" (the numbers close up) and sees the subjects their
   careers rely on instead; someone with nothing done yet sees a "Start here" card,
   never an empty table. Finishing the Subject Choice or personality assessment lands
@@ -384,19 +427,44 @@ Things worth knowing:
   pink, `--brand-*` in `style.css`); the Subject Fit bars use one colour per column
   (academic = blue, interest = violet, personality = pink); pills use the brand
   indigo and the existing blue and pink tints. Change the `--brand-*` / `--tint-*`
-  tokens and the report follows. The real logo sits on a white chip in the header
-  (the pink "oli." would vanish on the gradient).
-- **It is a light sheet in every theme.** Inside `.rp` the shared colour tokens are
-  pinned to their light values, so the report reads the same in dark mode, on paper
-  and on a phone. The phone layout is switched on by the report's own width (a CSS
+  tokens and the report follows.
+- **The screen report is a light sheet in every theme.** Inside `.rp` the shared colour tokens are
+  pinned to their light values. The phone layout is switched on by the report's own width (a CSS
   container query), not the screen width, because the report sits beside the sidebar;
   on a phone each subject becomes a small card with three labelled bars.
-- **Print** is the same markup (`.rp-print`), tightened: page 1 is the header, profile
-  and subject fit; page 2 the combination, careers and final recommendation. The
-  next-best subjects added to the table for context (and the notes only the screen
-  needs) are left out of the paper copy, which keeps every test learner to two pages.
-  Cards and rows are kept whole; only Subject Fit may split (its header row repeats), so
-  a long table never leaves a half-empty page.
+
+#### The PDF (`js/report_pdf.js`)
+
+"Print / Save as PDF" prints a document built for A4, not the web page printed: **four pages**, each a
+fixed 210 × 297 mm box (header, body, footer in a flex column), each answering one question:
+
+| Page | Title | Answers | Contains |
+|---|---|---|---|
+| 1 | Your Learner Profile | Who am I? | details, key traits, interests (%), personality type, how they like to work, how they learn best |
+| 2 | Your Subject Fit | Which subjects currently fit me? | the Maths decision, every subject as a row (Academic / Interest / Personality / Overall, the label and a personalised reason), strongest results, areas to strengthen |
+| 3 | Your Pathway | Where could these subjects take me? | best-fit and aspirational (or safer / alternative) combination, career areas with their labels and warnings, "how to read these pathways" |
+| 4 | Your Recommendation | What should I do next? | the four answers, summary, academic readiness, next steps, the disclaimers |
+
+A report that is not finished (no personality assessment yet, or a learner who is not choosing Grade 10
+subjects) gets only the pages it has something real to say on (3 or 1), never pages of empty boxes.
+
+How overlap and overflow are prevented (not just hoped against):
+- `@page { size: A4 portrait; margin: 0 }`: the pages carry their own margins, which also leaves the
+  browser no margin to print its own URL, date and page numbers in.
+- Nothing is positioned absolutely. Blocks stack in a flex/grid body that grows with its text; the footer
+  owns its own strip, so the body cannot run underneath it. Text wraps (`overflow-wrap`), grid columns are
+  `minmax(0, …)`, and the subject table is one row per subject instead of six crowded columns.
+- Type is never shrunk to fit (9.5 pt body, 8.5 pt smallest). If a learner's content is longer than usual, the
+  fit pass `a4FitAll` (run on `beforeprint`) tightens the page (smaller gaps), then leaves out the least important
+  blocks one at a time (`data-opt`, higher number goes first) and brings back whatever still fits.
+- Colours are forced to print (`print-color-adjust: exact`) and the palette is pinned to light.
+
+To check a change by hand: open the report, Print, tick **Headers and footers** (they should still not
+appear), and look at every page; with long names/schools too. To check in a script, print the page
+with `chrome --headless=new --print-to-pdf=out.pdf <url>` (leave out `--no-pdf-header-footer`, so the
+margin trick is really tested) and read it back with PyMuPDF: page count, every word inside the safe
+area, no two words overlapping, and every word on screen present in the PDF (text clipped by a page box
+is silently missing from the PDF text).
 
 ### One story across the app (please keep it that way)
 
@@ -411,7 +479,8 @@ re-derive them:
 | Personality type (e.g. `IR`) | `personalityTypeInfo(l)` — top two RIASEC dimensions from the **Personality Assessment** | `js/app.js` |
 | Best-suited careers | `bestSuitedCareers(l, n)` — the order the Career Matches page shows (strong matches first). **Empty until the personality assessment is done**: before it every career ties, so a "top three" would be arbitrary | `js/app.js` |
 | Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list ("the subjects your top careers rely on" for anyone who is not in Grade 9) | `js/views_report.js` |
-| The learner report | `buildLearnerReport(l)` — the five sections and summary table, built only from the rows above | `js/learner_report.js` |
+| The learner report (screen and PDF) | `buildLearnerReport(l)` — built only from the rows above | `js/learner_report.js` (model, screen), `js/report_pdf.js` (A4 PDF) |
+| Mathematics or Mathematical Literacy | `decideMathPathway` — from the learner's Grade 9 Mathematics result | `js/subject_choice_engine.js` |
 | Who sees what | `isGrade9Learner`, `subjectChoiceAvailable`, `learnerGate` (profile / activation screen), `resultsEntryLinkHTML` (where a learner adds marks) | `js/app.js` |
 | How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
 

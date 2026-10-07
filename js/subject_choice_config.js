@@ -124,7 +124,10 @@ const SC_COPY = {
   mathLow: 'Based on your current Grade 9 Mathematics result, Mathematical Literacy is currently the stronger academic fit. Mathematics may keep additional university and career pathways open, but choosing it would require significant improvement and should be discussed with your Mathematics teacher, Life Orientation teacher and parent/guardian.',
   mathVeryLow: 'Based on your current Grade 9 Mathematics result ({pct}%), Mathematical Literacy is the stronger academic fit and is our main recommendation. Mathematics is shown only as an aspirational pathway: it may keep additional university and career pathways open, but it would need substantial improvement and a conversation with your Mathematics teacher, Life Orientation teacher and parent/guardian.',
   mathCareerNeed: 'Some careers you are interested in require Mathematics rather than Mathematical Literacy. If you want to pursue these careers, you would need to substantially improve your Mathematics foundation before making your final subject choice.',
-  mathLitRespect: 'Mathematical Literacy is a respected subject that supports many legitimate pathways, including business, tourism, services, the humanities and many diplomas and trades. Mathematics is specifically required for certain programmes and careers, such as engineering, actuarial science and many science degrees.',
+  // Said together on screen; the PDF puts each half where it belongs (what stays open / what may be restricted).
+  mathLitOpen: 'Mathematical Literacy is a respected subject that supports many legitimate pathways, including business, tourism, services, the humanities and many diplomas and trades.',
+  mathRequired: 'Mathematics is specifically required for certain programmes and careers, such as engineering, actuarial science and many science degrees.',
+  mathLitOpenShort: 'Mathematical Literacy keeps business, tourism, services, humanities, trades and many diplomas open.',
   mathAlways: 'Subject requirements differ between careers and institutions. Choosing Mathematical Literacy may limit access to some university programmes that specifically require Mathematics. Always check the requirements of careers and qualifications you are considering before finalising your subjects.',
 };
 

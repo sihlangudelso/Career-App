@@ -4,25 +4,36 @@
 
      1  Your Learner Profile                 4  Career Pathways
      2  Subject Fit                          5  Your Final Recommendation & Next Steps
-     3  Recommended Subject Combination         (the summary table + three next steps)
+     3  Recommended Subject Combination         (four answers, the summary and the next steps)
 
-   The Academic Snapshot (key results, strongest and weakest areas) sits
-   under the Subject Fit table, where those results are used.
-   About 2 pages when printed -- a short report, not a psychometric one.
+   This file is the MODEL (buildLearnerReport) and the SCREEN markup. The printed /
+   PDF copy is a separate four-page A4 document, js/report_pdf.js, built from the
+   same model.
 
    The first three sections are one chain, and each says how it follows from
    the one before:
      key traits + interests + academic results  ->  Subject Fit  ->  the
      recommended combination
    A subject is never recommended on interests and personality alone: without
-   a result for it, the most it can be is "Consider".
+   a result for it, the most it can be is "Consider". Academic readiness,
+   interest alignment and personality alignment are kept as three separate
+   numbers everywhere (never one blended "alignment"), and a pathway that
+   matches the learner but is not yet supported by their results is labelled
+   for exactly that ("Academic Readiness Developing", "Aspirational").
+
+   Mathematics or Mathematical Literacy follows the learner's own Grade 9
+   Mathematics result (decideMathPathway); the recommended combination, the
+   subject table, the career areas and the final answers all follow that one
+   decision, and lrCheckReport() checks that they do. Results are always named
+   by the Grade 9 learning area they come from (EMS, Mathematics ...), never as
+   if the learner had already taken a subject such as Business Studies.
 
    Nothing in this file scores anything. Every number and ranking comes
    from the one place that already owns it (personalityTypeInfo,
    buildAcademicProfile, buildSubjectChoiceReport, bestSuitedCareers ...),
    so this report can never disagree with the rest of the app.
    buildLearnerReport() gathers all of that into one plain object, and
-   learnerReportHTML() draws it -- on screen and in the printed copy.
+   learnerReportHTML() draws it on screen.
 
    Learners who are not Grade 9 (or who have not finished the Subject
    Choice Assessment yet) get the same report with the subject sections
@@ -245,6 +256,9 @@ function lrProfile(l, rep){
     traits: lrKeyTraits(l),
     interests: areas.list, interestAll: areas.all, interestBasis: areas.basis,
     learn: lrLearnBest(l),
+    // the type in the assessment's own words, and the strengths the learner rated highest
+    typeDescs: p.top.map(function(t){ return { name: t.name, desc: t.desc }; }),
+    strengths: p.strengths.map(function(x){ return x.label; }),
   };
 }
 
@@ -691,7 +705,7 @@ function lrOpen(rep, maths, areas){
     out.push('With regular practice and extra support, your Mathematics could grow enough to keep Mathematics-based pathways open.');
   }
   const names = areas.ready ? areas.list.filter(function(a){ return a.status !== 'aspirational'; }).slice(0, 3).map(function(a){ return a.faculty.name; }) : [];
-  if(names.length) out.push('Steady results in your recommended subjects keep pathways in ' + scJoin(names) + ' open, and revisiting your results each term shows how many more could open.');
+  if(names.length) out.push('Steady results in your recommended subjects keep pathways in ' + scJoin(names) + ' open.');
   return out.slice(0, 2);
 }
 // For a learner without a Subject Choice report (other grades, or not done yet):
@@ -766,7 +780,10 @@ function lrWorkStyle(l){
     else if(v <= 25) items.push({ strength: 50 - v, text: q[2] });
   });
   items.sort(function(a, b){ return b.strength - a.strength; });
-  return { items: items.slice(0, 4).map(function(x){ return x.text; }), answered: true };
+  // every slider, for the picture: where the learner sits between the two ends (0-100)
+  const sliders = WORK_STYLE_QUESTIONS.filter(function(q){ return ws[q.key] != null && !isNaN(Number(ws[q.key])); })
+    .map(function(q){ return { left: q.left, right: q.right, value: Math.max(0, Math.min(100, Number(ws[q.key]))) }; });
+  return { items: items.slice(0, 4).map(function(x){ return x.text; }), sliders: sliders, answered: true };
 }
 function buildLearnerReport(l){
   const grade9 = isGrade9Learner(l);
@@ -906,7 +923,7 @@ function lrSummary(l, c){
     if(noMarks) note = 'Add your Grade 9 marks — a recommendation needs your results as well as your interests.';
     else if(overall.capped) note = acLv.key === 'l' ? 'Your interests and working style fit well — your current results are still developing.' : 'One part of this fit is lower than the others — see Subject Fit above.';
     rows.push(text('Best-fit subjects', c.best.subjects.join(', ')));
-    if(c.maths && c.maths.pick !== 'either') rows.push(text('Mathematics or Mathematical Literacy', c.maths.now + (c.maths.aspire ? ' now · ' + c.maths.aspire : '')));
+    if(c.maths && c.maths.pick !== 'either') rows.push(text('Mathematics or Mathematical Literacy', c.maths.now + (c.maths.aspire ? ' now; Mathematics as an aspiration' : '')));
     rows.push(level('Academic readiness', acLv, noMarks ? 'Add your Grade 9 marks to see this.' : null));
     rows.push(level('Interest alignment', inLv));
     rows.push(level('Personality alignment', peLv));
@@ -985,10 +1002,10 @@ function lrCheckReport(R){
 
 /* ============================================================
    Drawing it. Everything below reads the object buildLearnerReport()
-   returns -- no scoring, no new wording rules -- and is used for both
-   the on-screen report and the printed copy. The layout follows the
+   returns -- no scoring, no new wording rules. The layout follows the
    owner's mock-up; the colours are the iroli brand's (see .rp in
    style.css): the logo's blue -> violet -> pink gradient, in five steps.
+   (The PDF is drawn separately by js/report_pdf.js, from the same object.)
    ============================================================ */
 
 // One icon per personality trait and per career area (icons.js).
@@ -1070,6 +1087,7 @@ function rpProfileHTML(R){
     <div class="rp-pcol">
       <h3 class="rp-h3">Your key traits</h3>
       <ul class="rp-traits">${traits}</ul>
+      ${pr.work && pr.work.items.length ? `<p class="rp-work"><span class="rp-k">How you like to work</span> ${esc(scCap(scJoin(pr.work.items)))}.</p>` : ''}
       ${pr.learn ? `<div class="rp-learn"><span class="rp-learn-ic">${icon('cap', 'rp-ic')}</span><div><h3 class="rp-h3">How you learn best</h3><p>${esc(pr.learn)}</p><small>Read from your personality and work-style answers.</small></div></div>` : ''}
     </div>
     <div class="rp-pcol rp-pint">
@@ -1103,14 +1121,14 @@ function rpFitTableHTML(R){
     return `<td data-label="${label}"><div class="rp-cell ${cls}">${m.score == null ? '<span class="rp-nodata">No marks yet</span>' : rpBar(m.score) + '<b class="rp-pct">' + rpPct(m.score) + '</b>'}</div></td>`;
   };
   const rows = f.rows.map(function(r){
-    return `<tr${r.extra === 'other' ? ' class="rp-row-other"' : ''}>
-      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.why ? `<small class="rp-reason">${esc(r.why)}</small>` : ''}${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra === 'alternative' ? '<small class="rp-alt">In the alternative combination</small>' : ''}</th>
+    return `<tr class="rp-main-row${r.extra === 'other' ? ' rp-row-other' : ''}${r.why ? '' : ' rp-nowhy'}">
+      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra === 'alternative' ? `<small class="rp-alt">${esc(LR_COMBO_MARK[R.combo.kind] || LR_COMBO_MARK.alternative)}</small>` : ''}</th>
       ${cell(r.academic, 'm-ac', 'Academic')}
       ${cell(r.interest, 'm-in', 'Interest')}
       ${cell(r.personality, 'm-pe', 'Personality')}
       <td class="rp-overall" data-label="Overall fit"><b class="rp-ov rp-ov-${r.overall.key}">${rpPct(r.overall.score)}</b></td>
       <td class="rp-recwrap" data-label="Recommendation"><span class="rp-chip rp-chip-${r.rec.key}">${esc(r.rec.label)}</span></td>
-    </tr>`;
+    </tr>${r.why ? `<tr class="rp-why-row${r.extra === 'other' ? ' rp-row-other' : ''}"><td colspan="6">${esc(r.why)}</td></tr>` : ''}`;
   }).join('');
   return `
   <table class="rp-table">
@@ -1124,13 +1142,31 @@ function rpFitTableHTML(R){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  ${f.also.length ? `<p class="rp-foot rp-screen-only">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
-  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%). A subject is only recommended when your results support it as well as your interests and personality.${R.combo.mathLine ? ' Mathematics or Mathematical Literacy: ' + esc(lrLower(R.combo.mathLine)) + '.' : ''}</p>`;
+  ${f.also.length ? `<p class="rp-foot">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
+  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%). A subject is only recommended when your results support it as well as your interests and personality. Results are the Grade 9 learning areas each subject builds on (for example EMS for Business Studies), not marks in a subject you have not taken yet.</p>`;
+}
+// The Mathematics / Mathematical Literacy decision, beside the table it explains.
+function rpMathsHTML(R){
+  const m = R.maths;
+  if(!m) return '';
+  return `
+  <div class="rp-maths">
+    <div class="rp-maths-h"><span class="rp-sq">${icon('compass', 'rp-ic')}</span><div><b>Mathematics or Mathematical Literacy?</b><small>${esc(m.headline)}</small></div></div>
+    <div class="rp-maths-b">
+      <p>${esc(m.message)}</p>
+      <div class="rp-maths-pair">
+        <div><span class="rp-k">Best choice for now</span><b>${esc(m.now)}</b></div>
+        ${m.aspire ? `<div class="rp-maths-asp"><span class="rp-k">Your aspirational careers need</span><b>${esc(m.aspire)}</b>${m.careers.length ? `<small>For example ${esc(scJoin(m.careers))}.</small>` : ''}</div>` : ''}
+      </div>
+      ${m.careerNote ? `<p>${esc(m.careerNote)}</p>` : ''}
+      ${m.pick !== 'mathematics' ? `<p class="rp-note">${esc(m.litNote)}</p>` : ''}
+    </div>
+  </div>`;
 }
 function rpFitHTML(R, l){
   const f = R.fit;
   if(f.state === 'ready'){
-    return rpFitTableHTML(R) + rpAcademicHTML(R, l) + `<div class="rp-actions">${lrButton('See the full subject-by-subject breakdown', "navigate('subject-choice')")}</div>`;
+    return rpFitTableHTML(R) + rpMathsHTML(R) + rpAcademicHTML(R, l) + `<div class="rp-actions">${lrButton('See the full subject-by-subject breakdown', "navigate('subject-choice')")}</div>`;
   }
   if(f.state === 'needsPersonality'){
     return rpEmpty('Your Subject Choice answers are saved. Take the personality assessment to see how each subject fits you — it only takes a few minutes.', 'Take the personality assessment', "navigate('assessment')") + rpAcademicHTML(R, l);
@@ -1148,13 +1184,17 @@ function rpFitHTML(R, l){
 }
 
 /* ---- 3: recommended subject combination ---- */
+const LR_COMBO_TITLE = { best: 'Best-fit combination', aspirational: 'Aspirational Mathematics pathway', safer: 'A safer alternative', alternative: 'Alternative combination' };
+const LR_COMBO_MARK = { aspirational: 'In the aspirational pathway', safer: 'In the safer alternative', alternative: 'In the alternative combination' };
+const LR_COMBO_TAG = { aspirational: 'Not the safest choice yet — your results do not support it yet', safer: 'Fits your results as they are now' };
 function rpComboCard(c, kind){
   if(!c) return '';
   const best = kind === 'best';
   return `
-  <div class="rp-combo ${kind}">
-    <div class="rp-combo-h"><span class="rp-sq">${icon(best ? 'check' : 'switch', 'rp-ic')}</span><div><b>${best ? 'Best-fit combination' : 'Alternative combination'}</b><small>${esc(c.name)}</small></div></div>
+  <div class="rp-combo ${best ? 'best' : 'alt'} rp-combo-${kind}">
+    <div class="rp-combo-h"><span class="rp-sq">${icon(best ? 'check' : (kind === 'aspirational' ? 'compass' : 'switch'), 'rp-ic')}</span><div><b>${esc(LR_COMBO_TITLE[kind] || LR_COMBO_TITLE.alternative)}</b><small>${esc(c.name)}</small></div></div>
     <div class="rp-combo-b">
+      ${LR_COMBO_TAG[kind] ? `<p class="rp-tag2">${esc(LR_COMBO_TAG[kind])}</p>` : ''}
       <ul>${c.subjects.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>
       <p class="rp-why">${esc(c.why)}</p>
     </div>
@@ -1167,8 +1207,8 @@ function rpComboHTML(R){
   }
   if(!c.best) return `<p class="rp-muted">No subject combination stood out strongly this time — talk through the subjects above with your teacher.</p>`;
   return `
-  <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, 'alt') : ''}</div>
-  <p class="rp-foot rp-screen-only">Check which combinations your school offers.</p>`;
+  <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, c.kind || 'alternative') : ''}</div>
+  <p class="rp-foot">${esc(SC_COPY.schoolOffers)}</p>`;
 }
 
 /* ---- 4: career pathways ---- */
@@ -1176,7 +1216,9 @@ function rpAreasHTML(R){
   const A = R.areas;
   if(!A.ready) return rpEmpty('Take the personality assessment to see which broad career areas fit you.', 'Take the personality assessment', "navigate('assessment')");
   return `<ul class="rp-areas">${A.list.map(function(a, i){
-    const careers = a.careers.map(function(c){ return `<a href="#" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'overview'}});return false;">${esc(c.name)}</a>`; }).join(', ');
+    const careers = a.careers.map(function(c){
+      return `<a href="#" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'overview'}});return false;">${esc(c.name)}</a>${c.aspirational ? ' <span class="rp-asp">Aspirational — Mathematics required</span>' : ''}`;
+    }).join(', ');
     const uses = [
       A.basis !== 'none' && a.draws.length ? `<b>Builds on</b> ${esc(a.draws.join(', '))}` : '',
       a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '',
@@ -1186,6 +1228,8 @@ function rpAreasHTML(R){
       <span class="rp-dot rp-dot-lg">${icon(LR_AREA_ICON[a.faculty.id] || 'compass', 'rp-ic')}</span>
       <div>
         <h3 title="${esc(a.faculty.overview)}">${esc(a.faculty.name)} <span class="badge ${a.label.c}">${esc(a.label.t)}</span></h3>
+        <p class="rp-pair"><span><b>Interest &amp; personality</b> ${esc(a.alignLevel.label)}</span> <span><b>Academic readiness</b> ${a.readyLevel ? esc(a.readyLevel.label) : 'Not yet available'}</span></p>
+        <p class="rp-areawhy">${esc(a.why)}</p>
         <p><b>Careers to explore</b> ${careers}</p>
         ${uses ? `<p class="rp-areamore">${uses}</p>` : ''}
       </div>
@@ -1198,7 +1242,9 @@ function rpFinalHTML(R){
   const f = R.final, S = R.summary;
   const concl = [];
   if(f.thrive) concl.push(['star', 'Where you are likely to thrive', [f.thrive]]);
-  if(f.effort.length) concl.push(['flag', 'Where extra effort may be needed', f.effort]);
+  if(f.fitNow) concl.push(['check', 'Which subjects fit you best right now', [f.fitNow]]);
+  if(f.improve.length) concl.push(['flag', 'Which areas to improve', f.improve]);
+  if(f.open.length) concl.push(['compass', 'Which pathways could open if you improve', f.open]);
   const rows = S.rows.map(function(r){
     let val;
     if(r.kind === 'level') val = `<span class="rp-lv rp-lv-${r.level.key}">${esc(r.level.label)}</span>`;
@@ -1209,7 +1255,7 @@ function rpFinalHTML(R){
   }).join('');
   const steps = f.steps.map(function(s){ return `<li><span>${esc(s.text)}${s.action ? ` <span class="rp-act">${lrButton(s.action.label, s.action.onclick)}</span>` : ''}</span></li>`; }).join('');
   return `
-  ${concl.length ? `<div class="rp-concl${concl.length === 1 ? ' rp-concl-one' : ''}">${concl.map(function(c){ return `<div class="rp-concl-i"><span class="rp-concl-ic">${icon(c[0], 'rp-ic')}</span><div><h3>${esc(c[1])}</h3>${c[2].map(function(t){ return `<p>${esc(t)}</p>`; }).join('')}</div></div>`; }).join('')}</div>` : ''}
+  ${concl.length ? `<div class="rp-concl${concl.length === 1 ? ' rp-concl-one' : ''}${concl.length > 2 ? ' rp-concl-four' : ''}">${concl.map(function(c){ return `<div class="rp-concl-i"><span class="rp-concl-ic">${icon(c[0], 'rp-ic')}</span><div><h3>${esc(c[1])}</h3>${c[2].map(function(t){ return `<p>${esc(t)}</p>`; }).join('')}</div></div>`; }).join('')}</div>` : ''}
   <div class="rp-final">
     <div class="rp-card rp-card-sum">
       <div class="rp-card-h"><span class="rp-sq">${icon('star', 'rp-ic')}</span><h3>${S.complete ? (R.grade9 ? 'Your subject choice summary' : 'Your summary') : 'Your summary so far'}</h3></div>
@@ -1222,13 +1268,17 @@ function rpFinalHTML(R){
   </div>
   <p class="rp-foot">${esc(SC_COPY.finalDecision)}</p>`;
 }
+// The admission-requirements disclaimer, and (for a Grade 9 report) the Mathematics and school-offer reminders.
+function rpDisclaimerHTML(R){
+  return `<div class="disclaimer rp-disc">${icon('info', 'ic')}<div>${R.disclaimer.map(function(t){ return `<p>${esc(t)}</p>`; }).join('')}</div></div>`;
+}
 
 // The whole report: header, then the sections that apply to this learner,
 // numbered in order (a learner who is not choosing Grade 10 subjects has no
 // "Recommended Subject Combination", so the numbers simply close up).
 function learnerReportHTML(l, R, opts){
   opts = opts || {};
-  const idp = opts.print ? 'rpp' : 'rps';
+  const idp = 'rps';
   const known = R.summary.rows.some(function(r){ return r.kind !== 'todo'; });
   let main;
   if(!known){
@@ -1258,12 +1308,12 @@ function learnerReportHTML(l, R, opts){
     main = html.join('');
   }
   return `
-  <article class="rp ${opts.print ? 'rp-print' : ''}" aria-label="${esc(R.meta.title)}">
+  <article class="rp" aria-label="${esc(R.meta.title)}">
     ${rpHeadHTML(R)}
     <div class="rp-main">
       ${rpInfoHTML(R)}
       ${main}
-      ${disclaimerHTML()}
+      ${rpDisclaimerHTML(R)}
     </div>
   </article>`;
 }

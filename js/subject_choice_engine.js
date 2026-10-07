@@ -516,7 +516,7 @@ function decideMathPathway(results, learner){
     headline: headline, message: message,
     // Careers they want that need Mathematics: said separately from the subject choice.
     careerNote: wants !== 'none' && pick !== 'mathematics' ? SC_COPY.mathCareerNeed : null,
-    litNote: SC_COPY.mathLitRespect,
+    litNote: SC_COPY.mathLitOpen + ' ' + SC_COPY.mathRequired,
     always: SC_COPY.mathAlways, need: need,
     mathematics: math ? { overall: math.fit.overall, interest: math.interest.normalised, academic: math.academic.score, alignment: math.personality.score } : null,
   };

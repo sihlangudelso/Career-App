@@ -307,11 +307,11 @@ function reportNextStepsHTML(l){
   `;
 }
 
-// The printed copy is just the short report (about 2-3 pages): always in the
-// page but hidden on screen (.print-only), and shown only when printing, so
-// "Print / Save as PDF" captures the report whichever page is open. The
-// longer views are not part of it.
+// The printed copy is the A4 document built by js/report_pdf.js (four deliberate
+// pages, not this web page tightened): always in the page but hidden on screen
+// (.print-only), and shown only when printing, so "Print / Save as PDF" captures
+// the report whichever page is open. The longer views are not part of it.
 function reportPrintHTML(l, R){
   R = R || buildLearnerReport(l);
-  return learnerReportHTML(l, R, { print:true });
+  return reportA4HTML(l, R);
 }
