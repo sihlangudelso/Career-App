@@ -507,7 +507,9 @@ seconds and gives a file of about 2 MB. Things to know:
   change the version in the URL, download the file, and put its new `sha384` in `integrity`
   (`openssl dgst -sha384 -binary file | openssl base64 -A`). Nothing the learner sees or types leaves the browser.
 - If they cannot be loaded (offline, or blocked by a school network), a page comes out blank, or anything else
-  goes wrong, the print window opens instead with a short message ("Save as PDF" there still works).
+  goes wrong, the print window opens instead with a short message ("Save as PDF" there works in Chrome, Edge and
+  Firefox). In **Safari and on iPhones/iPads it asks the learner to try again instead**: WebKit ignores the A4
+  `@page` rule, so printing the pages there spills them onto extra, mostly blank sheets (`rdPrintHonoursA4`).
 - The pages are pictures (240 dpi), so the *look* is the browser's own rendering; only the hidden layer is text.
   `RD_CONFIG` holds the resolution and JPEG quality. Print and Download show the same pages; the print copy
   is shown only when printing (`.print-only`).

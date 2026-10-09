@@ -14,7 +14,9 @@
    The pages are images, so the text in the downloaded PDF cannot be selected (an invisible text
    layer sits on top of each page so that it can be searched and read by assistive technology).
    If the libraries cannot be loaded (offline, or blocked by a school network) or anything goes
-   wrong, the print window opens instead, as it always did: "Save as PDF" there still works.
+   wrong, the print window opens instead ("Save as PDF" there works in Chrome, Edge and Firefox)
+   -- except in Safari and on iPhones/iPads, where printing the A4 pages gives extra blank
+   sheets (WebKit ignores @page), so there the learner is asked to try again.
 
    Test hook: rdBuildPDF(l, R) returns the finished jsPDF document without saving it.
    ============================================================ */
@@ -155,6 +157,16 @@ async function rdBuildPDF(l, R, progress){
   }
 }
 
+// Safari, and every browser on an iPhone or iPad, print through WebKit, which ignores the report's A4 page rule:
+// the pages then spill onto extra, mostly blank sheets. Chrome, Edge and Firefox honour it, so for them the print
+// window is a good second choice; for the others a retry is a better one.
+function rdPrintHonoursA4(){
+  const ua = navigator.userAgent || '';
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const safari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Android|Firefox/.test(ua);
+  return !(ios || safari);
+}
+
 function rdFileName(R){
   const clean = function(s){ return String(s || '').normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-'); };
   const who = R.meta.name && R.meta.name !== 'You' ? '-' + clean(R.meta.name) : '';
@@ -174,9 +186,13 @@ async function downloadReportPDF(btn){
     pdf.save(rdFileName(R));
     toast('Your report was downloaded.');
   } catch(err){
-    console.error('[iroli] the PDF could not be built, opening the print window instead:', err);
-    toast('The PDF could not be prepared here, so the print window is opening — choose “Save as PDF” there.');
-    setTimeout(function(){ window.print(); }, 400);
+    console.error('[iroli] the PDF could not be built:', err);
+    if(rdPrintHonoursA4()){
+      toast('The PDF could not be prepared here, so the print window is opening — choose “Save as PDF” there.');
+      setTimeout(function(){ window.print(); }, 400);
+    } else {
+      toast('The PDF could not be prepared. Check your internet connection and try again.');
+    }
   } finally {
     RD_BUSY = false;
     if(btn){ btn.disabled = false; btn.removeAttribute('aria-busy'); btn.innerHTML = label; }
