@@ -83,14 +83,14 @@ function viewAdminClasses(){
         </div>
       </div>
       ${IS_SUPER_ADMIN? `
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#eee);">
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div class="page-sub" style="margin-bottom:6px;">Licence seats (blank = unlimited)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="number" id="seats-${c.id}" min="1" placeholder="Unlimited" value="${c.seatLimit||''}" style="width:120px;"/>
           <button class="btn btn-ghost btn-sm" onclick="App.updateClassSeats('${c.id}', (document.getElementById('seats-${c.id}')||{}).value)">Update seats</button>
         </div>
       </div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#eee);">
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
         <div class="page-sub" style="margin-bottom:6px;">${classAdmin? `Class admin: <b>${esc(classAdmin.email)}</b>` : 'No class admin assigned yet.'}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="email" id="assignEmail-${c.id}" placeholder="teacher@school.co.za" style="flex:1;min-width:200px;"/>
@@ -209,7 +209,7 @@ function viewAdminCareers(){
   ${pageHeadHTML('Career library', `${CAREERS.length} careers seeded across ${FACULTIES.length} faculties. The data model supports adding more faculties, careers and real per-institution admission data later.`)}
   ${FACULTIES.map(f=>{
     const list = CAREERS.filter(c=>c.faculty===f.id);
-    return `<div class="section-title"><h2>${f.name} <span class="tag" style="background:${f.color};color:#fff;">${list.length}</span></h2></div>
+    return `<div class="section-title"><h2>${f.name} <span class="tag" style="background:${f.color};color:#fff;box-shadow:inset 0 0 0 50px rgba(0,0,0,.24);">${list.length}</span></h2></div>
     ${list.map(c=>careerRowHTML(c,null,{favourites:[]})).join('') || '<p class="page-sub">No careers yet in this faculty — add some in the data model.</p>'}`;
   }).join('')}
   `;

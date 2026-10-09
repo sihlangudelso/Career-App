@@ -174,9 +174,9 @@ function academicProfileHTML(l){
     <h3>Your academic profile</h3>
     <p class="page-sub">Based on your latest entered marks — this reflects where you are right now, not what you’re capable of.</p>
     ${p.primaryDomain ? `
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--tint-violet);border-radius:14px;padding:12px 16px;margin:12px 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--t-violet);border-radius:14px;padding:12px 16px;margin:12px 0;">
       <div>
-        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--indigo-ink);">Primary strength area</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--on-violet);">Primary strength area</div>
         <div style="font-family:var(--font-head);font-weight:700;font-size:16px;">${esc(p.primaryDomain.domain.name)}</div>
         ${p.secondaryDomain ? `<div class="page-sub" style="margin:2px 0 0;">Secondary: ${esc(p.secondaryDomain.domain.name)}</div>` : ''}
       </div>
@@ -198,7 +198,7 @@ function academicProfileHTML(l){
   </div>`;
 }
 function labelStep(label, done){
-  return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:${done?'var(--grass)':'var(--muted)'};font-weight:600;">${icon('check','ic')} ${label}</div>`;
+  return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:${done?'var(--ok-ink)':'var(--muted)'};font-weight:600;">${icon('check','ic')} ${label}</div>`;
 }
 
 /* ---------------- Your Learner Profile ---------------- */
@@ -240,7 +240,7 @@ function learnerProfileBodyHTML(l){
     <div class="grid grid-2">
       <div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Primary strength area</div>
-        <div style="font-family:var(--font-head);font-weight:800;font-size:22px;color:var(--indigo);">${esc(p.primaryDomain.domain.name)}</div>
+        <div style="font-family:var(--font-head);font-weight:800;font-size:22px;color:var(--link);">${esc(p.primaryDomain.domain.name)}</div>
       </div>
       ${p.secondaryDomain ? `<div>
         <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);">Secondary strength area</div>
@@ -530,7 +530,7 @@ function assessmentResultsHTML(l){
   <div class="page-head" style="align-items:center;">
     <div>
       <div style="font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Your personality type</div>
-      <h1 style="font-size:44px;margin:0 0 6px;color:var(--indigo);">${esc(top2)}</h1>
+      <h1 style="font-size:44px;margin:0 0 6px;color:var(--link);">${esc(top2)}</h1>
       <div class="page-sub">Here’s what that means, and a first look at where it points you.</div>
     </div>
     ${avatarChipHTML()}
@@ -878,7 +878,7 @@ function viewAPS(){
   </div>
   ${result ? `
   <div class="card" style="margin-bottom:18px;">
-    <h3>Your estimated APS: <span style="color:var(--indigo);">${result.aps} / 42</span></h3>
+    <h3>Your estimated APS: <span style="color:var(--link);">${result.aps} / 42</span></h3>
     <div class="aps-bar" style="margin:10px 0 16px;"><div style="width:${Math.round(result.aps/42*100)}%"></div></div>
     <div class="table-wrap"><table><thead><tr><th>Subject</th><th>%</th><th>NSC Level</th><th>Counted?</th></tr></thead><tbody>
       ${result.rows.sort((a,b)=>b.level-a.level).map(r=>`<tr><td>${esc(r.subject)}</td><td>${r.pct}%</td><td>${r.level}</td><td>${r.subject!=='Life Orientation'?'Yes':'Excluded from most APS totals'}</td></tr>`).join('')}

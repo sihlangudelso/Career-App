@@ -1,4 +1,5 @@
 :root{
+  color-scheme:light;
   --bg:#F6F5FC; --surface:#FFFFFF; --ink:#1A1733; --muted:#5E5A78; --line:#E6E3F3;
   --indigo:#5A4BE0; --indigo-ink:#3A2DAE; --amber:#DD64CC; --teal:#5570FF; --coral:#EE5A9E;
   --grass:#1FA25A; --sky:#5570FF; --olive:#9B6FE3; --plum:#B8349C;
@@ -10,18 +11,57 @@
   --shadow-soft:0 1px 2px rgba(23,26,35,.04), 0 8px 24px -12px rgba(23,26,35,.10);
   --shadow-violet:0 6px 18px -10px rgba(90,75,224,.35);
   --font-head:'Sora',system-ui,sans-serif; --font-body:'Inter',system-ui,sans-serif;
+
+  /* Dark mode. Everything the app draws is coloured with the tokens in this block, so changing the theme changes
+     them all together; the --tint-* / --indigo* tokens above stay as they are (the learner report and its PDF are
+     light sheets in every theme and use them directly), and the app uses the --t-* / --on-* ones below instead.
+       --link         the accent as TEXT (links, accent numbers); backgrounds and white-on-indigo buttons use --indigo
+       --chip-bg      neutral chips: pills, tags, the class code
+       --bar-track    the empty part of a progress bar, ring or slider
+       --ctl-line     the outline of something you can press;  --star-off an unselected star
+       --ok-ink       success text (green)
+       --t-*          tinted surfaces (violet, blue, pink, amber) and --on-* the text that sits on them
+       --info-line / --warn-line   the borders of the two notice boxes
+     (The dark values are repeated for the two ways dark mode is switched on, the operating system and
+     data-theme="dark": keep them identical.) */
+  --link:#5A4BE0; --chip-bg:#F1F2F6; --bar-track:#E6E3F3; --ctl-line:#E6E3F3; --star-off:#8F89B6; --ok-ink:#167A44;
+  --t-violet:#F1ECFF; --t-blue:#E9EDFF; --t-pink:#FCEAF7; --t-amber:#FFF4E0; --t-line:#DAD0FF;
+  --on-violet:#4A2DB8; --on-blue:#2A3FB8; --on-pink:#9C2682; --on-amber:#7A4E00; --on-info:#40308F;
+  --info-line:#DAD0FF; --warn-line:#F0CE8A;
 }
-:root:not([data-theme="light"]){
-  @media (prefers-color-scheme: dark){
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
     --bg:#131126; --surface:#1D1A36; --ink:#F2F0FA; --muted:#A5A0C2; --line:#2F2B4D;
     --nav-bg:#2C2656; --nav-border:#3E3670; --nav-active-bg:#1D1A36; --nav-ink:#D9D2FF;
     --sidebar-bg:#2C2656; --sidebar-border:#3E3670; --sidebar-muted:#A5A0C2;
+    --shadow-soft:0 1px 2px rgba(0,0,0,.30), 0 8px 24px -12px rgba(0,0,0,.55);
+    --link:#A99FFF; --chip-bg:#2A2648; --bar-track:#3B3566; --ctl-line:#463F78; --star-off:#6E68A8; --ok-ink:#5BDB8E;
+    --t-violet:#2A2358; --t-blue:#1F2A5C; --t-pink:#3D2050; --t-amber:#3B3011; --t-line:#453D80;
+    --on-violet:#D3CBFF; --on-blue:#C2CEFF; --on-pink:#FFBDEE; --on-amber:#FFD98A; --on-info:#DCD6FF;
+    --info-line:#453D80; --warn-line:#6B5520;
   }
 }
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#131126; --surface:#1D1A36; --ink:#F2F0FA; --muted:#A5A0C2; --line:#2F2B4D;
   --nav-bg:#2C2656; --nav-border:#3E3670; --nav-active-bg:#1D1A36; --nav-ink:#D9D2FF;
   --sidebar-bg:#2C2656; --sidebar-border:#3E3670; --sidebar-muted:#A5A0C2;
+  --shadow-soft:0 1px 2px rgba(0,0,0,.30), 0 8px 24px -12px rgba(0,0,0,.55);
+  --link:#A99FFF; --chip-bg:#2A2648; --bar-track:#3B3566; --ctl-line:#463F78; --star-off:#6E68A8; --ok-ink:#5BDB8E;
+  --t-violet:#2A2358; --t-blue:#1F2A5C; --t-pink:#3D2050; --t-amber:#3B3011; --t-line:#453D80;
+  --on-violet:#D3CBFF; --on-blue:#C2CEFF; --on-pink:#FFBDEE; --on-amber:#FFD98A; --on-info:#DCD6FF;
+  --info-line:#453D80; --warn-line:#6B5520;
+}
+/* The learner report, its PDF pages and the download host are light sheets in every theme: every token that
+   changes with the theme is pinned to its light value there (their own colours come from the same --tint-* /
+   --indigo* tokens, which never change). */
+.rp,.a4-doc,.rd-host{
+  color-scheme:light;
+  --link:#5A4BE0; --chip-bg:#F1F2F6; --bar-track:#E6E3F3; --ctl-line:#E6E3F3; --star-off:#8F89B6; --ok-ink:#167A44;
+  --t-violet:#F1ECFF; --t-blue:#E9EDFF; --t-pink:#FCEAF7; --t-amber:#FFF4E0; --t-line:#DAD0FF;
+  --on-violet:#4A2DB8; --on-blue:#2A3FB8; --on-pink:#9C2682; --on-amber:#7A4E00; --on-info:#40308F;
+  --info-line:#DAD0FF; --warn-line:#F0CE8A;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -32,8 +72,9 @@ body{
 }
 h1,h2,h3,h4{font-family:var(--font-head); margin:0 0 .4em; font-weight:700; letter-spacing:-0.01em; color:var(--ink);}
 p{margin:0 0 .8em; color:var(--ink);}
-a{color:var(--indigo); text-decoration:none;}
-button{font-family:var(--font-body); cursor:pointer;}
+a{color:var(--link); text-decoration:none;}
+button{font-family:var(--font-body); cursor:pointer; color:var(--ink);}
+input::placeholder,textarea::placeholder{color:var(--muted); opacity:1;}
 :focus-visible{outline:3px solid var(--sky); outline-offset:2px;}
 ::-webkit-scrollbar{width:10px;height:10px;}
 ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
@@ -126,16 +167,16 @@ svg.ic{width:16px;height:16px;flex-shrink:0;vertical-align:-2px;}
 .btn[disabled]{opacity:.45;cursor:not-allowed;}
 
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;}
-.badge-strong{background:var(--tint-violet);color:#4A2DB8;}
-.badge-good{background:var(--tint-blue);color:#2A3FB8;}
-.badge-explore{background:var(--tint-pink);color:#9C2682;}
-.badge-low{background:#F1F2F6;color:var(--muted);}
+.badge-strong{background:var(--t-violet);color:var(--on-violet);}
+.badge-good{background:var(--t-blue);color:var(--on-blue);}
+.badge-explore{background:var(--t-pink);color:var(--on-pink);}
+.badge-low{background:var(--chip-bg);color:var(--muted);}
 .badge-faculty{color:#fff;}
 
-.tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:8px;background:#F1F2F6;color:var(--muted);}
+.tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--chip-bg);color:var(--muted);}
 
 .progress-ring-wrap{display:flex;align-items:center;gap:20px;}
-.progress-track{stroke:var(--line);}
+.progress-track{stroke:var(--bar-track);}
 .progress-fill{stroke:var(--brand-pink);stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
 
 .section-title{display:flex;align-items:center;justify-content:space-between;margin:30px 0 14px;}
@@ -145,22 +186,22 @@ svg.ic{width:16px;height:16px;flex-shrink:0;vertical-align:-2px;}
 .form-row label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
 .form-row .hint{font-size:12px;color:var(--muted);margin-top:4px;}
 input[type=text],input[type=number],select,textarea{
-  width:100%;padding:11px 13px;border-radius:12px;border:1.5px solid var(--line);
+  width:100%;padding:11px 13px;border-radius:12px;border:1.5px solid var(--ctl-line);
   font-family:var(--font-body);font-size:14px;background:var(--surface);color:var(--ink);
 }
 input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 .check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
 @media(max-width:640px){.check-grid{grid-template-columns:1fr;}}
-.check-item{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px;}
+.check-item{display:flex;align-items:center;gap:8px;border:1.5px solid var(--ctl-line);border-radius:10px;padding:9px 11px;font-size:13px;}
 .check-item input{width:auto;}
 .mark-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
 .mark-row:last-child{border-bottom:none;}
 .mark-row input{width:64px;text-align:right;padding:6px 8px;}
-.chip-select{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;background:var(--surface);}
+.chip-select{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--ctl-line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;background:var(--surface);}
 .chip-select.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 
 .likert{display:flex;gap:6px;margin-top:10px;}
-.likert button{flex:1 1 0;min-width:0;padding:10px 2px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font-size:clamp(10.5px,3.1vw,12px);font-weight:600;color:var(--muted);}
+.likert button{flex:1 1 0;min-width:0;padding:10px 2px;border-radius:10px;border:1.5px solid var(--ctl-line);background:var(--surface);font-size:clamp(10.5px,3.1vw,12px);font-weight:600;color:var(--muted);}
 .likert button.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 /* Phrases such as "Definitely not me" do not fit five across a phone: stack them there. */
 @media(max-width:480px){
@@ -179,19 +220,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--indigo);}
 @media(prefers-reduced-motion:reduce){.q-anim{animation:none;}}
 
 .scale-dots-row{display:flex;gap:10px;justify-content:center;margin:14px 0 8px;}
-.dot-btn{flex:1 1 0;min-width:0;max-width:52px;aspect-ratio:1/1;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-family:var(--font-head);font-weight:700;font-size:17px;color:var(--muted);}
+.dot-btn{flex:1 1 0;min-width:0;max-width:52px;aspect-ratio:1/1;border-radius:50%;border:2px solid var(--ctl-line);background:var(--surface);font-family:var(--font-head);font-weight:700;font-size:17px;color:var(--muted);}
 .dot-btn.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
 .scale-dots-caps{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:0 6px;}
 
 .emoji-scale{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;}
-.emoji-btn{flex:1 1 0;min-width:0;max-width:56px;aspect-ratio:1/1;border-radius:16px;border:2px solid var(--line);background:var(--surface);font-size:26px;display:flex;align-items:center;justify-content:center;line-height:1;}
-.emoji-btn.on{background:var(--tint-violet);border-color:var(--indigo);}
+.emoji-btn{flex:1 1 0;min-width:0;max-width:56px;aspect-ratio:1/1;border-radius:16px;border:2px solid var(--ctl-line);background:var(--surface);font-size:26px;display:flex;align-items:center;justify-content:center;line-height:1;}
+.emoji-btn.on{background:var(--t-violet);border-color:var(--indigo);}
 
 /* One glyph per button (not a 5-star string per button) so nothing
    overflows its hit target -- a classic cumulative star rating. */
 .star-scale{display:flex;gap:6px;justify-content:center;margin:14px 0 4px;}
-.star-btn{width:46px;height:46px;border:none;background:transparent;font-size:32px;line-height:1;color:var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.star-btn.on{color:var(--indigo);}
+.star-btn{width:46px;height:46px;border:none;background:transparent;font-size:32px;line-height:1;color:var(--star-off);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.star-btn.on{color:var(--link);}
 
 .slider-row{margin-bottom:18px;}
 .slider-row .sl-top{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:600;margin-bottom:2px;}
@@ -214,7 +255,7 @@ button[data-v].picked{animation:ansPop .4s cubic-bezier(.2,.9,.3,1.25),ansRing .
 .star-btn.picked{animation:none;}
 .star-btn.pop{animation:ansStar .42s cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(var(--i,0) * 55ms);}
 .tile{position:relative;}
-.tile.on{border-color:var(--indigo);background:var(--tint-violet);}
+.tile.on{border-color:var(--indigo);background:var(--t-violet);}
 .tile.picked::after{content:'✓';position:absolute;top:8px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--indigo);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:ansCheck .3s cubic-bezier(.2,.9,.3,1.4) both;}
 
 /* ---------- Snap slider (js/answer_inputs.js) ----------
@@ -224,17 +265,17 @@ button[data-v].picked{animation:ansPop .4s cubic-bezier(.2,.9,.3,1.25),ansRing .
    touch-action:pan-y keeps vertical swipes scrolling the page while sideways
    drags belong to the slider. */
 .snap{--p:50;position:relative;padding:22px 18px 2px;margin:0 0 4px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;cursor:pointer;border-radius:14px;outline:none;}
-.snap:focus-visible{box-shadow:0 0 0 3px var(--tint-line);}
+.snap:focus-visible{box-shadow:0 0 0 3px var(--t-line);}
 .snap.locked{pointer-events:none;}
-.snap-track{position:relative;height:10px;border-radius:999px;background:var(--line);}
+.snap-track{position:relative;height:10px;border-radius:999px;background:var(--bar-track);}
 .snap-fill{position:absolute;left:0;top:0;bottom:0;width:calc(var(--p) * 1%);border-radius:999px;background:linear-gradient(90deg,var(--indigo),#8A7BF2);transition:width .32s cubic-bezier(.2,.9,.3,1.12);}
 .snap.unanswered .snap-fill,.snap.bipolar .snap-fill{width:0;}
-.snap-stop{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--surface);border:2.5px solid var(--line);transition:background-color .2s,border-color .2s;}
+.snap-stop{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--surface);border:2.5px solid var(--bar-track);transition:background-color .2s,border-color .2s;}
 .snap-stop.reached{background:var(--indigo);border-color:var(--indigo);}
 .snap-thumb{position:absolute;top:50%;left:calc(var(--p) * 1%);width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:var(--indigo);border:4px solid #fff;box-shadow:0 2px 8px rgba(40,30,120,.38);z-index:2;transition:left .32s cubic-bezier(.2,.9,.3,1.2),transform .16s ease,background-color .2s,border-color .2s;}
 /* Not answered yet: a hollow thumb parked on the middle stop, gently pulsing.
    Tap it (or drag it) to answer -- tapping it answers 3. */
-.snap.unanswered .snap-thumb{background:var(--surface);border:3px dashed var(--indigo);box-shadow:0 1px 6px rgba(40,30,120,.18);animation:snapHint 1.9s ease-in-out infinite;}
+.snap.unanswered .snap-thumb{background:var(--surface);border:3px dashed var(--link);box-shadow:0 1px 6px rgba(40,30,120,.18);animation:snapHint 1.9s ease-in-out infinite;}
 @keyframes snapHint{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
 .snap.dragging .snap-thumb,.snap.dragging .snap-fill{transition:none;}
 .snap.pressing .snap-thumb{transform:scale(1.14);animation:none;}
@@ -261,7 +302,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 
 .career-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;padding:16px;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;background:var(--surface);}
 .career-row .left{display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 200px;}
-.fac-dot{width:44px;height:44px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:800;font-size:12px;}
+.fac-dot{width:44px;height:44px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:800;font-size:12px;box-shadow:inset 0 0 0 50px rgba(0,0,0,.24);}
 .career-row h4{margin:0;font-size:15px;}
 .career-row .sub{font-size:12.5px;color:var(--muted);}
 .career-row .right{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
@@ -275,16 +316,16 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 .kv{display:flex;gap:8px;margin-bottom:8px;font-size:13.5px;}
 .kv b{min-width:160px;flex-shrink:0;}
 .pill-list{display:flex;flex-wrap:wrap;gap:8px;}
-.pill-list .pill{background:#F1F2F6;border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;}
-.pill-list .pill.req{background:var(--tint-pink);color:#9C2682;}
-.pill-list .pill.rec{background:var(--tint-blue);color:#2A3FB8;}
+.pill-list .pill{background:var(--chip-bg);color:var(--ink);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;}
+.pill-list .pill.req{background:var(--t-pink);color:var(--on-pink);}
+.pill-list .pill.rec{background:var(--t-blue);color:var(--on-blue);}
 
-.disclaimer{background:var(--tint-violet);border:1.5px solid #DAD0FF;color:#40308F;padding:13px 16px;border-radius:14px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;}
+.disclaimer{background:var(--t-violet);border:1.5px solid var(--info-line);color:var(--on-info);padding:13px 16px;border-radius:14px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;}
 .disclaimer .ic{flex-shrink:0;margin-top:1px;}
 /* A genuinely different tone from the violet-branded informational
    disclaimer above -- used only for subject-career conflict warnings,
    so they read as visually distinct and prominent, not just more info. */
-.disclaimer.warn{background:var(--tint-amber);border-color:#F0CE8A;color:#7A4E00;}
+.disclaimer.warn{background:var(--t-amber);border-color:var(--warn-line);color:var(--on-amber);}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
 .empty-state .em-ic{margin-bottom:12px;}
@@ -292,7 +333,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 .modal-backdrop{position:fixed;inset:0;background:rgba(20,20,30,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
 .modal{background:var(--surface);border-radius:var(--radius-lg);padding:26px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;}
 
-.aps-bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;}
+.aps-bar{height:10px;border-radius:6px;background:var(--bar-track);overflow:hidden;}
 .aps-bar > div{height:100%;background:var(--brand-grad);}
 
 .toast{position:fixed;bottom:24px;right:24px;background:var(--indigo-ink);color:#fff;padding:13px 18px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:80;box-shadow:var(--shadow-soft);}
@@ -300,7 +341,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 .compare-grid{display:grid;gap:14px;}
 .compare-col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;}
 
-.class-code{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:.06em;background:#F1F2F6;padding:8px 16px;border-radius:10px;display:inline-block;}
+.class-code{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:.06em;background:var(--chip-bg);color:var(--ink);padding:8px 16px;border-radius:10px;display:inline-block;}
 
 /* ---------- Subject Choice Assessment ---------- */
 .sc-steps{display:flex;flex-direction:column;gap:14px;margin-top:6px;}
@@ -336,7 +377,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 .ov-pct{font-family:var(--font-head);font-size:22px;font-weight:800;flex-shrink:0;}
 .ov-math{margin:12px 0 10px;font-size:13.5px;}
 .ov-type{display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
-.ov-code{font-family:var(--font-head);font-size:52px;font-weight:800;line-height:1;color:var(--indigo);}
+.ov-code{font-family:var(--font-head);font-size:52px;font-weight:800;line-height:1;color:var(--link);}
 .ov-names{font-weight:700;margin-bottom:4px;}
 .ov-label{font-size:11.5px;font-weight:700;color:var(--muted);margin:14px 0 6px;}
 .ov-career{margin-bottom:12px;}
@@ -642,7 +683,7 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
     display:flex;justify-content:space-around;padding:8px 4px 10px;z-index:40;
   }
   .bottom-nav button{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--muted);flex:1;padding:4px;}
-  .bottom-nav button.active{color:var(--indigo);font-weight:700;}
+  .bottom-nav button.active{color:var(--link);font-weight:700;}
   .bottom-nav .ic{width:20px;height:20px;}
   .main{padding:18px 16px 90px;}
   .page-head h1{font-size:21px;}
@@ -900,7 +941,12 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   /* Force the light palette regardless of the viewer's dark mode --
      otherwise a dark-mode learner would print near-black pages. */
   :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+    color-scheme:light;
     --bg:#F6F5FC !important; --surface:#FFFFFF !important; --ink:#1A1733 !important;
     --muted:#5E5A78 !important; --line:#E6E3F3 !important;
+    --link:#5A4BE0 !important; --chip-bg:#F1F2F6 !important; --bar-track:#E6E3F3 !important; --ctl-line:#E6E3F3 !important; --star-off:#8F89B6 !important; --ok-ink:#167A44 !important;
+    --t-violet:#F1ECFF !important; --t-blue:#E9EDFF !important; --t-pink:#FCEAF7 !important; --t-amber:#FFF4E0 !important; --t-line:#DAD0FF !important;
+    --on-violet:#4A2DB8 !important; --on-blue:#2A3FB8 !important; --on-pink:#9C2682 !important; --on-amber:#7A4E00 !important; --on-info:#40308F !important;
+    --info-line:#DAD0FF !important; --warn-line:#F0CE8A !important;
   }
 }

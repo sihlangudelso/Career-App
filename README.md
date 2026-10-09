@@ -627,6 +627,33 @@ work-style sliders, the 4-question quick start) goes through
   saved results are only replaced when the new attempt is finished and saved, so
   leaving halfway keeps the old ones.
 
+### Light and dark mode
+
+The app follows the system's appearance (`prefers-color-scheme`) and switches live; there is no toggle, but
+`<html data-theme="dark">` or `"light"` forces one (both are kept identical to the system versions, the two dark
+blocks at the top of `style.css`). Everything the app draws is coloured with **tokens**, so a screen reads in both:
+
+- Page colours: `--bg`, `--surface`, `--ink`, `--muted`, `--line`, plus the sidebar's `--nav-*`.
+- Theme-aware accents: `--link` (the accent as *text*: links, accent numbers — backgrounds and white-on-indigo
+  buttons keep `--indigo`), `--chip-bg` (pills, tags), `--bar-track`, `--ctl-line` (the outline of something you can
+  press), `--star-off`, `--ok-ink` (green text), the tinted surfaces `--t-violet / blue / pink / amber` with the text
+  that sits on them `--on-*`, and the two notice-box borders.
+- **Never colour a component with a light-only literal** (`#fff`, `#F1F2F6`, `--tint-*`, `--indigo-ink` as text on a
+  surface): in dark mode the text token turns near-white and becomes invisible on it. The `--tint-*` / `--indigo*`
+  tokens deliberately never change, because the **learner report, its PDF pages and the download host are light
+  sheets in every theme** (`.rp, .a4-doc, .rd-host` pin every theme token to its light value). Printing forces the
+  light palette too. Anything new that sits on a coloured fill should use a `--t-*`/`--chip-bg` fill with its `--on-*`
+  / `--ink` text, or be pinned light like the report.
+- Plain `<button>`s get `color: var(--ink)` and the page declares `color-scheme`, so native controls (select lists,
+  scrollbars, the page background before the CSS loads) follow the theme as well.
+
+To check a change: switch the system (or the browser's emulated) appearance and look at every screen, or measure it —
+the sensible test is a script that walks every text node, finds what is really behind it (stacked backgrounds,
+gradients, overlays) and reports any text under 4.5:1 (3:1 for large text and icons) in both modes, over every route and
+learner state, at desktop and phone width. Known and accepted: white text on a faculty's brand colour is darkened a
+little under the letters (`.fac-dot`), disabled buttons are faded on purpose, and the empty part of a progress ring is
+a quiet track.
+
 ### Navigation
 
 `LEARNER_NAV` in `js/render_shell.js` drives the sidebar, the phone's menu sheet and
