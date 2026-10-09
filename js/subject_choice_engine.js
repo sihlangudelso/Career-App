@@ -447,7 +447,7 @@ function scMathPathwayNeed(results, learner){
   }
   // The subjects they like and suit best (interest and working style, not results).
   const liking = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
-  const others = results.filter(function(r){ return r.id !== 'mathematics' && r.id !== 'mathematicalLiteracy'; })
+  const others = results.filter(function(r){ return r.id !== 'mathematics' && r.id !== 'mathematicalLiteracy' && !SC_SUBJECTS[r.id].variantOf; })
     .sort(function(a, b){ return liking(b) - liking(a); }).slice(0, 5);
   let sNum = 0, sDen = 0;
   others.forEach(function(r){
@@ -512,6 +512,7 @@ function decideMathPathway(results, learner){
     headline = tier === 'low' ? 'Mathematical Literacy is currently the stronger academic fit' : 'Mathematical Literacy is the main recommendation';
   }
   return {
+    key: 'maths', demanding: 'mathematics', easier: 'mathematicalLiteracy',
     recommended: pick, pick: pick, tier: tier, pct: pct, support: support, wants: wants, supports: supports, variant: variant,
     headline: headline, message: message,
     // Careers they want that need Mathematics: said separately from the subject choice.
@@ -522,16 +523,33 @@ function decideMathPathway(results, learner){
   };
 }
 
-// The subjects the Maths decision rules out as a recommendation right now.
-function scSetAsideBy(mc){
+// What each decision picked, by pair: { maths: 'mathematics' | 'mathematicalLiteracy' | 'either',
+// science: <subject id> | 'either' | null, computing: ... } (null = no decision for this learner).
+// `src` is a report, or anything with mathChoice and pairs.
+function scPicksOf(src){
+  const picks = { maths: src && src.mathChoice ? src.mathChoice.pick : 'either' };
+  const pairs = (src && src.pairs) || {};
+  Object.keys(SC_CONFIG.pairs).forEach(function(k){ picks[k] = pairs[k] ? pairs[k].pick : null; });
+  return picks;
+}
+// The subjects those picks rule out as a recommendation right now: the option each decision did
+// not pick, and with Mathematical Literacy every subject that needs Mathematics. A subject that is
+// new to the report (hideEasier) is also left out until a decision picks it.
+function scAsideForPicks(picks){
   const out = {};
-  if(!mc) return out;
-  if(mc.pick === 'mathematicalLiteracy'){
+  if(picks.maths === 'mathematicalLiteracy'){
     out.mathematics = true;
     Object.keys(SC_SUBJECTS).forEach(function(id){ if(SC_SUBJECTS[id].mathRequirement === 'strong') out[id] = true; });
-  } else if(mc.pick === 'mathematics') out.mathematicalLiteracy = true;
+  } else if(picks.maths === 'mathematics') out.mathematicalLiteracy = true;
+  Object.keys(SC_CONFIG.pairs).forEach(function(k){
+    const def = SC_CONFIG.pairs[k], p = picks[k];
+    if(p === def.easier) out[def.demanding] = true;
+    else if(p === def.demanding) out[def.easier] = true;
+    else if(def.hideEasier) out[def.easier] = true;
+  });
   return out;
 }
+function scSetAsideBy(src){ return scAsideForPicks(scPicksOf(src)); }
 
 // Short label for the Maths decision (shared by the subject report and the learner report,
 // so both say the same thing).
@@ -540,6 +558,14 @@ function scMathLeanLabel(m){
   if(m.pick === 'mathematics') return m.support ? 'Mathematics, with extra support' : 'Mathematics';
   if(m.pick === 'mathematicalLiteracy') return m.variant === 'aspirational' ? 'Mathematical Literacy (Mathematics as an aspiration)' : 'Mathematical Literacy';
   return 'Worth talking through both';
+}
+
+// The same short label for a pair of similar subjects (see SC_CONFIG.pairs).
+function scPairLeanLabel(d){
+  if(!d || d.pick === 'either') return 'Worth talking through both';
+  const S = SC_SUBJECTS[d.demanding].label, E = SC_SUBJECTS[d.easier].label;
+  if(d.pick === d.demanding) return d.support ? S + ', with extra support' : S;
+  return d.variant === 'aspirational' ? E + ' (' + S + ' as an aspiration)' : E;
 }
 
 // The Mathematics and Mathematical Literacy cards say what the learner's Mathematics
@@ -576,6 +602,176 @@ function scApplyMathFeedback(res, mc){
   res.feedback.thrive.explanation = why.join(' ');
 }
 
+/* ---------------- similar subjects: Physical Sciences or Technical Sciences, IT or CAT ---------------- */
+// The Mathematics decision above, for the other pairs of related subjects that differ mainly in how
+// demanding they are (SC_CONFIG.pairs). The same bands apply to the learner's own result in the
+// learning areas the demanding subject builds on, and the same rule: interests and personality never
+// make the demanding subject the safe choice on their own. A pair is only decided for a learner who
+// shows some interest in it or in careers that need it; for everyone else nothing changes.
+
+// How much the learner's likely careers lean on a subject (a required subject counts in full, a
+// recommended one half). Like the Mathematics need, it is read from interests and working style only:
+// with marks in the ranking, a low result would push the very careers they hope for out of view.
+function scSubjectCareerNeed(subjectName, learner){
+  const M = SC_CONFIG.math;
+  const out = { value: null, level: 'unknown', careers: [] };
+  if(typeof computeMatches === 'function' && typeof CAREERS !== 'undefined'){
+    try {
+      const unmarked = Object.assign({}, learner, { subjectMarks: {}, grade9Report: null });
+      const top = bestSuitedCareers(unmarked, M.careerSample);
+      const fav = {};
+      (learner.favourites || []).forEach(function(id){ fav[id] = true; });
+      const weightOf = function(c){
+        if((c.requiredSubjects || []).indexOf(subjectName) !== -1) return 1;
+        return (c.recommendedSubjects || []).indexOf(subjectName) !== -1 ? 0.5 : 0;
+      };
+      const entry = function(c){
+        return { id: c.id, name: c.name, favourite: !!fav[c.id], required: (c.requiredSubjects || []).indexOf(subjectName) !== -1,
+          req: (c.requiredSubjects || []).map(function(n){ return SC_CAREER_SUBJECT_IDS[n]; }).filter(Boolean) };
+      };
+      let num = 0, den = 0;
+      top.forEach(function(m){
+        const w = fav[m.career.id] ? 2 : 1, need = weightOf(m.career);
+        den += w; num += w * need;
+        if(need > 0) out.careers.push(entry(m.career));
+      });
+      (learner.favourites || []).forEach(function(id){
+        if(top.some(function(m){ return m.career.id === id; })) return;
+        const c = CAREERS.find(function(x){ return x.id === id; });
+        if(!c) return;
+        const need = weightOf(c);
+        den += 2; num += 2 * need;
+        if(need > 0) out.careers.push(entry(c));
+      });
+      out.value = den > 0 ? num / den : null;
+    } catch(e){ out.value = null; out.careers = []; }
+  }
+  out.level = out.value == null ? 'unknown' : (out.value >= M.needHigh ? 'high' : (out.value < M.needLow ? 'low' : 'medium'));
+  out.careers.sort(function(a, b){ return (b.favourite ? 1 : 0) - (a.favourite ? 1 : 0); });
+  out.careers = out.careers.slice(0, 4);
+  return out;
+}
+
+// One pair's decision, shaped like decideMathPathway's (pick is a subject id, or 'either'), or null
+// when the pair does not apply to this learner.
+function decideSubjectPair(key, def, results, learner, mathChoice){
+  const byId = {};
+  results.forEach(function(r){ byId[r.id] = r; });
+  const S = byId[def.demanding], E = byId[def.easier];
+  if(!S || !E) return null;
+  const M = SC_CONFIG.math, B = M.bands, COPY = SC_COPY.pairs;
+  const sLabel = SC_SUBJECTS[def.demanding].label, eLabel = SC_SUBJECTS[def.easier].label;
+  const need = scSubjectCareerNeed(SC_SUBJECTS[def.demanding].fetNames[0], learner);
+  const iS = S.interest.normalised, iE = E.interest.normalised;
+  const relevant = (iS != null && iS >= M.interestSupports) || (iE != null && iE >= M.interestSupports) || need.level === 'high' || need.level === 'medium';
+  if(!relevant) return null;
+  // The result that decides: the weakest of the learning areas the demanding subject builds on (it needs all of them).
+  const inputs = S.academic.inputs || [];
+  // (on a tie the subject's own learning area is named, not Mathematics, which has its own decision)
+  const weakest = inputs.length ? inputs.reduce(function(a, b){ return (b.pct < a.pct || (b.pct === a.pct && a.area === 'Mathematics')) ? b : a; }) : null;
+  const pct = weakest ? Math.round(weakest.pct) : null;
+  const area = weakest ? scAreaName(weakest.area) : null;
+  // Do they want what needs the demanding subject? / does it support their interests and pathways?
+  const wants = need.level === 'high' ? 'strong'
+    : (((iS != null && iS >= M.interestAspires) || (need.level === 'medium' && iS != null && iS >= M.interestSupports)) ? 'some' : 'none');
+  const supports = need.level === 'high' || need.level === 'medium' || (iS != null && iS >= M.interestSupports);
+  const ev = pct == null ? '' : area + ' result (' + pct + '%)';
+  const fill = function(t){ return t.replace(/\{S\}/g, sLabel).replace(/\{E\}/g, eLabel).replace(/\{ev\}/g, ev); };
+  // A subject that needs Mathematics follows the Mathematics decision: out of reach with Mathematical
+  // Literacy, and never picked outright while the Mathematics choice itself is still open.
+  const blocked = !!(def.needsMaths && mathChoice && mathChoice.pick === 'mathematicalLiteracy');
+  let tier, pick = 'either', support = false, variant = null, message, headline;
+  if(blocked){
+    tier = 'blocked'; pick = def.easier; message = fill(COPY.blocked); headline = eLabel + ' is the option that fits for now';
+  } else if(pct == null){
+    tier = 'none'; message = fill(COPY.none); headline = 'Add your Grade 9 results to decide';
+  } else if(pct >= B.strong){
+    tier = 'strong'; pick = supports ? def.demanding : 'either';
+    message = fill(supports ? COPY.strong : COPY.strongEither); headline = supports ? sLabel + ' is recommended' : 'Both options are open to you';
+  } else if(pct >= B.suitable){
+    tier = 'suitable'; pick = supports ? def.demanding : 'either';
+    message = fill(supports ? COPY.suitable : COPY.suitableEither); headline = supports ? sLabel + ' is a suitable choice' : 'Both options are worth talking through';
+  } else if(pct >= B.developing){
+    tier = 'developing';
+    if(wants === 'strong'){
+      pick = def.demanding; support = true; variant = 'safer';
+      message = fill(COPY.developingWant); headline = sLabel + ' may be considered, with extra support';
+    } else {
+      pick = def.easier; variant = wants === 'none' ? null : 'aspirational';
+      message = fill(COPY.developingEasier); headline = eLabel + ' is currently the stronger academic fit';
+    }
+  } else {
+    tier = pct >= B.low ? 'low' : 'veryLow';
+    pick = def.easier; variant = wants === 'none' ? null : 'aspirational';
+    message = fill(tier === 'low' ? COPY.low : COPY.veryLow);
+    headline = tier === 'low' ? eLabel + ' is currently the stronger academic fit' : eLabel + ' is the main recommendation';
+  }
+  if(pick === def.demanding && def.needsMaths && mathChoice){
+    if(mathChoice.pick === 'either'){
+      pick = 'either'; support = false; variant = null;
+      message = fill(COPY.strongEither); headline = 'Both options are open to you';
+    } else if(mathChoice.support){
+      support = true; variant = null;   // it needs Mathematics, which needs extra support: the Mathematics decision offers the safer route
+    }
+  }
+  return {
+    key: key, demanding: def.demanding, easier: def.easier,
+    recommended: pick, pick: pick, tier: tier, pct: pct, support: support, wants: wants, supports: supports, variant: variant, blocked: blocked,
+    headline: headline, message: message, area: area, evidence: ev, need: need,
+    // "need" where a career really requires the subject, "lean on" where it only recommends it
+    careerNote: wants !== 'none' && pick === def.easier ? fill(need.careers.some(function(c){ return c.required; }) ? COPY.careerNeed : COPY.careerLean) : null,
+    title: COPY[key].title, keeps: COPY[key].keeps,
+  };
+}
+
+// The cards of a decided pair say what the learner's results mean for each subject (like
+// scApplyMathFeedback does for Mathematics): only where the decision sets one of them aside or asks
+// for support; otherwise the usual reasoning stands.
+function scApplyPairFeedback(res, d){
+  const isS = res.id === d.demanding;
+  if(isS && d.blocked) return;   // out of reach with Mathematical Literacy: the report already says why (needs Mathematics)
+  const S = SC_SUBJECTS[d.demanding].label, E = SC_SUBJECTS[d.easier].label;
+  const hi = scInterestPhrases(res, 'high', 1);
+  const aligned = res.interest.level === 'High' || res.personality.level === 'High';
+  const lead = aligned && hi.length ? 'You like ' + hi[0] + ', but your ' : 'Your ';
+  let why = null, consider = null;
+  if(d.pick === d.easier){
+    if(isS){
+      why = [lead + d.evidence + ' needs significant development first — ' + E + ' fits better for now.'];
+      consider = 'If you want careers that need ' + S + ', build your foundation first and talk to your teachers and parent/guardian.';
+    } else {
+      why = [d.blocked ? E + ' fits for now; it still supports ' + d.keeps + '.' : 'Your ' + d.evidence + ' fits ' + E + ' better for now; it still supports ' + d.keeps + '.'];
+      consider = E + ' is respected — check that your careers do not require ' + S + '.';
+    }
+  } else if(d.pick === d.demanding && d.support){
+    if(isS){
+      why = [lead + d.evidence + ' is still developing — ' + S + ' would need extra support and practice.'];
+      consider = 'Discuss it with your teachers and parent/guardian first.';
+    } else {
+      why = ['The safer route while your ' + d.area + ' builds.'];
+      consider = E + ' is respected — check that your careers do not require ' + S + '.';
+    }
+  }
+  if(!why) return;
+  res.feedback.why = why;
+  res.feedback.consider = consider;
+  res.feedback.thrive.explanation = why.join(' ');
+}
+
+// Every decision there is for this learner, in the order they matter: Mathematics first, then the
+// pairs that were decided. `pairs` is the map buildSubjectChoiceReport keeps.
+function scDecisions(src){
+  const out = [];
+  if(src && src.mathChoice) out.push(src.mathChoice);
+  const pairs = (src && src.pairs) || {};
+  Object.keys(SC_CONFIG.pairs).forEach(function(k){ if(pairs[k]) out.push(pairs[k]); });
+  return out;
+}
+// The decision a subject belongs to, if it belongs to one.
+function scPairFor(src, id){
+  return scDecisions(src).filter(function(d){ return d.demanding === id || d.easier === id; })[0] || null;
+}
+
 /* ---------------- combinations ---------------- */
 function scComboWhy(subjectIds, byId, closest){
   const traits = [];
@@ -610,27 +806,30 @@ function scComboWhy(subjectIds, byId, closest){
   }
   return why;
 }
-// Every distinct combination the templates can make with this Mathematics pick, best
-// first. `metric` scores one subject: overall fit for a recommendation; natural fit
-// (interest and personality only) for an aspirational pathway the marks do not yet support.
-function scCombosFor(results, pick, metric){
+// Every distinct combination the templates can make with these picks (see scPicksOf), best first.
+// `metric` scores one subject: overall fit for a recommendation; natural fit (interest and
+// personality only) for an aspirational pathway the marks do not yet support. A subject the picks
+// set aside is never available, so a pathway built on Mathematics is not offered beside
+// Mathematical Literacy, nor one built on Physical Sciences beside Technical Sciences.
+function scCombosFor(results, picks, metric){
   const byId = {};
   results.forEach(function(r){ byId[r.id] = r; });
+  const aside = scAsideForPicks(picks);
   const found = [];
   SC_COMBOS.forEach(function(tpl){
+    // some combinations are offered only where a decision picks one side (see SC_COMBOS)
+    if(tpl.when && Object.keys(tpl.when).some(function(k){ const def = SC_CONFIG.pairs[k]; return !def || picks[k] !== def[tpl.when[k]]; })) return;
     const chosen = [], labels = [], used = {};
     let ok = true;
     tpl.slots.forEach(function(slot){
       if(!ok) return;
-      // A pathway built on Mathematics is not offered beside Mathematical Literacy.
-      if(slot.length === 1 && slot[0] === 'mathematics' && pick === 'mathematicalLiteracy'){ ok = false; return; }
       let candidates = slot.slice();
       let eitherMaths = false;
       if(slot.length === 1 && slot[0] === 'mathChoice'){
-        if(pick === 'either'){ candidates = ['mathematics', 'mathematicalLiteracy']; eitherMaths = true; }
-        else candidates = [pick];
+        if(picks.maths === 'either'){ candidates = ['mathematics', 'mathematicalLiteracy']; eitherMaths = true; }
+        else candidates = [picks.maths];
       }
-      candidates = candidates.filter(function(id){ return byId[id] && !used[id]; });
+      candidates = candidates.filter(function(id){ return byId[id] && !used[id] && !aside[id]; });
       if(!candidates.length){ ok = false; return; }
       candidates.sort(function(a, b){ return metric(byId[b]) - metric(byId[a]); });
       chosen.push(candidates[0]); used[candidates[0]] = true;
@@ -647,32 +846,41 @@ function scCombosFor(results, pick, metric){
   });
   return unique;
 }
-function generateSubjectCombinations(results, mathChoice){
+function generateSubjectCombinations(results, picks){
   const byId = {};
   results.forEach(function(r){ byId[r.id] = r; });
-  const unique = scCombosFor(results, mathChoice ? mathChoice.pick : 'either', function(r){ return r.fit.overall; });
+  const unique = scCombosFor(results, picks, function(r){ return r.fit.overall; });
   let picked = unique.filter(function(c){ return c.score >= SC_CONFIG.report.minComboScore; });
   if(!picked.length) picked = unique.slice(0, 1);
   return picked.slice(0, SC_CONFIG.report.combos).map(function(c){
     return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, why: scComboWhy(c.subjects, byId, c.score < SC_CONFIG.report.minComboScore) };
   });
 }
-// The second combination beside the recommended one, when the Maths decision calls for it:
-//   aspirational -- Mathematical Literacy is recommended, but they want Mathematics careers: the
-//                   Mathematics combination that fits what they enjoy and the careers they want,
-//                   chosen by interest and working style because their marks do not (yet) support it
-//   safer        -- Mathematics is recommended with extra support: the best Mathematical Literacy
-//                   combination, for a learner who would rather build their foundation first
-function scVariantCombo(results, mc){
-  if(!mc || !mc.variant) return null;
+// The second combination beside the recommended one, when a decision calls for it (the first one
+// that does, Mathematics before the other pairs):
+//   aspirational -- the demanding subject is not the pick but they want what needs it: the combination
+//                   built round it that fits what they enjoy and the careers they want, chosen by
+//                   interest and working style because their marks do not (yet) support it
+//   safer        -- the demanding subject is picked with extra support: the best combination built
+//                   round the easier one, for a learner who would rather build their foundation first
+// `decisions` are the decisions scDecisions lists.
+function scVariantCombo(results, decisions){
+  const mc = (decisions || []).filter(function(d){ return d && d.variant; })[0];
+  if(!mc) return null;
   const aspirational = mc.variant === 'aspirational';
   const byId = {};
   results.forEach(function(r){ byId[r.id] = r; });
   const natural = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
-  let found = scCombosFor(results, aspirational ? 'mathematics' : 'mathematicalLiteracy', aspirational ? natural : function(r){ return r.fit.overall; });
-  // Both variants are built round the Maths option they stand for.
-  const has = aspirational ? 'mathematics' : 'mathematicalLiteracy';
-  found = found.filter(function(c){ return c.subjects.indexOf(has) !== -1; });
+  // The picks the learner's decisions made, with this one turned round. A pair held back by the
+  // Mathematics decision is free again once Mathematics is the option being shown.
+  const picks = scPicksOf({ mathChoice: decisions.filter(function(d){ return d.key === 'maths'; })[0],
+    pairs: decisions.reduce(function(m, d){ if(d.key !== 'maths') m[d.key] = d; return m; }, {}) });
+  const has = aspirational ? mc.demanding : mc.easier;
+  picks[mc.key] = has;
+  if(mc.key === 'maths' && has === 'mathematics') decisions.forEach(function(d){ if(d.blocked) picks[d.key] = null; });
+  // Both variants are built round the option they stand for.
+  const found = scCombosFor(results, picks, aspirational ? natural : function(r){ return r.fit.overall; })
+    .filter(function(c){ return c.subjects.indexOf(has) !== -1; });
   if(!found.length) return null;
   // Among the Mathematics combinations, prefer the one that covers the most of the careers they want.
   const wanted = (mc.need && mc.need.careers) || [];
@@ -684,15 +892,17 @@ function scVariantCombo(results, mc){
   const c = found[0];
   const pathways = getCareerPathwaysForSubjects(c.subjects, results).pathways.slice(0, 3);
   const open = pathways.length ? scJoin(pathways) : 'more';
+  const maths = mc.key === 'maths';
   let why;
   if(aspirational){
-    const effort = mc.tier === 'developing' ? 'needs extra support and practice first'
-      : (mc.tier === 'low' ? 'needs significant improvement first' : 'needs substantial improvement first');
-    why = 'Could keep ' + open + ' careers open, but your Mathematics (' + mc.pct + '%) ' + effort + '.';
+    const effort = mc.tier === 'developing' ? 'extra support and practice first'
+      : (mc.tier === 'low' ? 'significant improvement first' : 'substantial improvement first');
+    why = maths ? 'Could keep ' + open + ' careers open, but your Mathematics (' + mc.pct + '%) needs ' + effort + '.'
+      : 'Could keep ' + open + ' careers open, but your ' + mc.area + ' (' + mc.pct + '%) needs ' + effort + '.';
   } else {
-    why = 'The safer route while your Mathematics builds' + (pathways.length ? ': keeps ' + open + ' open' : '') + '.';
+    why = 'The safer route while your ' + (maths ? 'Mathematics builds' : mc.area + ' builds') + (pathways.length ? ': keeps ' + open + ' open' : '') + '.';
   }
-  return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, kind: mc.variant, why: why };
+  return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, kind: mc.variant, why: why, pair: mc.key };
 }
 
 /* ---------------- career connection ---------------- */
@@ -742,7 +952,7 @@ function scBuildProfile(answers, results){
   Object.keys(SC_FAMILIES).forEach(function(f){
     // Alignment is interests and working style; results are a separate part of the picture.
     const align = function(r){ return r.fit.naturalFit != null ? r.fit.naturalFit : r.fit.overall; };
-    const rs = results.filter(function(r){ return r.family === f; }).sort(function(a, b){ return align(b) - align(a); }).slice(0, 2);
+    const rs = results.filter(function(r){ return r.family === f && !SC_SUBJECTS[r.id].variantOf; }).sort(function(a, b){ return align(b) - align(a); }).slice(0, 2);
     if(rs.length) famScores[f] = scMean(rs.map(align));
   });
   const fams = Object.keys(famScores).sort(function(a, b){ return famScores[b] - famScores[a]; });
@@ -829,10 +1039,21 @@ function buildSubjectChoiceReport(learner){
   results.forEach(function(r){
     if(r.id === 'mathematics' || r.id === 'mathematicalLiteracy') scApplyMathFeedback(r, mathChoice);
   });
-  // What the decision sets aside is not listed as a match in its own right: the Maths card
+  // The other pairs of similar subjects (Physical Sciences or Technical Sciences, IT or CAT) are decided
+  // the same way, from the learner's results in the areas the demanding subject builds on.
+  const pairs = {};
+  Object.keys(SC_CONFIG.pairs).forEach(function(k){
+    const d = decideSubjectPair(k, SC_CONFIG.pairs[k], results, learner, mathChoice);
+    if(d) pairs[k] = d;
+  });
+  results.forEach(function(r){
+    Object.keys(pairs).forEach(function(k){ if(r.id === pairs[k].demanding || r.id === pairs[k].easier) scApplyPairFeedback(r, pairs[k]); });
+  });
+  // What a decision sets aside is not listed as a match in its own right: the Maths card
   // (and, where there is one, the second combination) explains it. With Mathematical Literacy
   // that includes the subjects that need Mathematics, not Mathematical Literacy, to be taken.
-  const setAside = scSetAsideBy(mathChoice);
+  const setAside = scSetAsideBy({ mathChoice: mathChoice, pairs: pairs });
+  const decisions = scDecisions({ mathChoice: mathChoice, pairs: pairs });
 
   const sorted = results.slice().sort(function(a, b){ return b.fit.overall - a.fit.overall; });
   const listable = sorted.filter(function(r){ return !setAside[r.id]; });
@@ -843,8 +1064,8 @@ function buildSubjectChoiceReport(learner){
   const explore = nonLower.filter(function(r){ return top.indexOf(r) === -1; }).slice(0, R.exploreMax);
   const effort = listable.filter(function(r){ return r.category.key === 'lower'; }).reverse().slice(0, R.effortMax);
 
-  const combos = generateSubjectCombinations(results, mathChoice);
-  const variant = scVariantCombo(results, mathChoice);
+  const combos = generateSubjectCombinations(results, scPicksOf({ mathChoice: mathChoice, pairs: pairs }));
+  const variant = scVariantCombo(results, decisions);
   const focusIds = [];
   top.forEach(function(r){ if(focusIds.indexOf(r.id) === -1) focusIds.push(r.id); });
   if(combos[0]) combos[0].subjects.forEach(function(id){ if(focusIds.indexOf(id) === -1) focusIds.push(id); });
@@ -862,6 +1083,7 @@ function buildSubjectChoiceReport(learner){
     profile: scBuildProfile(answers, results),
     top: top, explore: explore, effort: effort,
     mathChoice: mathChoice,
+    pairs: pairs,
     combos: combos,
     variant: variant,
     workOn: scBuildWorkOn(focus),
@@ -896,6 +1118,13 @@ function scSubjectStatus(report, id){
     const rec = report.mathChoice ? report.mathChoice.pick : 'either';
     return rec === 'mathematics' ? 'recommended' : (rec === 'either' ? 'explore' : 'aspirational');
   }
+  // A subject a decision set aside is aspirational (they may still want it), the one it picked is recommended.
+  const d = scPairFor(report, id);
+  if(d && d.key !== 'maths'){
+    if(id === d.demanding && d.pick === d.easier) return 'aspirational';
+    if(id === d.easier && d.pick === d.easier) return 'recommended';
+  }
+  if(report.mathChoice && report.mathChoice.pick === 'mathematicalLiteracy' && SC_SUBJECTS[id].mathRequirement === 'strong') return 'aspirational';
   if(report.top.some(function(r){ return r.id === id; })) return 'recommended';
   if(report.explore.some(function(r){ return r.id === id; })) return 'explore';
   const r = report.results.find(function(x){ return x.id === id; });
@@ -926,8 +1155,14 @@ function careerSubjectSupport(career, report){
   return { required: required, helpful: helpful, gaps: gaps, supported: gaps.length === 0 };
 }
 
-function scGapPhrase(subject, status){
+function scGapPhrase(subject, status, report){
   if(subject === 'Mathematics' && status === 'aspirational') return 'is an aspirational choice for now — your Grade 9 Mathematics result currently points to Mathematical Literacy';
+  if(status === 'aspirational'){
+    const id = SC_CAREER_SUBJECT_IDS[subject];
+    const d = report && id ? scPairFor(report, id) : null;
+    if(d && d.key !== 'maths' && !d.blocked) return 'is an aspirational choice for now — your Grade 9 results currently point to ' + SC_SUBJECTS[d.easier].label;
+    return 'is an aspirational choice for now — it needs Mathematics, which your Grade 9 result currently points away from';
+  }
   if(subject === 'Mathematics' && status === 'explore') return 'is still open for you — your subject results suggest talking through Mathematics and Mathematical Literacy';
   if(status === 'explore') return 'sits under “subjects worth exploring” in your subject results';
   if(status === 'effort') return 'currently shows lower natural alignment in your subject results';
@@ -985,7 +1220,7 @@ function reconcileCareersAndSubjects(matches, report){
   const maxGaps = (divergence && bridge) ? 1 : 2;
   const gaps = gapOrder.slice(0, maxGaps).map(function(subject){
     const g = gapMap[subject], many = g.careers.length > 1;
-    return scNameList(g.careers) + (many ? ' rely' : ' relies') + ' on ' + subject + ', which ' + scGapPhrase(subject, g.status) + '. If ' + (many ? 'one of these careers appeals' : 'this career appeals') + ' to you, it is a subject worth building up.';
+    return scNameList(g.careers) + (many ? ' rely' : ' relies') + ' on ' + subject + ', which ' + scGapPhrase(subject, g.status, report) + '. If ' + (many ? 'one of these careers appeals' : 'this career appeals') + ' to you, it is a subject worth building up.';
   });
   return [divergence, coverage, bridge].concat(gaps).filter(Boolean);
 }

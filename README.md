@@ -232,6 +232,7 @@ js/
   learner_report.js       the learner report: five sections laid out like the design mock-up (the
                           model, and the screen markup)
   report_pdf.js           the same report as a four-page A4 PDF (see "The PDF" below)
+  report_download.js      the "Download PDF" button: builds that PDF in the browser and saves it
   answer_inputs.js        how an answer feels: the pick animation, the pause before the next
                           question, and the touch-first snap slider (see below)
   render_shell.js         router + page shell (sidebar/topbar/bottom nav)
@@ -315,7 +316,7 @@ the spec before rewording any of it.
 
 **Your Report** is one short report on screen — five numbered sections in a branded
 layout drawn in the iroli brand colours — and a separate, deliberately composed
-**four-page A4 PDF** ("Print / Save as PDF", see *The PDF* below). Both read the same
+**four-page A4 PDF** (the "Download PDF" button, see *The PDF* below). Both read the same
 object, `buildLearnerReport(l)`, so they cannot disagree.
 
 1. **Your Learner Profile** — **Your key traits** (the learner's top 4–5, ranked, each
@@ -324,9 +325,10 @@ object, `buildLearnerReport(l)`, so they cannot disagree.
    personality type.
 2. **Subject Fit** — each subject with **academic readiness, interest alignment and
    personality alignment kept as three separate numbers**, then overall fit and a label;
-   a one-line personalised reason under every subject; the **Mathematics or
-   Mathematical Literacy** card; and the learner's strongest results and areas to
-   strengthen.
+   a one-line personalised reason under every subject (the Mathematics or Mathematical
+   Literacy decision, and the other similar-subject decisions below, show in those rows and
+   reasons rather than in a card of their own); and the learner's strongest results and areas
+   to strengthen.
 3. **Recommended Subject Combination** — the best-fit combination and a second one that
    is deliberately not "equally safe" (see below): just the subjects to choose (Maths
    first; the compulsory languages and Life Orientation are not repeated).
@@ -372,17 +374,58 @@ the learner's **actual Grade 9 Mathematics result**:
 style only (the best-suited careers ranked with the marks left out, plus the subjects they like
 best) — with marks in the ranking a low Mathematics result would hide the very careers they hope
 for. When Mathematical Literacy is recommended and they do want Mathematics careers, the report
-says both things separately: the **best subject choice for now** and **what the careers they want
-would need**, shows an **Aspirational Mathematics pathway** combination beside the best fit, labels
+keeps the two things apart — what fits **for now** (the Mathematical Literacy row says so, with the
+Mathematics result) and what the careers they want would need (Mathematics is marked *Aspirational*) —
+shows an **Aspirational Mathematics pathway** combination beside the best fit, labels
 Mathematics-heavy career areas and careers "Aspirational — Mathematics required" and never calls
-them a strong fit. Mathematical Literacy is described as a respected subject that keeps many pathways
-open, never as the lesser one.
+them a strong fit. There is deliberately no separate "Mathematics or Mathematical Literacy?" card in
+the report or the PDF (the owner asked for it to go); the decision still runs and still shapes
+everything, and the owner's disclaimer sentence stays in full at the end. (The long Subject Choice
+Report page still has its own explanation card.) Mathematical Literacy is described as a respected
+subject that keeps many pathways open, never as the lesser one.
 
 Two assumptions to know about (both in `SC_CONFIG.math`): `litLift` — Mathematical Literacy asks for
 much less abstract algebra, so the same Maths result counts for more towards it (its readiness is the
 Maths result plus 25% of the points missing to 100; an approximation, set it to 0 to use the plain
 mark); and `interestSupports` / `interestAspires`, which decide when Mathematics "supports their
 pathways" and when a medium pathway need counts as wanting Mathematics careers.
+
+#### Similar subjects: Physical Sciences or Technical Sciences, IT or CAT
+
+The same result-based decision applies to the other pairs of related subjects that differ mainly in how
+demanding they are (`SC_CONFIG.pairs`; `decideSubjectPair` in `js/subject_choice_engine.js`):
+
+| Demanding subject | Easier subject | Decided from |
+|---|---|---|
+| Mathematics | Mathematical Literacy | Grade 9 Mathematics (the section above) |
+| Physical Sciences | Technical Sciences | the weakest of Grade 9 Mathematics and Natural Sciences |
+| Information Technology | Computer Applications Technology | the weakest of Grade 9 Mathematics and Technology |
+
+The bands are the Maths ones (`SC_CONFIG.math.bands`: 60 / 50 / 40 / 30) and so is the rule: from 50% the
+demanding subject (when it supports their interests and pathways), 40–49% the demanding subject only if they
+strongly want what needs it (with extra support, and the easier one as the safer route), otherwise the easier
+subject with the demanding one *Aspirational* if they would like it. Notes:
+- **Only for learners it applies to.** A pair is decided only when the learner shows some interest in either
+  subject or their likely careers need the demanding one; for everyone else nothing changes (checked: for
+  learners with no decision the report is identical, field for field, to the version before this existed).
+- **The weakest result decides**, because the demanding subject needs all the areas it builds on, so a strong
+  Mathematics mark cannot hide a Natural Sciences mark of 35%. The report names that one area and its mark.
+- **Physical Sciences follows the Mathematics decision.** It cannot be taken with Mathematical Literacy, so
+  with Mathematical Literacy it is aspirational and Technical Sciences is the science option; it is never
+  picked outright while the Mathematics choice itself is still open, and it inherits "with extra support".
+- **Technical Sciences is new** (`SC_SUBJECTS.technicalSciences`) and only appears where the decision picks it
+  (`hideEasier`); its interest comes from the existing physical-science and design questions (no extra
+  question, the assessment stays at 35), and it is a variant of Physical Sciences (`variantOf`) so one interest is
+  never counted twice. It is usually offered at technical schools only, so the report adds a line saying so
+  (`SC_COPY.technicalOffer`) whenever it recommends it.
+- Combinations that use the set-aside subject drop out, and `SC_COMBOS` entries with a `when` are offered only
+  where a decision picks the easier subject (Applied Science & Technology, Digital & Business). The
+  aspirational/safer second combination comes from the first decision that calls for one (Mathematics first).
+
+Assumptions to know about (all in `SC_CONFIG`/`SC_SUBJECTS`): the pairs and which learning areas feed each; the
+"weakest result" rule; the academic weights of Technical Sciences (Natural Sciences 1, Technology 0.7, Mathematics
+0.5); and whether Technical Sciences may be taken with Mathematical Literacy (the report does not claim either
+way and tells the learner to check which Mathematics goes with it).
 
 Things worth knowing:
 - **The sections must agree.** `lrCheckReport(R)` runs when the report is built: a subject is never
@@ -417,9 +460,9 @@ Things worth knowing:
   (`LR_LEARN`).
 - **The report is deliberately short on words.** The owner asked for the explanations that are not
   needed to go (legends, "how to read" notes, section subtitles, what each personality dimension means,
-  repeated advice), so each trait, reason and answer is one short line, the Maths decision is a headline
-  plus the one reason and caution, and only the owner's own disclaimer wording stays in full. When
-  adding text, ask what the learner would lose without it.
+  repeated advice, and then the whole "Mathematics or Mathematical Literacy?" card), so each trait, reason
+  and answer is one short line (evidence plus one caution), and only the owner's own disclaimer wording
+  stays in full. When adding text, ask what the learner would lose without it.
 - **Every learner gets a report that fits them.** Grade 9 with a finished Subject
   Choice Assessment gets all of it; a Grade 10–12 or exploring learner has no
   "Recommended Subject Combination" (the numbers close up) and sees the subjects their
@@ -438,20 +481,42 @@ Things worth knowing:
   container query), not the screen width, because the report sits beside the sidebar;
   on a phone each subject becomes a small card with three labelled bars.
 
-#### The PDF (`js/report_pdf.js`)
+#### The PDF (`js/report_pdf.js`, `js/report_download.js`)
 
-"Print / Save as PDF" prints a document built for A4, not the web page printed: **four pages**, each a
+The report's PDF is a document built for A4, not the web page printed: **four pages**, each a
 fixed 210 × 297 mm box (header, body, footer in a flex column), each answering one question:
 
 | Page | Title | Answers | Contains |
 |---|---|---|---|
 | 1 | Your Learner Profile | Who am I? | details, key traits, interests (%), personality type, how they like to work, how they learn best |
-| 2 | Your Subject Fit | Which subjects currently fit me? | the Maths decision, every subject as a row (Academic / Interest / Personality / Overall, the label and a personalised reason), strongest results, areas to strengthen |
-| 3 | Your Pathway | Where could these subjects take me? | best-fit and aspirational (or safer / alternative) combination, career areas with their labels and warnings, one line on what Mathematical Literacy keeps open |
+| 2 | Your Subject Fit | Which subjects currently fit me? | every subject as a row (Academic / Interest / Personality / Overall, the label and a personalised reason), strongest results, areas to strengthen |
+| 3 | Your Pathway | Where could these subjects take me? | best-fit and aspirational (or safer / alternative) combination, career areas with their labels and warnings |
 | 4 | Your Recommendation | What should I do next? | the four answers, summary, academic readiness, next steps, the disclaimers |
 
 A report that is not finished (no personality assessment yet, or a learner who is not choosing Grade 10
 subjects) gets only the pages it has something real to say on (3 or 1), never pages of empty boxes.
+
+**Download PDF** (the button above the report) builds the file in the learner's own browser and saves it —
+no print window and no print settings to get wrong, and always exactly those pages (a browser's print engine
+decides where pages break and can add blank ones; this cannot). The same A4 pages are laid out off-screen at
+210 mm, fitted (`a4FitAll`), and each is drawn to an image (html2canvas) that becomes one page of a PDF (jsPDF);
+an invisible text layer sits on top so the PDF can be searched and read by assistive technology. It takes a few
+seconds and gives a file of about 2 MB. Things to know:
+- The two libraries are loaded **from jsDelivr the first time the button is pressed** (never with the page), pinned
+  to exact versions and checked against a fixed SRI hash — see `RD_LIBS` in `js/report_download.js`. To update one,
+  change the version in the URL, download the file, and put its new `sha384` in `integrity`
+  (`openssl dgst -sha384 -binary file | openssl base64 -A`). Nothing the learner sees or types leaves the browser.
+- If they cannot be loaded (offline, or blocked by a school network), a page comes out blank, or anything else
+  goes wrong, the print window opens instead with a short message ("Save as PDF" there still works).
+- The pages are pictures (240 dpi), so the *look* is the browser's own rendering; only the hidden layer is text.
+  `RD_CONFIG` holds the resolution and JPEG quality. Print and Download show the same pages; the print copy
+  is shown only when printing (`.print-only`).
+- Test hook: `rdBuildPDF(l, R)` returns the finished jsPDF document without saving it.
+
+Printing from the browser (Ctrl/Cmd + P) still works and shows the same pages. To keep it from adding blank
+sheets: pages break *between* pages only (`.a4-page + .a4-page { break-before: page }`, never after the last
+one), each printed page is a hair shorter than the sheet (296.5 mm) so rounding can never push its end onto a
+sheet of its own, and everything else on the screen (sidebar, top bar, toasts, dialogs) is hidden.
 
 How overlap and overflow are prevented (not just hoped against):
 - `@page { size: A4 portrait; margin: 0 }`: the pages carry their own margins, which also leaves the
@@ -460,16 +525,19 @@ How overlap and overflow are prevented (not just hoped against):
   owns its own strip, so the body cannot run underneath it. Text wraps (`overflow-wrap`), grid columns are
   `minmax(0, …)`, and the subject table is one row per subject instead of six crowded columns.
 - Type is never shrunk to fit (9.5 pt body, 8.5 pt smallest). If a learner's content is longer than usual, the
-  fit pass `a4FitAll` (run on `beforeprint`) tightens the page (smaller gaps), then leaves out the least important
-  blocks one at a time (`data-opt`, higher number goes first) and brings back whatever still fits.
-- Colours are forced to print (`print-color-adjust: exact`) and the palette is pinned to light.
+  fit pass `a4FitAll` (run on `beforeprint`, and by the download) tightens the page (smaller gaps), then leaves
+  out the least important blocks one at a time (`data-opt`, higher number goes first) and brings back whatever
+  still fits.
+- Colours are forced to print (`print-color-adjust: exact`) and the palette is pinned to light (the download
+  is light in dark mode too).
 
-To check a change by hand: open the report, Print, tick **Headers and footers** (they should still not
-appear), and look at every page; with long names/schools too. To check in a script, print the page
-with `chrome --headless=new --print-to-pdf=out.pdf <url>` (leave out `--no-pdf-header-footer`, so the
+To check a change by hand: open the report, press **Download PDF** and look at every page; also Print, tick
+**Headers and footers** (they should still not appear); with long names/schools too. To check in a script, print the
+page with `chrome --headless=new --print-to-pdf=out.pdf <url>` (leave out `--no-pdf-header-footer`, so the
 margin trick is really tested) and read it back with PyMuPDF: page count, every word inside the safe
 area, no two words overlapping, and every word on screen present in the PDF (text clipped by a page box
-is silently missing from the PDF text).
+is silently missing from the PDF text). For the download, call `rdBuildPDF`, save the blob and compare it with
+Chrome's own print of the same report (they should differ only at the edges of letters).
 
 ### One story across the app (please keep it that way)
 
@@ -486,6 +554,7 @@ re-derive them:
 | Grade 10 subject recommendations | `reportSubjectSource(l)` — the **Subject Choice Assessment** once done, else a labelled provisional list ("the subjects your top careers rely on" for anyone who is not in Grade 9) | `js/views_report.js` |
 | The learner report (screen and PDF) | `buildLearnerReport(l)` — built only from the rows above | `js/learner_report.js` (model, screen), `js/report_pdf.js` (A4 PDF) |
 | Mathematics or Mathematical Literacy | `decideMathPathway` — from the learner's Grade 9 Mathematics result | `js/subject_choice_engine.js` |
+| Physical or Technical Sciences, IT or CAT | `decideSubjectPair` — from the weakest Grade 9 result the demanding subject builds on | `js/subject_choice_engine.js` |
 | Who sees what | `isGrade9Learner`, `subjectChoiceAvailable`, `learnerGate` (profile / activation screen), `resultsEntryLinkHTML` (where a learner adds marks) | `js/app.js` |
 | How careers and subjects relate | `careerSubjectSupport()` / `reconcileCareersAndSubjects()` | `js/subject_choice_engine.js` |
 

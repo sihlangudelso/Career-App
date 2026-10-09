@@ -43,7 +43,7 @@ function viewReport(){
   // The report draws its own header (logo, title, name / grade / school / date),
   // so there is no separate page heading above it.
   return `
-  <div class="rp-toolbar"><button class="btn btn-ghost btn-sm" onclick="window.print()">${icon('download')} Print / Save as PDF</button></div>
+  <div class="rp-toolbar"><button class="btn btn-ghost btn-sm" onclick="downloadReportPDF(this)">${icon('download')} Download PDF</button></div>
   ${learnerReportHTML(l, R)}
   ${reportMoreDetailHTML(l, R)}
   <div class="print-only">${reportPrintHTML(l, R)}</div>`;
@@ -230,6 +230,7 @@ function reportSubjectsHTML(l){
     <p class="page-sub" style="margin-bottom:6px;">From your Subject Choice Assessment — what you enjoy, how you naturally work and how you are performing.</p>
     ${recommendedSubjectRowsHTML(src.report)}
     <p class="ov-math"><b>Mathematics or Mathematical Literacy:</b> ${esc(scMathLeanLabel(src.report.mathChoice))}</p>
+    ${Object.keys(src.report.pairs).filter(k=>src.report.pairs[k].pick!=='either').map(k=>`<p class="ov-math"><b>${esc(src.report.pairs[k].title)}</b> ${esc(scPairLeanLabel(src.report.pairs[k]))}</p>`).join('')}
     <button class="btn btn-ghost btn-sm" onclick="navigate('subject-choice')">See your full subject report</button>
   </div>` : '';
   const tiers = buildSubjectRelevanceTiers(l);
@@ -309,8 +310,9 @@ function reportNextStepsHTML(l){
 
 // The printed copy is the A4 document built by js/report_pdf.js (four deliberate
 // pages, not this web page tightened): always in the page but hidden on screen
-// (.print-only), and shown only when printing, so "Print / Save as PDF" captures
-// the report whichever page is open. The longer views are not part of it.
+// (.print-only), and shown only when printing, so the browser's Print captures
+// the report whichever page is open. (The "Download PDF" button builds its own copy
+// of the same pages: js/report_download.js.) The longer views are not part of it.
 function reportPrintHTML(l, R){
   R = R || buildLearnerReport(l);
   return reportA4HTML(l, R);

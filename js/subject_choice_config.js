@@ -99,6 +99,22 @@ const SC_CONFIG = {
   // How strongly a subject's usual study paths need Mathematics (not Maths
   // Lit) -- see `mathRequirement` on each subject below.
   mathRequirementValue: { strong: 1, common: 0.6, none: 0 },
+
+  // Similar subjects. Other pairs of related subjects differ mainly in how demanding they are,
+  // and are decided the same way as Mathematics vs Mathematical Literacy: from the learner's own
+  // Grade 9 result (the same bands as `math.bands`) -- for a subject built on two learning areas
+  // (Physical Sciences: Mathematics and Natural Sciences; IT: Mathematics and Technology) the
+  // WEAKEST of them, since the subject needs both -- and only for a learner who shows some interest
+  // in the pair or in careers that need the demanding subject (otherwise nothing changes for them).
+  //   demanding / easier  Subject Choice subject ids
+  //   needsMaths          the demanding subject cannot be taken with Mathematical Literacy, so
+  //                       it follows the Mathematics decision (and is out of reach with Maths Lit)
+  //   hideEasier          the easier subject is new to the report: it is shown only when the
+  //                       decision picks it, so learners it does not apply to see what they saw before
+  pairs: {
+    science:   { demanding: 'physicalSciences',      easier: 'technicalSciences',              needsMaths: true,  hideEasier: true },
+    computing: { demanding: 'informationTechnology', easier: 'computerApplicationsTechnology', needsMaths: false, hideEasier: false },
+  },
 };
 
 /* ------------------------------------------------------------
@@ -126,6 +142,29 @@ const SC_COPY = {
   mathCareerNeed: 'Some careers you want need Mathematics, not Mathematical Literacy. You would need to improve your Mathematics substantially before your final choice.',
   mathLitOpen: 'Mathematical Literacy keeps business, tourism, services, humanities, trades and many diplomas open.',
   mathAlways: 'Subject requirements differ between careers and institutions. Choosing Mathematical Literacy may limit access to some university programmes that specifically require Mathematics. Always check the requirements of careers and qualifications you are considering before finalising your subjects.',
+
+  // ---- Similar subjects (SC_CONFIG.pairs), worded like the Mathematics messages above.
+  // {S} is the demanding subject, {E} the easier one, {ev} the learner's own result in the weakest
+  // learning area the demanding subject builds on ("Natural Sciences result (48%)"). The easier subject
+  // is never described as the lesser one: it is the stronger CURRENT fit for some results.
+  pairs: {
+    science:   { title: 'Physical Sciences or Technical Sciences?', keeps: 'technical, trade and applied-science careers' },
+    computing: { title: 'Information Technology or Computer Applications Technology?', keeps: 'business, administration and digital careers' },
+    none:             'Add your Grade 9 results to choose between {S} and {E}.',
+    strong:           'Your {ev} is a solid foundation for {S}.',
+    strongEither:     'Your {ev} is strong enough for either — choose by what you enjoy and the pathways you want to keep open.',
+    suitable:         'Your {ev} makes {S} suitable, but consistent effort will still be important.',
+    suitableEither:   'Your {ev} makes {S} suitable, but consistent effort will still be important. {E} also fits.',
+    developingWant:   'Your {ev} means readiness is still developing. {S} would need extra support and regular practice — discuss it with your teachers and parent/guardian.',
+    developingEasier: 'Your {ev} is still developing. Keeping {S} open would need extra support and regular practice.',
+    low:              'Your {ev} suggests {S} would need significant improvement first — discuss it with your teachers and parent/guardian.',
+    veryLow:          '{S} is an aspiration only for now: your {ev} would need substantial improvement, and a talk with your teachers and parent/guardian.',
+    blocked:          '{S} needs Mathematics, so {E} is the option that fits for now.',
+    careerNeed:       'Some careers you want need {S}, not {E}. You would need to improve your results first.',
+    careerLean:       'Some careers you want lean on {S}, not {E}. You would need to improve your results first.',
+  },
+  // Technical Sciences is offered at some schools only (mostly technical schools).
+  technicalOffer: 'Technical Sciences is usually offered only at technical schools — check that yours offers it and which Mathematics goes with it.',
 };
 
 const SC_CATEGORIES = {
@@ -323,6 +362,20 @@ const SC_SUBJECTS = {
     mathRequirement: 'strong',
     foundationTip: 'Strengthen your algebra and equation-solving, and revisit the Natural Sciences basics on energy, forces and chemical reactions.',
   },
+  // The practical, applied counterpart of Physical Sciences, taken instead of it (mostly at technical
+  // schools). It is a variant of Physical Sciences (`variantOf`): the two are decided between by the
+  // learner's results (SC_CONFIG.pairs), and the report does not count one interest twice.
+  technicalSciences: {
+    label: 'Technical Sciences', family: 'stem', fetNames: ['Technical Sciences'], variantOf: 'physicalSciences',
+    covers: 'physics and chemistry applied to technology — mechanics, electricity, materials and chemical change — with practical work',
+    interestTraits: ['Scientific curiosity', 'Cause-and-effect reasoning', 'Technical problem solving', 'Experimentation', 'Technical design'],
+    personalityTraits: { practical: 1, analytical: 0.6, investigative: 0.6 },
+    academicInputs: [{ area: 'Natural Sciences', w: 1 }, { area: 'Technology', w: 0.7 }, { area: 'Mathematics', w: 0.5 }],
+    pathwayTags: ['technology', 'trades', 'engineering', 'builtEnvironment'],
+    mathRequirement: 'common',
+    note: 'Usually offered at technical schools only — check that yours has it.',
+    foundationTip: 'Revisit the Natural Sciences basics on electricity, forces and materials, and practise applying them in hands-on Technology tasks.',
+  },
   lifeSciences: {
     label: 'Life Sciences', family: 'stem', fetNames: ['Life Sciences'],
     covers: 'biology — the human body, genetics, ecosystems, evolution and living things',
@@ -510,8 +563,9 @@ const SC_SUBJECTS = {
 /* ------------------------------------------------------------
    Suggested subject combinations -- starting points, never streams.
    `slots` lists the subjects that can fill each place (the best-scoring
-   available one is used); the special slot 'mathChoice' means
-   "Mathematics or Mathematical Literacy, whichever the Maths decision
+   available one is used, and a subject the learner's results set aside --
+   see SC_CONFIG.pairs -- is never available); the special slot 'mathChoice'
+   means "Mathematics or Mathematical Literacy, whichever the Maths decision
    recommends".
    ------------------------------------------------------------ */
 const SC_COMBOS = [
@@ -535,6 +589,13 @@ const SC_COMBOS = [
   // Mathematical Literacy: these subjects are all commonly taken with it.
   { id: 'environment', name: 'Life & Environmental Sciences Pathway',
     slots: [['mathChoice'], ['lifeSciences'], ['geography'], ['agriculturalSciences', 'consumerStudies']] },
+  // Offered only where a pair decision (SC_CONFIG.pairs) picks the easier subject: `when` names the
+  // pair and which side it must pick. Physical Sciences and Information Technology are set aside
+  // then, so the combinations above that use them drop out and these take their place.
+  { id: 'applied', name: 'Applied Science & Technology Pathway', when: { science: 'easier' },
+    slots: [['mathChoice'], ['technicalSciences'], ['engineeringGraphicsAndDesign', 'informationTechnology', 'computerApplicationsTechnology']] },
+  { id: 'digital', name: 'Digital & Business Pathway', when: { computing: 'easier' },
+    slots: [['mathChoice'], ['computerApplicationsTechnology'], ['businessStudies'], ['accounting', 'economics', 'tourism', 'geography']] },
 ];
 
 /* ------------------------------------------------------------
@@ -570,11 +631,11 @@ const SC_BANK = [
   { id: 'q_mlit_05', trait: 'Practical problem solving', text: 'Do you like maths you can see being used in real life — like loans, time or travel?', weights: { mathematicalLiteracy: 1, tourism: 0.2, accounting: 0.2 } },
 
   // ---- Physical Sciences
-  { id: 'q_phys_01', trait: 'Scientific curiosity', text: 'Do you ever wonder why things move, fall, heat up or react?', weights: { physicalSciences: 1, mathematics: 0.3, engineeringGraphicsAndDesign: 0.3, lifeSciences: 0.2 } },
-  { id: 'q_phys_02', trait: 'Technical problem solving', text: 'Would you enjoy figuring out why a phone battery, car or electrical circuit works?', weights: { physicalSciences: 1, informationTechnology: 0.4, engineeringGraphicsAndDesign: 0.5, mathematics: 0.2 } },
-  { id: 'q_phys_03', trait: 'Cause-and-effect reasoning', text: 'If you saw an experiment go wrong, would you want to know why?', weights: { physicalSciences: 1, lifeSciences: 0.6, history: 0.2, mathematics: 0.2 } },
-  { id: 'q_phys_04', trait: 'Scientific curiosity', text: 'Are you interested in how chemicals, electricity, forces or energy work?', weights: { physicalSciences: 1, lifeSciences: 0.3, agriculturalSciences: 0.2, engineeringGraphicsAndDesign: 0.2 } },
-  { id: 'q_phys_05', trait: 'Experimentation', text: 'Would building or testing something be more interesting than simply reading about it?', weights: { physicalSciences: 1, engineeringGraphicsAndDesign: 0.5, informationTechnology: 0.3, agriculturalSciences: 0.3, consumerStudies: 0.2 } },
+  { id: 'q_phys_01', trait: 'Scientific curiosity', text: 'Do you ever wonder why things move, fall, heat up or react?', weights: { physicalSciences: 1, technicalSciences: 0.6, mathematics: 0.3, engineeringGraphicsAndDesign: 0.3, lifeSciences: 0.2 } },
+  { id: 'q_phys_02', trait: 'Technical problem solving', text: 'Would you enjoy figuring out why a phone battery, car or electrical circuit works?', weights: { physicalSciences: 1, technicalSciences: 0.9, informationTechnology: 0.4, engineeringGraphicsAndDesign: 0.5, mathematics: 0.2 } },
+  { id: 'q_phys_03', trait: 'Cause-and-effect reasoning', text: 'If you saw an experiment go wrong, would you want to know why?', weights: { physicalSciences: 1, technicalSciences: 0.7, lifeSciences: 0.6, history: 0.2, mathematics: 0.2 } },
+  { id: 'q_phys_04', trait: 'Scientific curiosity', text: 'Are you interested in how chemicals, electricity, forces or energy work?', weights: { physicalSciences: 1, technicalSciences: 0.9, lifeSciences: 0.3, agriculturalSciences: 0.2, engineeringGraphicsAndDesign: 0.2 } },
+  { id: 'q_phys_05', trait: 'Experimentation', text: 'Would building or testing something be more interesting than simply reading about it?', weights: { physicalSciences: 1, technicalSciences: 0.9, engineeringGraphicsAndDesign: 0.5, informationTechnology: 0.3, agriculturalSciences: 0.3, consumerStudies: 0.2 } },
 
   // ---- Life Sciences
   { id: 'q_life_01', trait: 'Human health interest', text: 'Are you curious about how the human body works?', weights: { lifeSciences: 1, consumerStudies: 0.2, physicalSciences: 0.2 } },
@@ -643,7 +704,7 @@ const SC_BANK = [
   // ---- Engineering Graphics and Design
   { id: 'q_egd_01', trait: 'Spatial reasoning', text: 'Can you easily imagine what an object would look like from different angles?', weights: { engineeringGraphicsAndDesign: 1, visualArts: 0.3, geography: 0.2, mathematics: 0.2 } },
   { id: 'q_egd_02', trait: 'Visualisation', text: 'Would you enjoy designing something before it is built?', weights: { engineeringGraphicsAndDesign: 1, visualArts: 0.4, informationTechnology: 0.2 } },
-  { id: 'q_egd_03', trait: 'Technical design', text: 'Do technical drawings, buildings or machines interest you?', weights: { engineeringGraphicsAndDesign: 1, physicalSciences: 0.3 } },
+  { id: 'q_egd_03', trait: 'Technical design', text: 'Do technical drawings, buildings or machines interest you?', weights: { engineeringGraphicsAndDesign: 1, physicalSciences: 0.3, technicalSciences: 0.4 } },
   { id: 'q_egd_04', trait: 'Precision', text: 'Do you enjoy working accurately with measurements?', weights: { engineeringGraphicsAndDesign: 1, mathematics: 0.3, accounting: 0.2, consumerStudies: 0.2 } },
   { id: 'q_egd_05', trait: 'Precision', text: 'Would creating precise drawings be satisfying to you?', weights: { engineeringGraphicsAndDesign: 1, visualArts: 0.3 } },
 
@@ -699,7 +760,7 @@ const SC_BANK = [
   // ---- General (spread across several subjects; no single "main" subject)
   { id: 'q_gen_01', trait: 'General', text: 'Do you enjoy figuring out why something happened?', weights: { physicalSciences: 0.6, history: 0.6, mathematics: 0.4, informationTechnology: 0.4, lifeSciences: 0.4, geography: 0.3 } },
   { id: 'q_gen_02', trait: 'General', text: 'Do you enjoy researching something and then explaining what you found to other people?', weights: { languages: 0.4, history: 0.4, socialSciences: 0.4, geography: 0.3, lifeSciences: 0.3, businessStudies: 0.2 } },
-  { id: 'q_gen_03', trait: 'General', text: 'Do you like making something with your hands and then testing whether it works?', weights: { engineeringGraphicsAndDesign: 0.4, physicalSciences: 0.4, consumerStudies: 0.3, hospitalityStudies: 0.2, agriculturalSciences: 0.2, visualArts: 0.2 } },
+  { id: 'q_gen_03', trait: 'General', text: 'Do you like making something with your hands and then testing whether it works?', weights: { engineeringGraphicsAndDesign: 0.4, physicalSciences: 0.4, technicalSciences: 0.4, consumerStudies: 0.3, hospitalityStudies: 0.2, agriculturalSciences: 0.2, visualArts: 0.2 } },
   { id: 'q_gen_04', trait: 'General', text: 'Would you enjoy a job where every day is different and you meet lots of different people?', weights: { tourism: 0.4, hospitalityStudies: 0.4, businessStudies: 0.3, socialSciences: 0.3, dramaticArts: 0.2 } },
   { id: 'q_gen_05', trait: 'General', text: 'When you get a new gadget or app, do you explore every setting before reading the instructions?', weights: { informationTechnology: 0.5, computerApplicationsTechnology: 0.4, physicalSciences: 0.2, engineeringGraphicsAndDesign: 0.2 } },
   { id: 'q_gen_06', trait: 'General', text: 'Do you enjoy planning something carefully so that it runs smoothly on the day?', weights: { hospitalityStudies: 0.4, tourism: 0.4, businessStudies: 0.3, accounting: 0.2, computerApplicationsTechnology: 0.2 } },

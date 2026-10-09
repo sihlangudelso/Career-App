@@ -1,9 +1,9 @@
 /* ============================================================
    THE LEARNER REPORT AS A PDF -- a deliberate A4 document, not the web page printed.
 
-   "Print / Save as PDF" prints this: four A4 portrait pages, each composed on
-   purpose and answering one question for the learner and the reader (a parent,
-   a teacher):
+   "Download PDF" (js/report_download.js) turns these pages into a PDF file, and the
+   browser's own Print prints them: four A4 portrait pages, each composed on purpose
+   and answering one question for the learner and the reader (a parent, a teacher):
 
      1  Your Learner Profile     Who am I?
      2  Your Subject Fit         Which subjects currently fit me?
@@ -114,19 +114,6 @@ function a4ProfileBody(R){
 }
 
 /* ---------------- page 2: which subjects currently fit me? ---------------- */
-function a4MathsCard(R){
-  const m = R.maths;
-  if(!m) return '';
-  return `
-  <section class="a4-maths">
-    <div class="a4-maths-h"><span class="a4-sq">${icon('compass', 'a4-ic')}</span><div class="a4-maths-t"><h3 class="a4-h3">Mathematics or Mathematical Literacy?</h3></div></div>
-    <p class="a4-maths-msg">${esc(m.message)}</p>
-    <div class="a4-maths-pair">
-      <div><span class="a4-k">Best choice for now</span><b>${esc(m.now)}</b></div>
-      ${m.aspire ? `<div class="a4-asp"><span class="a4-k">Your aspirational careers need</span><b>${esc(m.aspire)}</b></div>` : ''}
-    </div>
-  </section>`;
-}
 function a4SubjectRow(r, i, R){
   const metric = function(label, v, cls){
     return v.score == null
@@ -163,7 +150,6 @@ function a4ResultsBox(R){
 function a4FitBody(R){
   const f = R.fit;
   return `
-    ${a4MathsCard(R)}
     <section class="a4-subjects">
       <h3 class="a4-h3">Subject fit</h3>
       ${f.rows.map(function(r, i){ return a4SubjectRow(r, i, R); }).join('')}
@@ -172,20 +158,20 @@ function a4FitBody(R){
 }
 
 /* ---------------- page 3: where could these subjects take me? ---------------- */
-function a4ComboCard(c, kind){
+function a4ComboCard(c, kind, pair){
   if(!c) return '';
   const best = kind === 'best';
   return `
   <section class="a4-combo ${best ? 'a4-best' : 'a4-altc'} a4-combo-${kind}">
-    <div class="a4-combo-h"><span class="a4-sq">${icon(best ? 'check' : (kind === 'aspirational' ? 'compass' : 'switch'), 'a4-ic')}</span><div><h3 class="a4-h3">${esc(LR_COMBO_TITLE[kind] || LR_COMBO_TITLE.alternative)}</h3><p class="a4-small">${esc(c.name)}</p></div></div>
+    <div class="a4-combo-h"><span class="a4-sq">${icon(best ? 'check' : (kind === 'aspirational' ? 'compass' : 'switch'), 'a4-ic')}</span><div><h3 class="a4-h3">${esc(lrComboTitle(kind, pair))}</h3><p class="a4-small">${esc(c.name)}</p></div></div>
     <ul class="a4-pills">${c.subjects.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>
     <p class="a4-why">${esc(c.why)}</p>
   </section>`;
 }
 function a4AreaCard(a, A, i){
-  const tag = '<span class="a4-asp-tag">Aspirational — Mathematics required</span>';
+  const tag = function(c){ return '<span class="a4-asp-tag">Aspirational — ' + esc(c.needs || 'Mathematics') + ' required</span>'; };
   const allAsp = a.careers.length > 0 && a.careers.every(function(c){ return c.aspirational; });
-  const careers = a.careers.map(function(c){ return esc(c.name) + (c.aspirational && !allAsp ? ' ' + tag : ''); }).join(', ') + (allAsp ? ' ' + tag : '');
+  const careers = a.careers.map(function(c){ return esc(c.name) + (c.aspirational && !allAsp ? ' ' + tag(c) : ''); }).join(', ') + (allAsp ? ' ' + tag(a.careers[0]) : '');
   const uses = a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '';
   return `
   <article class="a4-area a4-t${(i % 5) + 1}"${a.status !== 'aspirational' && i >= 2 ? ' data-opt="' + (i === 3 ? 3 : 2) + '"' : ''}>
@@ -204,7 +190,7 @@ function a4AreaCard(a, A, i){
 function a4PathwayBody(R){
   const A = R.areas, c = R.combo;
   let combos = '';
-  if(c.state === 'ready' && c.best) combos = `<div class="a4-two a4-combos">${a4ComboCard(c.best, 'best')}${c.alt ? a4ComboCard(c.alt, c.kind || 'alternative') : ''}</div>`;
+  if(c.state === 'ready' && c.best) combos = `<div class="a4-two a4-combos">${a4ComboCard(c.best, 'best')}${c.alt ? a4ComboCard(c.alt, c.kind || 'alternative', c.pair) : ''}</div>`;
   else if(c.state === 'ready') combos = a4Prompt('No subject combination stood out strongly this time — talk through the subjects on the previous page with your teacher.');
   let areas;
   if(!A.ready) areas = a4Prompt('Take the personality assessment to see which broad career areas fit you.');
@@ -219,8 +205,7 @@ function a4PathwayBody(R){
     <section class="a4-sec">
       <h3 class="a4-h3">Career pathways</h3>
       ${areas}
-    </section>
-    ${A.ready && R.maths && R.maths.pick !== 'mathematics' ? `<p class="a4-small a4-stays">${esc(R.maths.litNote)}</p>` : ''}`;
+    </section>`;
 }
 
 /* ---------------- page 4: what should I do next? ---------------- */
@@ -228,7 +213,7 @@ function a4NextBody(R){
   const f = R.final, S = R.summary;
   const answers = [];
   if(f.thrive) answers.push(['star', '1  Where am I likely to thrive?', [f.thrive]]);
-  if(f.fitNow) answers.push(['check', '2  Which subjects fit me best right now?', [f.fitNow]]);
+  if(f.fitNow) answers.push(['check', '2  Which subjects fit me best right now?', f.fitNow]);
   if(f.improve.length) answers.push(['flag', (f.fitNow ? '3' : '2') + '  Which areas do I need to improve?', f.improve]);
   if(f.open.length) answers.push(['compass', (f.fitNow ? '4' : '3') + '  Which future pathways could open if I improve?', f.open]);
   // The summary: what was chosen (a table), then the four levels as tiles.

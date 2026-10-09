@@ -247,6 +247,14 @@ function subjectChoiceReportHTML(l){
     <p class="page-sub">${esc(m.always)}</p>
   </div>
 
+  ${Object.keys(rep.pairs).filter(function(k){ return rep.pairs[k].pick !== 'either'; }).map(function(k){ const d = rep.pairs[k]; return `
+  <div class="card" style="margin-top:16px;">
+    <h3>${esc(d.title)}</h3>
+    ${scBadge(d.headline, 'badge-good')}
+    <p style="margin-top:10px;">${esc(d.message)}</p>
+    ${d.careerNote ? `<p>${esc(d.careerNote)}</p>` : ''}
+  </div>`; }).join('')}
+
   <div class="section-title"><h2>3. Subjects worth exploring</h2></div>
   ${rep.explore.length
     ? `<div class="grid grid-2">${rep.explore.map(function(r){ return subjectCardHTML(r, false); }).join('')}</div>`

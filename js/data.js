@@ -345,7 +345,7 @@ function grade9SubjectLabels(learner){
 // this when both exist for the same FET subject).
 const GRADE9_TO_FET = {
   'Mathematics': ['Mathematics'],
-  'Natural Sciences': ['Physical Sciences', 'Life Sciences'],
+  'Natural Sciences': ['Physical Sciences', 'Life Sciences', 'Technical Sciences'],
   'Social Sciences': ['Geography', 'History'],
   'Geography': ['Geography'],
   'History': ['History'],
