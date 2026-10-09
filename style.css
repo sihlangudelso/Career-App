@@ -656,8 +656,8 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
    column), so nothing can run under the footer or onto the next page. It is hidden on
    screen (.print-only) and shown when printing; the "Download PDF" button lays the same
    pages out off-screen (.rd-host) and draws each into a PDF (js/report_download.js).
-   @page has no margin: the pages carry their own, which also leaves the
-   browser no margin to print its own URL, date and page numbers in.
+   The report's @page has no margin (it is set by reportA4HTML, only while the report is on screen): the
+   pages carry their own, which also leaves the browser no margin to print its own URL, date and page numbers in.
    Sizes are in pt and mm: body 9.5pt, supporting text 8.5pt, never smaller. A page whose
    content is longer than usual is TIGHTENED (.c1-.c3, set by a4FitAll), not shrunk. */
 .print-only{display:none;}
@@ -877,15 +877,21 @@ td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
 @keyframes rd-spin{to{transform:rotate(360deg);}}
 @media (prefers-reduced-motion:reduce){ .rd-spin{animation-duration:2.4s;} }
 
+/* (The report's @page rule -- A4, margin 0 -- travels with the report's own markup, see reportA4HTML in
+   js/report_pdf.js, so that every other page prints with the browser's usual margins.) */
 @media print{
-  @page{size:A4 portrait;margin:0;}
   html,body{margin:0 !important;padding:0 !important;background:#fff !important;min-height:0 !important;height:auto !important;overflow:visible !important;}
   .sidebar,.topbar,.bottom-nav,.toast,.modal-backdrop,.mobile-menu-sheet,.rd-host,.sr-only{display:none !important;}
   .app-shell{display:block !important;min-height:0 !important;}
   .main{padding:0 !important;margin:0 !important;max-width:none !important;}
-  #app > *:not(.print-only){display:none !important;}
+  /* A page with a print copy (the report) prints that copy and none of the screen version; every other page
+     prints as it is, minus its buttons -- (it used to print as an empty page, because EVERYTHING that was not
+     a print copy was hidden). */
+  .screen-only{display:none !important;}
   .print-only{display:block !important;}
-  .print-only button{display:none !important;}
+  #app button, .print-only button{display:none !important;}
+  #app{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #app .card{break-inside:avoid;}
   /* Pages break BETWEEN pages (never after the last one, which is what makes a blank trailing sheet), and each
      is a hair shorter than the sheet so rounding can never push its end onto a page of its own. */
   .a4-page{height:296.5mm;}

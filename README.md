@@ -516,7 +516,11 @@ seconds and gives a file of about 2 MB. Things to know:
 Printing from the browser (Ctrl/Cmd + P) still works and shows the same pages. To keep it from adding blank
 sheets: pages break *between* pages only (`.a4-page + .a4-page { break-before: page }`, never after the last
 one), each printed page is a hair shorter than the sheet (296.5 mm) so rounding can never push its end onto a
-sheet of its own, and everything else on the screen (sidebar, top bar, toasts, dialogs) is hidden.
+sheet of its own, and everything else on the screen (sidebar, top bar, toasts, dialogs) is hidden. The report's
+screen version is wrapped in `.screen-only` (hidden when printing) beside its `.print-only` copy; **every other page
+prints as itself** with the browser's usual margins (the zero-margin A4 `@page` rule travels inside the report's own
+markup, see `reportA4HTML`). It used to print an *empty* page — everything that was not a print copy was hidden —
+so printing, say, the long Subject Choice Report page gave blank sheets.
 
 How overlap and overflow are prevented (not just hoped against):
 - `@page { size: A4 portrait; margin: 0 }`: the pages carry their own margins, which also leaves the

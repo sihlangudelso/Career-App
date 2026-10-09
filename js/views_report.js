@@ -35,17 +35,21 @@ function viewReport(){
       : detail.id === 'subjects' ? reportSubjectsHTML(l)
       : reportNextStepsHTML(l);
     return `
+    <div class="screen-only">
     ${pageHeadHTML(detail.label, detail.sub)}
     <button class="btn btn-ghost btn-sm" style="margin-bottom:18px;" onclick="navigate('report')">← Back to your report</button>
     ${body}
+    </div>
     <div class="print-only">${reportPrintHTML(l, R)}</div>`;
   }
   // The report draws its own header (logo, title, name / grade / school / date),
   // so there is no separate page heading above it.
   return `
+  <div class="screen-only">
   <div class="rp-toolbar"><button class="btn btn-ghost btn-sm" onclick="downloadReportPDF(this)">${icon('download')} Download PDF</button></div>
   ${learnerReportHTML(l, R)}
   ${reportMoreDetailHTML(l, R)}
+  </div>
   <div class="print-only">${reportPrintHTML(l, R)}</div>`;
 }
 

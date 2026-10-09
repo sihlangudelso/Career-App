@@ -276,7 +276,10 @@ function a4Pages(l, R){
 function reportA4HTML(l, R){
   R = R || buildLearnerReport(l);
   const pages = a4Pages(l, R);
-  return `<div class="a4-doc" lang="en-ZA">${pages.map(function(p, i){ return a4Frame(p, R, i, pages.length); }).join('')}</div>`;
+  // The A4 page rule (no margin: the pages carry their own, so the browser has no room for its URL / date / page
+  // numbers) travels with the document, so it applies only while the report is on screen and every other page
+  // prints with the browser's usual margins.
+  return `<style>@page{size:A4 portrait;margin:0;}</style><div class="a4-doc" lang="en-ZA">${pages.map(function(p, i){ return a4Frame(p, R, i, pages.length); }).join('')}</div>`;
 }
 
 /* ---------------- the fit pass ---------------- */
