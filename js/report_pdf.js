@@ -37,12 +37,6 @@ function a4Pct(v){ return v == null || isNaN(v) ? '—' : Math.round(v) + '%'; }
 function a4Bar(v, extra){
   return `<span class="a4-bar ${extra || ''}" aria-hidden="true"><i style="width:${Math.max(2, Math.min(100, Math.round(v || 0)))}%"></i></span>`;
 }
-// The first sentence of a text (the page keeps the lead of the Mathematics explanations; the screen has all of them).
-function a4First(t){
-  t = String(t || '');
-  const i = t.indexOf('. ');
-  return i === -1 ? t : t.slice(0, i + 1);
-}
 function a4Chip(rec){ return `<span class="a4-chip a4-chip-${rec.key}">${esc(rec.label)}</span>`; }
 
 /* ---------------- the page frame ---------------- */
@@ -80,7 +74,7 @@ function a4ProfileBody(R){
   const pr = R.profile;
   if(!pr.available){
     return a4Info(R) + a4SecTitle('Your Learner Profile', 'Who am I?') +
-      a4Prompt('Take the personality assessment to see your key traits, your interests and how you tend to work. Your profile appears here as soon as you have.');
+      a4Prompt('Take the personality assessment to see your key traits, interests and how you work.');
   }
   const traits = pr.traits.map(function(t, i){
     return `<li class="a4-t${(i % 5) + 1}"><span class="a4-dot">${icon(LR_TRAIT_ICON[t.id] || 'spark', 'a4-ic')}</span><div><b>${esc(t.word)}</b><p>${esc(t.about)}</p></div></li>`;
@@ -93,8 +87,7 @@ function a4ProfileBody(R){
       <div class="a4-code" aria-hidden="true">${esc(pr.code)}</div>
       <div class="a4-type-t">
         <h3 class="a4-h3">Your personality type: ${esc(pr.names.join(' · '))}</h3>
-        <div class="a4-typegrid">${pr.typeDescs.map(function(d){ return `<p class="a4-small"><b>${esc(d.name)}:</b> ${esc(d.desc)}</p>`; }).join('')}</div>
-        ${pr.strengths.length ? `<p class="a4-small a4-strengths" data-opt="8"><b>Strengths you rated highest:</b> ${esc(pr.strengths.join(', '))}.</p>` : ''}
+        ${pr.strengths.length ? `<p class="a4-small a4-strengths" data-opt="8"><b>Strongest areas:</b> ${esc(pr.strengths.join(', '))}.</p>` : ''}
       </div>
     </section>`;
   const sliders = pr.work && pr.work.sliders.length ? `
@@ -103,20 +96,18 @@ function a4ProfileBody(R){
       <ul class="a4-sliders">${pr.work.sliders.map(function(s, i){
         return `<li${i >= 4 ? ' data-opt="7"' : ''}><div class="a4-sl-l"><span>${esc(s.left)}</span><span>${esc(s.right)}</span></div><div class="a4-track" aria-hidden="true"><i style="margin-left:${Math.round(s.value)}%"></i></div></li>`;
       }).join('')}</ul>
-      ${pr.work.items.length ? `<p class="a4-small">You lean towards ${esc(scJoin(pr.work.items))}.</p>` : `<p class="a4-small">Your answers sit in the middle of most of these — you can adapt to the situation.</p>`}
     </section>` : '';
   const learn = pr.learn ? `
     <section class="a4-card a4-learn">
       <span class="a4-learn-ic">${icon('cap', 'a4-ic')}</span>
-      <div><h3 class="a4-h3">How you learn best</h3><p>${esc(pr.learn)}</p><p class="a4-small">These are tendencies read from your personality and work-style answers, not a measured learning style.</p></div>
+      <div><h3 class="a4-h3">How you learn best</h3><p>${esc(pr.learn)}</p></div>
     </section>` : '';
   return `
     ${a4Info(R)}
-    ${a4SecTitle('Your Learner Profile', 'Who am I? How you naturally work, learn and what interests you.')}
+    ${a4SecTitle('Your Learner Profile', 'Who am I?')}
     <div class="a4-two">
       <section class="a4-card"><h3 class="a4-h3">Your key traits</h3><ul class="a4-traits">${traits}</ul></section>
-      <section class="a4-card"><h3 class="a4-h3">Your interests</h3><ul class="a4-ibars">${bars}</ul>
-        <p class="a4-small a4-basis" data-opt="9">${pr.interestBasis === 'subjects' ? 'From your Subject Choice answers — the same answers that give each subject its interest score on the next page.' : 'From your personality assessment. The Subject Choice Assessment sharpens them for each subject.'}</p></section>
+      <section class="a4-card"><h3 class="a4-h3">Your interests</h3><ul class="a4-ibars">${bars}</ul></section>
     </div>
     ${type}
     <div class="a4-two${sliders && learn ? '' : ' a4-one'}">${sliders}${learn}</div>`;
@@ -128,7 +119,7 @@ function a4MathsCard(R){
   if(!m) return '';
   return `
   <section class="a4-maths">
-    <div class="a4-maths-h"><span class="a4-sq">${icon('compass', 'a4-ic')}</span><div class="a4-maths-t"><h3 class="a4-h3">Mathematics or Mathematical Literacy?</h3><p class="a4-maths-head">${esc(m.headline)}</p></div></div>
+    <div class="a4-maths-h"><span class="a4-sq">${icon('compass', 'a4-ic')}</span><div class="a4-maths-t"><h3 class="a4-h3">Mathematics or Mathematical Literacy?</h3></div></div>
     <p class="a4-maths-msg">${esc(m.message)}</p>
     <div class="a4-maths-pair">
       <div><span class="a4-k">Best choice for now</span><b>${esc(m.now)}</b></div>
@@ -151,7 +142,7 @@ function a4SubjectRow(r, i, R){
       <div class="a4-m a4-m-ov"><span class="a4-ml">Overall</span><b class="a4-ov a4-ov-${r.overall.key}">${a4Pct(r.overall.score)}</b></div>
       <div class="a4-recwrap">${a4Chip(r.rec)}</div>
     </div>
-    ${r.why ? `<p class="a4-why">${esc(r.mathsPair ? a4First(r.why) : r.why)}</p>` : ''}
+    ${r.why ? `<p class="a4-why">${esc(r.why)}</p>` : ''}
   </article>`;
 }
 function a4ResultsBox(R){
@@ -170,16 +161,14 @@ function a4ResultsBox(R){
   </div>`;
 }
 function a4FitBody(R){
-  const f = R.fit, W = SC_CONFIG.weights, pc = function(x){ return Math.round(x * 100); };
+  const f = R.fit;
   return `
     ${a4MathsCard(R)}
     <section class="a4-subjects">
       <h3 class="a4-h3">Subject fit</h3>
-      <p class="a4-small a4-legend" data-opt="5"><b>Academic</b> = your Grade 9 results · <b>Interest</b> = your answers · <b>Personality</b> = your working style · <b>Overall</b> blends the three (${pc(W.academic)}% / ${pc(W.interest)}% / ${pc(W.personality)}%).</p>
       ${f.rows.map(function(r, i){ return a4SubjectRow(r, i, R); }).join('')}
     </section>
-    ${a4ResultsBox(R)}
-    <p class="a4-small a4-note" data-opt="9">Results are the Grade 9 learning areas each subject builds on (for example EMS for Business Studies), not marks in a subject you have not taken yet. A subject is only recommended when your results support it as well as your interests and personality.</p>`;
+    ${a4ResultsBox(R)}`;
 }
 
 /* ---------------- page 3: where could these subjects take me? ---------------- */
@@ -189,7 +178,6 @@ function a4ComboCard(c, kind){
   return `
   <section class="a4-combo ${best ? 'a4-best' : 'a4-altc'} a4-combo-${kind}">
     <div class="a4-combo-h"><span class="a4-sq">${icon(best ? 'check' : (kind === 'aspirational' ? 'compass' : 'switch'), 'a4-ic')}</span><div><h3 class="a4-h3">${esc(LR_COMBO_TITLE[kind] || LR_COMBO_TITLE.alternative)}</h3><p class="a4-small">${esc(c.name)}</p></div></div>
-    ${LR_COMBO_TAG[kind] ? `<p class="a4-tag2">${esc(LR_COMBO_TAG[kind])}</p>` : ''}
     <ul class="a4-pills">${c.subjects.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>
     <p class="a4-why">${esc(c.why)}</p>
   </section>`;
@@ -198,10 +186,7 @@ function a4AreaCard(a, A, i){
   const tag = '<span class="a4-asp-tag">Aspirational — Mathematics required</span>';
   const allAsp = a.careers.length > 0 && a.careers.every(function(c){ return c.aspirational; });
   const careers = a.careers.map(function(c){ return esc(c.name) + (c.aspirational && !allAsp ? ' ' + tag : ''); }).join(', ') + (allAsp ? ' ' + tag : '');
-  const uses = [
-    A.basis !== 'none' && a.draws.length ? `<b>Builds on</b> ${esc(a.draws.join(', '))}` : '',
-    a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '',
-  ].filter(Boolean).join(' · ');
+  const uses = a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '';
   return `
   <article class="a4-area a4-t${(i % 5) + 1}"${a.status !== 'aspirational' && i >= 2 ? ' data-opt="' + (i === 3 ? 3 : 2) + '"' : ''}>
     <div class="a4-area-l">
@@ -216,27 +201,6 @@ function a4AreaCard(a, A, i){
     </div>
   </article>`;
 }
-// What currently fits, what remains open, what may be restricted, and what it would take to open more.
-function a4Reading(R){
-  const m = R.maths, A = R.areas;
-  const fits = A.ready ? A.list.filter(function(a){ return a.status === 'strong' || a.status === 'good'; }).slice(0, 3).map(function(a){ return a.faculty.name; }) : [];
-  const asp = A.ready ? A.list.filter(function(a){ return a.status === 'aspirational'; }).map(function(a){ return a.faculty.name; }) : [];
-  const cells = [];
-  cells.push(['Fits you now', fits.length ? 'Pathways in ' + scJoin(fits) + ' match your interests and results.' : 'Your recommended subjects keep a wide range of pathways within reach.']);
-  cells.push(['Stays open', m && m.pick !== 'mathematics' ? SC_COPY.mathLitOpenShort : 'Your results keep Mathematics-based and other pathways open.']);
-  cells.push(['May be restricted', m && m.pick === 'mathematicalLiteracy'
-    ? (asp.length ? scJoin(asp) + ' rely' : 'Some careers rely') + ' on Mathematics, not Mathematical Literacy.'
-    : 'Nothing in your top pathways is held back by your subject choice. Check each programme’s own requirements.']);
-  const target = SC_CONFIG.math.bands.suitable;
-  cells.push(['To open more', m && (m.variant === 'aspirational' || (m.pick === 'mathematicalLiteracy' && m.wants !== 'none'))
-    ? 'Build your Mathematics towards ' + target + '% or more, and talk it through with your teacher.'
-    : (m && m.support ? 'Regular extra practice and support in Mathematics.' : 'Keep your results steady and revisit your choices each term.')]);
-  return `
-  <section class="a4-read">
-    <h3 class="a4-h3">How to read these pathways</h3>
-    <div class="a4-read-g">${cells.map(function(c, i){ return `<div class="a4-t${i + 1}"><b>${esc(c[0])}</b><p>${esc(c[1])}</p></div>`; }).join('')}</div>
-  </section>`;
-}
 function a4PathwayBody(R){
   const A = R.areas, c = R.combo;
   let combos = '';
@@ -248,16 +212,15 @@ function a4PathwayBody(R){
   const provisional = R.fit.provisional && R.fit.provisional.length ? `
     <section class="a4-card"><h3 class="a4-h3">Subjects your careers rely on</h3>
       <ul class="a4-pills">${R.fit.provisional.map(function(s){ return `<li>${esc(s.subject)}</li>`; }).join('')}</ul>
-      <p class="a4-small">These are the subjects your strongest career areas lean on — they describe the careers, not a personal ranking.</p></section>` : '';
+      <p class="a4-small">These describe the careers, not a personal ranking.</p></section>` : '';
   return `
     ${combos}
     ${provisional}
     <section class="a4-sec">
       <h3 class="a4-h3">Career pathways</h3>
-      <p class="a4-small" data-opt="6">${A.ready ? (A.basis === 'recommended' ? 'Each area is judged on how well it matches your interests and personality, and separately on whether your results support it.' : 'Each area is judged on how well it matches your interests and personality.') : ''}</p>
       ${areas}
     </section>
-    ${A.ready && R.maths ? a4Reading(R) : ''}`;
+    ${A.ready && R.maths && R.maths.pick !== 'mathematics' ? `<p class="a4-small a4-stays">${esc(R.maths.litNote)}</p>` : ''}`;
 }
 
 /* ---------------- page 4: what should I do next? ---------------- */
@@ -284,11 +247,8 @@ function a4NextBody(R){
   const readiness = a.has ? `
     <section class="a4-card a4-ready">
       <h3 class="a4-h3">Your academic readiness</h3>
-      <div class="a4-avg"><b>${a4Pct(a.average)}</b><span>${esc(lrLevel(a.average, 'academic').label)}<small>average of your entered results</small></span></div>
-      <p class="a4-small"><b>Strongest:</b> ${esc(a.strongest.map(function(e){ return e.subject + ' ' + e.pct + '%'; }).join(' · '))}</p>
-      <p class="a4-small" data-opt="7"><b>To strengthen:</b> ${a.toStrengthen.length ? esc(a.toStrengthen.map(function(e){ return e.subject + ' ' + e.pct + '%'; }).join(' · ')) : 'None below ' + LR_CONFIG.weakBelow + '%.'}</p>
-      <p class="a4-small">Based on ${esc(a.source)}.</p>
-    </section>` : `<section class="a4-card a4-ready"><h3 class="a4-h3">Your academic readiness</h3><p class="a4-small">Add your marks to see how your results line up with your recommended subjects.</p></section>`;
+      <div class="a4-avg"><b>${a4Pct(a.average)}</b><span>${esc(lrLevel(a.average, 'academic').label)}<small>average result</small></span></div>
+    </section>` : `<section class="a4-card a4-ready"><h3 class="a4-h3">Your academic readiness</h3><p class="a4-small">Add your marks to see this.</p></section>`;
   const steps = f.steps.map(function(s, i){ return `<li${i >= 3 ? ' data-opt="9"' : ''}><span>${esc(s.text)}</span></li>`; }).join('');
   return `
     ${answers.length ? `<div class="a4-two a4-answers">${answers.map(function(x, i){

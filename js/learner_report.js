@@ -59,7 +59,7 @@ const LR_CONFIG = {
   // readiness under readyMin is "developing"; a strong fit also needs readiness of readyOk or more.
   // An area is Mathematics-heavy when this share of its careers require Mathematics.
   pathway: { strong: 65, good: 50, readyMin: 50, readyOk: 60, mathsHeavy: 0.6 },
-  nextSteps: 4,                     // next steps listed
+  nextSteps: 3,                     // next steps listed
   trait: { max: 5, min: 55, least: 4 },  // key traits: up to 5 scoring 55+, never fewer than 4
   interests: 5,                     // interest areas shown (of the six scored)
   whyMin: 65,                       // a factor must reach this to be named in a "why" line
@@ -68,14 +68,14 @@ const LR_CONFIG = {
 
 // What each key trait means for the learner (one short sentence each).
 const LR_TRAIT_COPY = {
-  analytical:    'You enjoy breaking problems down, looking for patterns and understanding how things work.',
-  investigative: 'You like asking why, digging into questions and finding things out for yourself.',
-  creative:      'You come up with original ideas and enjoy making, designing or imagining new things.',
-  organised:     'You like things in order — clear steps, accurate work and getting the details right.',
-  people:        'You enjoy working with, helping and understanding other people.',
-  persuasive:    'You like taking the lead, sharing your ideas and bringing other people along.',
-  practical:     'You prefer hands-on, real-world tasks to theory on its own.',
-  reflective:    'You like to think ideas through, and often think best with some time to yourself.',
+  analytical:    'You enjoy breaking problems down and looking for patterns.',
+  investigative: 'You like asking why and finding things out yourself.',
+  creative:      'You come up with original ideas and enjoy making things.',
+  organised:     'You like clear steps and getting the details right.',
+  people:        'You enjoy working with and helping other people.',
+  persuasive:    'You like taking the lead and bringing people along.',
+  practical:     'You prefer hands-on, real-world tasks.',
+  reflective:    'You like to think ideas through, often on your own.',
 };
 
 // The same traits as a short reason under a subject ("Analytical thinking · strong Maths results").
@@ -243,7 +243,7 @@ function lrLearnBest(l){
     if(picked.length >= 3 || groups[x.c.group] || groups[LR_LEARN_OPPOSITE[x.c.group]]) return;
     groups[x.c.group] = true; picked.push(x.c.text);
   });
-  return picked.length ? 'You tend to learn best when you can ' + scJoin(picked) + '.' : 'Your answers show a flexible style — you can adapt to how a topic is taught.';
+  return picked.length ? 'You learn best when you can ' + scJoin(picked) + '.' : 'You adapt well to how a topic is taught.';
 }
 
 function lrProfile(l, rep){
@@ -385,58 +385,39 @@ function lrRecommend(r, overall, ctx){
   return { key:'consider', label:'Consider' };
 }
 
-// One personalised sentence for a subject: the learner's results, interests and working style
-// that point to it, and where the picture is weaker. Results are always named by the Grade 9
-// learning area they come from (EMS, Mathematics ...), never as if the learner had already
-// taken a subject they have not met yet.
+// One short line of reasons for a subject: the learner's results, interests and working style that
+// point to it, and the one thing holding it back. Results are always named by the Grade 9 learning area
+// they come from (EMS, Mathematics ...), never as if the learner had already taken a subject they have
+// not met yet.
 function lrSubjectWhy(res, row, ctx){
   const m = ctx.maths;
-  // Mathematics and Mathematical Literacy: the decision's own explanation, where it sets one aside.
+  // Mathematics and Mathematical Literacy: the decision's own line, where it sets one aside.
   if(m && (res.id === 'mathematics' || res.id === 'mathematicalLiteracy') && (m.pick === 'mathematicalLiteracy' || m.support)){
     return res.feedback.why.join(' ');
   }
-  // Mathematics where the decision recommends it outright: the decision itself, in one line.
-  if(m && res.id === 'mathematics' && m.pick === 'mathematics' && !m.support && m.pct != null){
-    return m.tier === 'strong'
-      ? 'Your Grade 9 Mathematics result (' + m.pct + '%) is a solid foundation, and Mathematics keeps the widest range of pathways open.'
-      : 'Your Grade 9 Mathematics result (' + m.pct + '%) makes Mathematics suitable; consistent effort will still be important.';
-  }
+  // Mathematics recommended outright: the Maths card above says why; here only what else points to it.
+  const outright = !!(m && res.id === 'mathematics' && m.pick === 'mathematics' && !m.support && m.pct != null);
   const M = LR_CONFIG.whyMin, sup = [];
-  if(res.academic.score != null && res.academic.score >= M) sup.push('your ' + lrShort(scAcademicAreas(res)) + ' results');
+  if(res.academic.score != null && res.academic.score >= M) sup.push(lrShort(scAcademicAreas(res)) + ' results');
   const area = LR_AREAS.filter(function(a){ return a.subjects.indexOf(res.id) !== -1 && ctx.areaScore[a.id] != null && ctx.areaScore[a.id] >= M; })
     .sort(function(a, b){ return ctx.areaScore[b.id] - ctx.areaScore[a.id]; })[0];
   const hi = scInterestPhrases(res, 'high', 1);
-  if(area) sup.push('your interest in ' + area.name);
-  else if(res.interest.normalised >= M && hi.length) sup.push('your enjoyment of ' + hi[0]);
+  if(area) sup.push('interest in ' + area.name);
+  else if(res.interest.normalised >= M && hi.length) sup.push('you enjoy ' + hi[0]);
   const pt = (res.personality.parts || []).filter(function(p){ return p.score >= M; })
     .sort(function(a, b){ return (b.weight * b.score - a.weight * a.score) || (b.score - a.score); })[0];
-  if(res.personality.score != null && res.personality.score >= M && pt) sup.push('your ' + LR_TRAIT_WHY[pt.trait]);
+  if(res.personality.score != null && res.personality.score >= M && pt) sup.push(LR_TRAIT_WHY[pt.trait]);
+  if(outright && !sup.length) sup.push('Grade 9 Mathematics result (' + m.pct + '%)');
   let gap = null;
-  if(m && m.pick === 'mathematicalLiteracy' && SC_SUBJECTS[res.id].mathRequirement === 'strong') gap = 'it needs Mathematics rather than Mathematical Literacy';
-  else if(res.academic.score != null && res.academic.score < LR_CONFIG.academic.moderate) gap = 'your ' + lrShort(scAcademicAreas(res)) + ' results are still developing';
-  else if(res.academic.score == null) gap = 'there is no Grade 9 result yet that maps onto it';
-  const good = row.rec.key === 'strong' || row.rec.key === 'rec';
+  if(m && m.pick === 'mathematicalLiteracy' && SC_SUBJECTS[res.id].mathRequirement === 'strong') gap = 'needs Mathematics, not Mathematical Literacy';
+  else if(outright) gap = null;
+  else if(res.academic.score != null && res.academic.score < SC_CONFIG.category.strong.academicMin){
+    const weak = res.academic.weakAreas.slice(0, 2).map(function(w){ return lrShort(scAreaName(w.area)); });
+    gap = (weak.length ? scJoin(weak) + ' ' : '') + 'results still developing';
+  }
+  else if(res.academic.score == null) gap = 'no Grade 9 result for it yet';
   if(!sup.length) return gap ? scCap(gap) + '.' : null;
-  const plural = /(results|skills)$/.test(sup[0]);
-  const lead = scCap(sup[0]) + (sup.length > 1 ? ', together with ' + scJoin(sup.slice(1)) + ',' : '');
-  return lead + ' ' + (plural ? 'suggest' : 'suggests') + (good && !gap ? ' a good fit' : ' it is worth exploring') + (gap ? ', although ' + gap : '') + '.';
-}
-
-// A short line under the subject's name where there is something to flag.
-function lrRowNote(r, rec, ctx){
-  const m = ctx.maths;
-  if(m && r.id === 'mathematics'){
-    if(m.pick === 'mathematicalLiteracy') return m.wants !== 'none' ? 'Aspirational — needs improvement first' : null;
-    if(m.support) return 'Readiness still developing — extra support needed';
-    if(m.pick === 'mathematics' && m.tier === 'suitable') return 'Suitable — steady effort still matters';
-  }
-  if(m && r.id === 'mathematicalLiteracy'){
-    if(m.pick === 'mathematicalLiteracy') return 'The stronger current academic fit';
-    if(m.support) return 'A safer route while your Mathematics builds';
-  }
-  if(rec.key === 'aspire') return 'Needs Mathematics, not Mathematical Literacy';
-  return r.category.key === 'foundation' ? 'High interest — build the foundation'
-    : (r.category.key === 'academic' ? 'Academically strong — check your interest' : null);
+  return scCap(sup.join(' · ')) + (gap ? ' — ' + gap : '') + '.';
 }
 
 // One row of the Subject Fit table. extra: null = in the best-fit combination,
@@ -454,18 +435,15 @@ function lrFitRow(r, extra, ctx){
     overall: overall, rec: rec,
     noMarks: r.academic.score == null,
     why: null,
-    note: lrRowNote(r, rec, ctx),
     mathsPair: r.id === 'mathematics' || r.id === 'mathematicalLiteracy',
     needsMathsNotLit: SC_SUBJECTS[r.id].mathRequirement === 'strong',
   };
 }
 
-// Why a combination: the learner's key traits, interests and results that these
-// subjects draw on, then the career areas it keeps open. Every clause comes from
-// the sections above it, so a learner can follow the recommendation back. Results are
-// named by Grade 9 learning area (what the learner has results for), not by subject.
-function lrComboWhy(view, ctx, kind){
-  const noun = kind === 'alt' ? 'alternative' : 'combination';
+// Why a combination: the learner's own key traits, interests and results that these subjects draw on,
+// so a learner can follow the recommendation back. Results are named by Grade 9 learning area (what the
+// learner has results for), not by subject.
+function lrComboWhy(view, ctx){
   const rows = view.ids.map(function(id){ return ctx.byId[id]; }).filter(Boolean);
   // working style: the learner's own key traits that these subjects lean on
   const lean = {};
@@ -483,7 +461,7 @@ function lrComboWhy(view, ctx, kind){
     return LR_AREAS.filter(function(x){ return x.id === a.id; })[0].subjects.some(function(sid){ return view.ids.indexOf(sid) !== -1 && (!only || only.indexOf(sid) === -1); });
   };
   let areas = [];
-  if(kind === 'alt' && ctx.exclude) areas = ctx.interestAll.filter(function(a){ return a.score >= LR_CONFIG.altInterestMin && inArea(a, ctx.exclude); }).slice(0, 2).map(function(a){ return a.name; });
+  if(ctx.exclude) areas = ctx.interestAll.filter(function(a){ return a.score >= LR_CONFIG.altInterestMin && inArea(a, ctx.exclude); }).slice(0, 2).map(function(a){ return a.name; });
   if(!areas.length) areas = ctx.interests.filter(function(a){ return a.score >= LR_CONFIG.trait.min && inArea(a); }).slice(0, 2).map(function(a){ return a.name; });
   // strong results: the Grade 9 learning areas these subjects build on where the learner really is strong
   const strongAreas = [];
@@ -499,14 +477,8 @@ function lrComboWhy(view, ctx, kind){
   if(traits.length) parts.push('your ' + scJoin(traits) + ' working style');
   if(areas.length) parts.push('your interest in ' + scJoin(areas));
   if(strongAreas.length) parts.push('your strong ' + scJoin(strongAreas.slice(0, 2)) + ' results');
-  let text = parts.length
-    ? 'This ' + noun + ' matches ' + scJoin(parts) + '.'
-    : 'This is the closest ' + noun + ' to your answers so far — find out what each subject involves before you decide.';
-  if(ctx.pathNames.length) text += ' It also keeps pathways in ' + scJoin(ctx.pathNames.slice(0, 3)) + ' open.';
-  const weak = rows.filter(function(r){ return r.academic.score != null && r.academic.score < LR_CONFIG.weakBelow; });
-  if(weak.length) text += ' ' + scJoin(weak.slice(0, 2).map(function(r){ return lrShort(r.label); })) + ' may need some extra practice at first.';
-  else if(!rows.some(function(r){ return r.academic.score != null; })) text += ' Add your Grade 9 marks to see how ready you are for it.';
-  return text;
+  if(!parts.length) return 'Closest to your answers so far — find out what each subject involves.';
+  return 'Matches ' + scJoin(parts) + '.' + (rows.some(function(r){ return r.academic.score != null; }) ? '' : ' Add your Grade 9 marks to see how ready you are.');
 }
 
 // The subjects a Grade 10-12 learner is actually taking, as Subject Choice ids.
@@ -630,18 +602,14 @@ function lrCareerAreas(l, matches, comboIds, ctx){
   const list = base.slice(0, Math.max(0, room - asp.length)).concat(asp);
   return { ready: true, list: list, haveCombo: haveCombo, aspirationalCount: aspirational.length };
 }
-// One plain sentence on why this area matches (or does not yet suit) the learner.
+// One short line on why this area matches (or does not yet suit) the learner.
 function lrAreaWhy(a, ctx){
   const m = ctx.maths;
-  const likes = a.dims.length ? 'your ' + scJoin(a.dims) + ' interests' : 'your interests';
-  if(a.status === 'aspirational'){
-    return 'These careers match ' + likes + ', but many need Mathematics rather than Mathematical Literacy. With your current Mathematics result' + (m && m.pct != null ? ' (' + m.pct + '%)' : '') + ', treat this as an aspirational pathway: it needs substantial improvement first.';
-  }
-  if(a.status === 'developing'){
-    return 'These careers match ' + likes + ', but your ' + (a.weakAreas.length ? scJoin(a.weakAreas.slice(0, 2)) : 'current') + ' results are still developing — build them up to keep this pathway within reach.';
-  }
-  if(a.status === 'explore') return 'A partial match for ' + likes + ' — worth finding out what these careers involve day to day.';
-  return 'These careers match ' + likes + (a.draws.length ? ' and build on ' + scJoin(a.draws.slice(0, 2)) + ' from your recommended subjects' : '') + '.';
+  const likes = 'Matches your ' + (a.dims.length ? scJoin(a.dims) + ' ' : '') + 'interests';
+  if(a.status === 'aspirational') return 'Many careers here need Mathematics, not Mathematical Literacy — aspirational until your Mathematics' + (m && m.pct != null ? ' (' + m.pct + '%)' : '') + ' improves.';
+  if(a.status === 'developing') return likes + '; ' + (a.weakAreas.length ? scJoin(a.weakAreas.slice(0, 2)) + ' ' : '') + 'results still developing.';
+  if(a.status === 'explore') return 'A partial match — worth finding out more.';
+  return likes + '.';
 }
 
 // ---- the four questions the final page answers --------------------------------------------------
@@ -652,104 +620,95 @@ function lrThrive(rows){
   // what it fits NOW, which is not always the same as thriving in it.)
   const strong = rows.filter(function(r){ return (r.rec.key === 'rec' || r.rec.key === 'strong') && !(r.mathsPair && (r.academic.score || 0) < 60); }).slice(0, 3);
   if(strong.length){
-    return 'You are likely to thrive in ' + scJoin(strong.map(function(r){ return r.label; })) + ', where your interests, working style and results line up well.';
+    const names = strong.map(function(r){ return r.label; });
+    return { text: scJoin(names) + ' — your interests, working style and results line up well.', names: names };
   }
   const best = rows.slice(0, 2);
-  return best.length ? 'Your closest matches are ' + scJoin(best.map(function(r){ return r.label; })) + ' — worth exploring what each involves day to day before you decide.' : null;
+  return best.length ? { text: 'Closest matches: ' + scJoin(best.map(function(r){ return r.label; })) + '.', names: [] } : null;
 }
 // 2. Which subjects fit me best right now?
 function lrFitNow(best, maths){
   if(!best) return null;
-  let t = 'Right now your best-fit subjects are ' + scJoin(best.subjects) + '.';
+  let t = scJoin(best.subjects) + '.';
   if(maths && maths.pct != null){
-    t += ' For Mathematics or Mathematical Literacy, your Grade 9 Mathematics result (' + maths.pct + '%) ' +
-      (maths.pick === 'mathematicalLiteracy' ? 'currently points to Mathematical Literacy.'
-        : (maths.pick === 'mathematics' ? (maths.support ? 'means Mathematics may be considered, with extra support.' : 'supports Mathematics.')
-          : 'is strong enough for either.'));
+    t += ' Your Mathematics result (' + maths.pct + '%) ' + (maths.pick === 'mathematicalLiteracy' ? 'points to Mathematical Literacy for now.'
+      : (maths.pick === 'mathematics' ? (maths.support ? 'means Mathematics may be considered, with extra support.' : 'supports Mathematics.') : 'is strong enough for either.'));
   }
   return t;
 }
 // 3. Which areas do I need to improve? Results first (Mathematics when it decides the choice, then the
-//    areas the recommended subjects build on), then interest. The practice tips themselves are the
-//    next steps' business, so they are named here, not repeated in full.
+//    areas the recommended subjects build on), then interest.
 function lrImprove(rows, rep, maths, academic){
   const out = [];
   if(maths && maths.pct != null && (maths.tier === 'developing' || maths.tier === 'low' || maths.tier === 'veryLow')){
-    out.push('Mathematics (' + maths.pct + '%) is the main area to build: short, regular practice of algebra and number work, with extra help from your teacher, makes the biggest difference.');
+    out.push('Mathematics (' + maths.pct + '%): short, regular algebra practice and extra help from your teacher.');
   }
   const dev = rows.filter(function(r){ return !r.mathsPair && (r.academic.key === 'l' || r.category === 'foundation'); });
   const tips = (rep && rep.workOnTips) || [];
   if(dev.length){
-    out.push(scJoin(dev.slice(0, 3).map(function(r){ return r.label; })) + ' may need regular practice at first — your current results in the areas ' + (dev.length === 1 ? 'it builds' : 'they build') + ' on are still developing.');
+    out.push(scJoin(dev.slice(0, 3).map(function(r){ return r.label; })) + ' may need regular practice at first.');
   } else if(tips.length && !out.length){
-    out.push('Some of your results are still developing in areas these subjects build on — a little regular practice will help.');
+    out.push('Some results are still developing — a little regular practice will help.');
   }
   rows.filter(function(r){ return !r.mathsPair && (r.category === 'lower' || r.interest.key === 'l' || r.personality.key === 'l') && dev.indexOf(r) === -1; }).slice(0, 1).forEach(function(r){
-    out.push(r.label + ' shows less alignment with what you enjoy — think about whether you would enjoy it for three years.');
+    out.push(r.label + ' fits what you enjoy less — be sure you would enjoy it for three years.');
   });
   if(out.length) return out.slice(0, 3);
   const hasMarks = rows.some(function(r){ return r.academic.key !== 'na'; });
   return [hasMarks
-    ? 'Nothing in your recommended subjects stands out as needing extra effort right now — keep up your regular study habits.'
+    ? 'Nothing needs extra effort right now — keep up your study habits.'
     : 'Add your Grade 9 marks to see where extra effort could help.'];
 }
 // 4. Which future pathways could open if I improve? Always "could": one result never closes a career.
 function lrOpen(rep, maths, areas){
-  const out = [];
   const aspNames = areas.list.filter(function(a){ return a.status === 'aspirational'; }).map(function(a){ return a.faculty.name; });
   if(maths && (maths.variant === 'aspirational' || (maths.pick === 'mathematicalLiteracy' && maths.wants !== 'none'))){
-    const target = SC_CONFIG.math.bands.suitable;
     const open = (aspNames.length ? aspNames : (rep.variant ? getCareerPathwaysForSubjects(rep.variant.subjects, rep.results).pathways.slice(0, 3) : [])).slice(0, 3);
-    out.push('If you build your Mathematics towards ' + target + '% or more, ' + (open.length ? 'pathways such as ' + scJoin(open) : 'more pathways that need Mathematics') + ' could open up. Talk it through with your Mathematics teacher before you finalise your subjects.');
-  } else if(maths && maths.support){
-    out.push('With regular practice and extra support, your Mathematics could grow enough to keep Mathematics-based pathways open.');
+    return ['Build your Mathematics towards ' + SC_CONFIG.math.bands.suitable + '% or more and ' + (open.length ? scJoin(open) : 'more pathways that need Mathematics') + ' could open up.'];
   }
+  if(maths && maths.support) return ['Regular practice and support could keep Mathematics-based pathways open.'];
   const names = areas.ready ? areas.list.filter(function(a){ return a.status !== 'aspirational'; }).slice(0, 3).map(function(a){ return a.faculty.name; }) : [];
-  if(names.length) out.push('Steady results in your recommended subjects keep pathways in ' + scJoin(names) + ' open.');
-  return out.slice(0, 2);
+  return names.length ? ['Steady results keep pathways in ' + scJoin(names) + ' open.'] : [];
 }
 // For a learner without a Subject Choice report (other grades, or not done yet):
 // the same questions answered from their career areas and results.
 function lrThriveAreas(areas){
   const strong = areas.filter(function(a){ return a.status === 'strong'; }).slice(0, 2);
   const pick = strong.length ? strong : areas.filter(function(a){ return a.status !== 'aspirational'; }).slice(0, 2);
-  return pick.length ? 'You are likely to thrive in ' + scJoin(pick.map(function(a){ return a.faculty.name; })) + ', where your interests line up ' + (strong.length ? 'strongly' : 'well') + ' with the work.' : null;
+  return pick.length ? scJoin(pick.map(function(a){ return a.faculty.name; })) + ' — your interests line up ' + (strong.length ? 'strongly' : 'well') + ' with the work.' : null;
 }
 function lrEffortGeneral(academic, canAddMarks){
   if(academic.has){
     return academic.toStrengthen.length
-      ? ['Your current ' + scJoin(academic.toStrengthen.map(function(e){ return e.subject; })) + ' results are still developing — regular practice keeps more pathways open.']
-      : ['None of your entered results is below ' + LR_CONFIG.weakBelow + '% — keep up your regular study habits.'];
+      ? [scJoin(academic.toStrengthen.map(function(e){ return e.subject; })) + ' results are still developing — regular practice keeps more pathways open.']
+      : ['None of your results is below ' + LR_CONFIG.weakBelow + '% — keep it up.'];
   }
   return canAddMarks ? ['Add your marks to see where extra effort could help.'] : [];
 }
 
-// 2-4 things to do before choosing subjects: gaps in the report first, then
-// the Mathematics step, the personalised tips, then the steps that always apply.
+// 3 things to do before choosing subjects: gaps in the report first, then the Mathematics step,
+// the personalised tip, then the steps that always apply.
 function lrNextSteps(l, ctx){
   const steps = [];
   const go = function(label, route){ return { label: label, onclick: "navigate('" + route + "')" }; };
-  if(!ctx.p) steps.push({ text:'Take the personality assessment — it unlocks your personality type, subject fit and career areas.', action: go('Take the personality assessment', 'assessment') });
+  if(!ctx.p) steps.push({ text:'Take the personality assessment to unlock your subject fit and career areas.', action: go('Take the personality assessment', 'assessment') });
   if(ctx.grade9 && ctx.p && !ctx.rep){
-    if(!hasEnteredResults(l)) steps.push({ text:'Add your Grade 9 report marks so we can see how ready you are for each subject.', action: go('Enter my Grade 9 results', 'grade9-report') });
-    else steps.push({ text:'Take the Subject Choice Assessment to see how each Grade 10 subject fits you.', action: go('Take the Subject Choice Assessment', 'subject-choice') });
+    if(!hasEnteredResults(l)) steps.push({ text:'Add your Grade 9 report marks to see how ready you are for each subject.', action: go('Enter my Grade 9 results', 'grade9-report') });
+    else steps.push({ text:'Take the Subject Choice Assessment to see which Grade 10 subjects fit you.', action: go('Take the Subject Choice Assessment', 'subject-choice') });
   }
-  if(ctx.grade9 && ctx.rep && !ctx.rep.ready.results) steps.push({ text:'Add your Grade 9 report marks to see how ready you are for each subject — until then this report uses your interests and working style only.', action: go('Enter my Grade 9 results', 'grade9-report') });
+  if(ctx.grade9 && ctx.rep && !ctx.rep.ready.results) steps.push({ text:'Add your Grade 9 report marks — until then this report uses your interests and working style only.', action: go('Enter my Grade 9 results', 'grade9-report') });
   const mx = ctx.maths;
   if(mx){
-    if(mx.pick === 'mathematicalLiteracy' && mx.wants !== 'none') steps.push({ text:'Talk to your Mathematics teacher about whether extra support could make Mathematics possible — before you finalise your subjects.' });
-    else if(mx.support) steps.push({ text:'Plan regular extra Mathematics practice, and talk to your Mathematics teacher about the support available.' });
-    else if(mx.pct == null) steps.push({ text:'Add your Grade 9 Mathematics result so we can recommend Mathematics or Mathematical Literacy.', action: go('Enter my Grade 9 results', 'grade9-report') });
+    if(mx.pick === 'mathematicalLiteracy' && mx.wants !== 'none') steps.push({ text:'Ask your Mathematics teacher whether extra support could make Mathematics possible.' });
+    else if(mx.support) steps.push({ text:'Plan regular extra Mathematics practice and ask your teacher about support.' });
+    else if(mx.pct == null) steps.push({ text:'Add your Grade 9 Mathematics result to decide between Mathematics and Mathematical Literacy.', action: go('Enter my Grade 9 results', 'grade9-report') });
   }
   const top = ctx.p ? computePathwayMatches(l)[0] : null;
   const conflict = top && top.alignment != null ? subjectConflictForFaculty(l, top.faculty.id) : null;
-  if(conflict && conflict.hasConflict) steps.push({ text:'Discuss your subject choice with a teacher, parent or career adviser before finalising it.' });
-  if(ctx.rep && ctx.rep.workOnTips && ctx.rep.workOnTips.length && !(mx && mx.pct != null && mx.pct < SC_CONFIG.math.bands.suitable)) steps.push({ text: ctx.rep.workOnTips[0] });
-  steps.push({ text: 'Talk this report through with your Life Orientation teacher, a subject counsellor or a parent/guardian.' });
-  steps.push({ text: ctx.grade9
-    ? 'Check which subject combinations your school offers, and the subject and APS requirements of the careers you like.'
-    : 'Check the admission requirements of the careers you like, and which subjects they rely on.' });
-  if(ctx.rep) steps.push({ text: 'See which careers your recommended subjects keep open on the Career Matches page.', action: go('See career matches', 'matches') });
+  if(conflict && conflict.hasConflict) steps.push({ text:'Discuss your subject choice with a teacher, parent or career adviser.' });
+  if(ctx.rep && ctx.rep.workOnTips && ctx.rep.workOnTips.length && !(mx && mx.pct != null && mx.pct < SC_CONFIG.math.bands.suitable)) steps.push({ text: ctx.rep.workOnTips[0].split(' This matters for')[0] });
+  steps.push({ text: 'Talk this report through with your Life Orientation teacher, counsellor or parent/guardian.' });
+  steps.push({ text: ctx.grade9 ? 'Check which combinations your school offers and what your careers require.' : 'Check what the careers you like require.' });
   return steps.slice(0, LR_CONFIG.nextSteps);
 }
 
@@ -866,23 +825,20 @@ function buildLearnerReport(l){
   // ---- the combinations explain themselves, from the traits, interests and results above
   if(best){
     const why = { byId: byId, traits: profile.available ? profile.traits : [], interests: profile.available ? profile.interests : [], interestAll: profile.available ? profile.interestAll : [] };
-    best.why = lrComboWhy(best, Object.assign({ pathNames: R.areas.ready ? R.areas.list.filter(function(a){ return a.status !== 'aspirational'; }).map(function(a){ return a.faculty.name; }) : [] }, why), 'best');
+    best.why = lrComboWhy(best, why);
     if(alt){
-      if(comboKind === 'alternative'){
-        const altAreas = lrCareerAreas(l, matches, alt.ids, { maths: maths, byId: byId, overallReady: academic.has ? academic.average : null });
-        alt.why = lrComboWhy(alt, Object.assign({ pathNames: altAreas.ready ? altAreas.list.filter(function(a){ return a.status !== 'aspirational'; }).map(function(a){ return a.faculty.name; }) : [], exclude: best.ids }, why), 'alt');
-      } else {
-        // The Mathematics decision's own second combination says what it keeps open and what it would take.
-        alt.why = rep.variant.why;
-      }
+      // The alternative says what makes it different; the Mathematics decision's own second combination says what it keeps open and what it would take.
+      alt.why = comboKind === 'alternative' ? lrComboWhy(alt, Object.assign({ exclude: best.ids }, why)) : rep.variant.why;
     }
   }
 
   // ---- 6: the four questions, the conclusion and next steps
   const ctx = { l: l, p: p, rep: rep, grade9: grade9, maths: maths };
   const bestRows = rows.filter(function(r){ return !r.extra; });   // the recommendation, not the second combination
+  const thrive = rows.length ? lrThrive(bestRows) : null;
   R.final = {
-    thrive: rows.length ? lrThrive(bestRows) : lrThriveAreas(R.areas.list),
+    thrive: rows.length ? (thrive && thrive.text) : lrThriveAreas(R.areas.list),
+    thriveNames: thrive ? thrive.names : [],
     fitNow: rows.length ? lrFitNow(best, maths) : null,
     improve: rows.length ? lrImprove(bestRows, rep, maths, academic) : lrEffortGeneral(academic, !l.exploringOnly),
     open: rows.length ? lrOpen(rep, maths, R.areas) : [],
@@ -920,10 +876,9 @@ function lrSummary(l, c){
     const peLv = lrLevel(lrAvg(res.map(function(r){ return r.personality.score; })));
     const overall = lrOverall(lrAvg(res.map(function(r){ return r.fit.overall; })), [acLv, inLv, peLv]);
     let note = null;
-    if(noMarks) note = 'Add your Grade 9 marks — a recommendation needs your results as well as your interests.';
-    else if(overall.capped) note = acLv.key === 'l' ? 'Your interests and working style fit well — your current results are still developing.' : 'One part of this fit is lower than the others — see Subject Fit above.';
+    if(noMarks) note = 'Add your Grade 9 marks — a recommendation needs your results too.';
+    else if(overall.capped) note = acLv.key === 'l' ? 'Interests and working style fit well; results still developing.' : 'One part of this fit is lower — see Subject Fit.';
     rows.push(text('Best-fit subjects', c.best.subjects.join(', ')));
-    if(c.maths && c.maths.pick !== 'either') rows.push(text('Mathematics or Mathematical Literacy', c.maths.now + (c.maths.aspire ? ' now; Mathematics as an aspiration' : '')));
     rows.push(level('Academic readiness', acLv, noMarks ? 'Add your Grade 9 marks to see this.' : null));
     rows.push(level('Interest alignment', inLv));
     rows.push(level('Personality alignment', peLv));
@@ -976,10 +931,10 @@ function lrCheckReport(R){
       if(isRec(r) && r.noMarks) bad.push(r.label + ' is recommended without any result behind it');
       if(r.why == null && isRec(r)) bad.push(r.label + ' is recommended without an explanation');
     });
-    if(R.final.thrive && /^You are likely to thrive in /.test(R.final.thrive)){
-      const named = R.final.thrive.replace(/^You are likely to thrive in /, '').replace(/, where .*$/, '').split(/, | and /);
-      R.fit.rows.filter(function(r){ return named.indexOf(r.label) !== -1 && !isRec(r); }).forEach(function(r){ bad.push('"likely to thrive" names ' + r.label + ', which is not recommended'); });
-    }
+    R.final.thriveNames.forEach(function(name){
+      const row = R.fit.rows.filter(function(r){ return r.label === name; })[0];
+      if(!row || !isRec(row)) bad.push('"likely to thrive" names ' + name + ', which is not recommended');
+    });
     if(!R.final.fitNow) bad.push('the final page does not say which subjects fit best right now');
     if(!R.final.improve.length) bad.push('the final page does not say what to improve');
     if(m.variant === 'aspirational' && !R.final.open.length) bad.push('the final page does not say what could open up');
@@ -1067,7 +1022,7 @@ function rpStartHTML(R, idp){
   }
   return rpSection({
     id: idp + '-start', n: null, icon: 'compass', tone: 1, title: 'Start here',
-    sub: 'Your report builds as you go. ' + (steps.length > 1 ? steps.length + ' quick steps unlock it.' : 'One quick step unlocks it.'),
+    sub: steps.length > 1 ? steps.length + ' quick steps unlock your report.' : 'One quick step unlocks your report.',
     body: `<ol class="rp-startlist">${steps.map(function(x){ return `<li><div><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>${lrButton('Start', x[2], 'btn-primary')}</li>`; }).join('')}</ol>`,
   });
 }
@@ -1088,12 +1043,11 @@ function rpProfileHTML(R){
       <h3 class="rp-h3">Your key traits</h3>
       <ul class="rp-traits">${traits}</ul>
       ${pr.work && pr.work.items.length ? `<p class="rp-work"><span class="rp-k">How you like to work</span> ${esc(scCap(scJoin(pr.work.items)))}.</p>` : ''}
-      ${pr.learn ? `<div class="rp-learn"><span class="rp-learn-ic">${icon('cap', 'rp-ic')}</span><div><h3 class="rp-h3">How you learn best</h3><p>${esc(pr.learn)}</p><small>Read from your personality and work-style answers.</small></div></div>` : ''}
+      ${pr.learn ? `<div class="rp-learn"><span class="rp-learn-ic">${icon('cap', 'rp-ic')}</span><div><h3 class="rp-h3">How you learn best</h3><p>${esc(pr.learn)}</p></div></div>` : ''}
     </div>
     <div class="rp-pcol rp-pint">
       <h3 class="rp-h3">Your interests</h3>
       <ul class="rp-ibars">${bars}</ul>
-      <p class="rp-basis">${pr.interestBasis === 'subjects' ? 'From your Subject Choice answers — the same answers that give each subject its interest score below.' : 'From your personality assessment. The Subject Choice Assessment sharpens them for each subject.'}</p>
       <p class="rp-type">Your personality type: <b>${esc(pr.code)}</b> — ${esc(pr.names.join(' · '))}</p>
     </div>
   </div>`;
@@ -1122,7 +1076,7 @@ function rpFitTableHTML(R){
   };
   const rows = f.rows.map(function(r){
     return `<tr class="rp-main-row${r.extra === 'other' ? ' rp-row-other' : ''}${r.why ? '' : ' rp-nowhy'}">
-      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${r.extra === 'alternative' ? `<small class="rp-alt">${esc(LR_COMBO_MARK[R.combo.kind] || LR_COMBO_MARK.alternative)}</small>` : ''}</th>
+      <th scope="row" class="rp-subj"><span>${esc(r.label)}</span></th>
       ${cell(r.academic, 'm-ac', 'Academic')}
       ${cell(r.interest, 'm-in', 'Interest')}
       ${cell(r.personality, 'm-pe', 'Personality')}
@@ -1141,9 +1095,7 @@ function rpFitTableHTML(R){
       <th scope="col">Recommendation</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>
-  ${f.also.length ? `<p class="rp-foot">Also scoring well: ${esc(f.also.join(', '))}.</p>` : ''}
-  <p class="rp-foot">Overall fit blends interest (${pc(W.interest)}%), personality alignment (${pc(W.personality)}%) and academic readiness (${pc(W.academic)}%). A subject is only recommended when your results support it as well as your interests and personality. Results are the Grade 9 learning areas each subject builds on (for example EMS for Business Studies), not marks in a subject you have not taken yet.</p>`;
+  </table>`;
 }
 // The Mathematics / Mathematical Literacy decision, beside the table it explains.
 function rpMathsHTML(R){
@@ -1151,14 +1103,13 @@ function rpMathsHTML(R){
   if(!m) return '';
   return `
   <div class="rp-maths">
-    <div class="rp-maths-h"><span class="rp-sq">${icon('compass', 'rp-ic')}</span><div><b>Mathematics or Mathematical Literacy?</b><small>${esc(m.headline)}</small></div></div>
+    <div class="rp-maths-h"><span class="rp-sq">${icon('compass', 'rp-ic')}</span><div><b>Mathematics or Mathematical Literacy?</b></div></div>
     <div class="rp-maths-b">
       <p>${esc(m.message)}</p>
       <div class="rp-maths-pair">
         <div><span class="rp-k">Best choice for now</span><b>${esc(m.now)}</b></div>
         ${m.aspire ? `<div class="rp-maths-asp"><span class="rp-k">Your aspirational careers need</span><b>${esc(m.aspire)}</b>${m.careers.length ? `<small>For example ${esc(scJoin(m.careers))}.</small>` : ''}</div>` : ''}
       </div>
-      ${m.careerNote ? `<p>${esc(m.careerNote)}</p>` : ''}
       ${m.pick !== 'mathematics' ? `<p class="rp-note">${esc(m.litNote)}</p>` : ''}
     </div>
   </div>`;
@@ -1178,15 +1129,13 @@ function rpFitHTML(R, l){
   if(f.provisional && f.provisional.length){
     return `
     <div class="rp-pills">${f.provisional.map(function(s){ return `<span class="rp-chip rp-chip-consider">${esc(s.subject)}</span>`; }).join('')}</div>
-    <p class="rp-foot">These are the subjects your strongest career areas lean on — they describe the careers, not a personal ranking.</p>${rpAcademicHTML(R, l)}`;
+    <p class="rp-foot">These describe the careers, not a personal ranking.</p>${rpAcademicHTML(R, l)}`;
   }
   return rpEmpty('Take the personality assessment to see which subjects your best-suited careers rely on.', 'Take the personality assessment', "navigate('assessment')") + rpAcademicHTML(R, l);
 }
 
 /* ---- 3: recommended subject combination ---- */
 const LR_COMBO_TITLE = { best: 'Best-fit combination', aspirational: 'Aspirational Mathematics pathway', safer: 'A safer alternative', alternative: 'Alternative combination' };
-const LR_COMBO_MARK = { aspirational: 'In the aspirational pathway', safer: 'In the safer alternative', alternative: 'In the alternative combination' };
-const LR_COMBO_TAG = { aspirational: 'Not the safest choice yet — your results do not support it yet', safer: 'Fits your results as they are now' };
 function rpComboCard(c, kind){
   if(!c) return '';
   const best = kind === 'best';
@@ -1194,7 +1143,6 @@ function rpComboCard(c, kind){
   <div class="rp-combo ${best ? 'best' : 'alt'} rp-combo-${kind}">
     <div class="rp-combo-h"><span class="rp-sq">${icon(best ? 'check' : (kind === 'aspirational' ? 'compass' : 'switch'), 'rp-ic')}</span><div><b>${esc(LR_COMBO_TITLE[kind] || LR_COMBO_TITLE.alternative)}</b><small>${esc(c.name)}</small></div></div>
     <div class="rp-combo-b">
-      ${LR_COMBO_TAG[kind] ? `<p class="rp-tag2">${esc(LR_COMBO_TAG[kind])}</p>` : ''}
       <ul>${c.subjects.map(function(x){ return `<li>${esc(x)}</li>`; }).join('')}</ul>
       <p class="rp-why">${esc(c.why)}</p>
     </div>
@@ -1207,8 +1155,7 @@ function rpComboHTML(R){
   }
   if(!c.best) return `<p class="rp-muted">No subject combination stood out strongly this time — talk through the subjects above with your teacher.</p>`;
   return `
-  <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, c.kind || 'alternative') : ''}</div>
-  <p class="rp-foot">${esc(SC_COPY.schoolOffers)}</p>`;
+  <div class="rp-combos">${rpComboCard(c.best, 'best')}${c.alt ? rpComboCard(c.alt, c.kind || 'alternative') : ''}</div>`;
 }
 
 /* ---- 4: career pathways ---- */
@@ -1219,10 +1166,7 @@ function rpAreasHTML(R){
     const careers = a.careers.map(function(c){
       return `<a href="#" onclick="navigate('career',{id:'${c.id}',from:{route:'report',param:'overview'}});return false;">${esc(c.name)}</a>${c.aspirational ? ' <span class="rp-asp">Aspirational — Mathematics required</span>' : ''}`;
     }).join(', ');
-    const uses = [
-      A.basis !== 'none' && a.draws.length ? `<b>Builds on</b> ${esc(a.draws.join(', '))}` : '',
-      a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '',
-    ].filter(Boolean).join(' · ');
+    const uses = a.gaps.length ? `<b>${A.basis === 'none' ? 'Typically needs' : 'Often also needs'}</b> ${esc(a.gaps.join(', '))}` : '';
     return `
     <li class="rp-area rp-t${i + 1}">
       <span class="rp-dot rp-dot-lg">${icon(LR_AREA_ICON[a.faculty.id] || 'compass', 'rp-ic')}</span>
@@ -1266,7 +1210,7 @@ function rpFinalHTML(R){
       <ol class="rp-steps">${steps}</ol>
     </div>
   </div>
-  <p class="rp-foot">${esc(SC_COPY.finalDecision)}</p>`;
+  `;
 }
 // The admission-requirements disclaimer, and (for a Grade 9 report) the Mathematics and school-offer reminders.
 function rpDisclaimerHTML(R){
@@ -1286,18 +1230,16 @@ function learnerReportHTML(l, R, opts){
   } else {
     const general = R.fit.state === 'general';
     const secs = [
-      { key:'profile', title:'Your Learner Profile', sub:'How you naturally work, learn and what interests you.', body: rpProfileHTML(R) },
+      { key:'profile', title:'Your Learner Profile', body: rpProfileHTML(R) },
       { key:'fit', title: general ? 'Subjects Your Careers Rely On' : 'Subject Fit', cls:'rp-fit',
-        sub: general ? 'The subjects your strongest career areas lean on.' : 'How well each subject matches your results, interests and personality.', body: rpFitHTML(R, l) },
+        body: rpFitHTML(R, l) },
     ];
     // Side by side only when there is a combination to show; otherwise each section stands alone, full width.
     const sideBySide = !general && R.combo.state === 'ready' && !!R.combo.best;
-    if(!general) secs.push({ key:'combo', title:'Recommended Subject Combination', sub:'Your best-fit Grade 10 subjects based on your overall profile.', body: rpComboHTML(R), cls: sideBySide ? 'rp-half' : '' });
+    if(!general) secs.push({ key:'combo', title:'Recommended Subject Combination', body: rpComboHTML(R), cls: sideBySide ? 'rp-half' : '' });
     const A = R.areas;
-    secs.push({ key:'areas', title:'Career Pathways', cls: sideBySide ? 'rp-half' : '',
-      sub: A.basis === 'recommended' ? 'Your recommended subjects can support these career areas.' : (A.basis === 'current' ? 'These career areas fit your personality and the subjects you are taking.' : 'These career areas fit your personality.'),
-      body: rpAreasHTML(R) });
-    secs.push({ key:'final', title:'Your Final Recommendation & Next Steps', sub:'A summary of your results and what to do next.', body: rpFinalHTML(R) });
+    secs.push({ key:'areas', title:'Career Pathways', cls: sideBySide ? 'rp-half' : '', body: rpAreasHTML(R) });
+    secs.push({ key:'final', title:'Your Final Recommendation & Next Steps', body: rpFinalHTML(R) });
     const tones = rpTones(secs.length);
     const html = secs.map(function(s, i){
       return rpSection({ id: idp + '-' + s.key, n: i + 1, tone: tones[i], title: s.title, sub: s.sub, body: s.body, cls: s.cls });

@@ -114,20 +114,17 @@ const SC_COPY = {
   // Mathematics result. Mathematical Literacy is never described as the lesser
   // subject: it is the stronger CURRENT fit for some results, and a legitimate
   // route to many pathways.
-  mathNone: 'Add your Grade 9 Mathematics result and we will recommend Mathematics or Mathematical Literacy from it. Until then, both are worth talking through with your Mathematics teacher.',
-  mathStrong: 'Your Grade 9 Mathematics result ({pct}%) is a solid foundation for Mathematics. It keeps the widest range of university and career pathways open, including the ones that interest you, so Mathematics is recommended.',
-  mathStrongEither: 'Your Grade 9 Mathematics result ({pct}%) is strong enough for either option, so the choice can follow what you enjoy and the pathways you want to keep open. Mathematical Literacy is a respected subject that fits many of the pathways your answers point to.',
-  mathSuitable: 'Your Grade 9 Mathematics result ({pct}%) makes Mathematics a suitable choice. Consistent effort will still be important, because Grade 10 Mathematics builds quickly on what you have learned so far.',
-  mathSuitableEither: 'Your Grade 9 Mathematics result ({pct}%) makes Mathematics suitable, although consistent effort will still be important. Mathematical Literacy also fits the pathways your answers point to, so talk the two through with your Mathematics teacher.',
-  mathDevelopingWant: 'Your Grade 9 Mathematics result ({pct}%) means your readiness for Mathematics is still developing. Mathematics may be considered because you are interested in careers that need it, but it would take extra support and regular practice — talk it through with your Mathematics teacher, Life Orientation teacher and parent/guardian before you decide.',
-  mathDevelopingLit: 'Your Grade 9 Mathematics result ({pct}%) means your readiness for Mathematics is still developing. Based on your current result, Mathematical Literacy is the stronger academic fit for now. If you would like to keep Mathematics open, extra support and regular practice would be needed first.',
-  mathLow: 'Based on your current Grade 9 Mathematics result, Mathematical Literacy is currently the stronger academic fit. Mathematics may keep additional university and career pathways open, but choosing it would require significant improvement and should be discussed with your Mathematics teacher, Life Orientation teacher and parent/guardian.',
-  mathVeryLow: 'Based on your current Grade 9 Mathematics result ({pct}%), Mathematical Literacy is the stronger academic fit and is our main recommendation. Mathematics is shown only as an aspirational pathway: it may keep additional university and career pathways open, but it would need substantial improvement and a conversation with your Mathematics teacher, Life Orientation teacher and parent/guardian.',
-  mathCareerNeed: 'Some careers you are interested in require Mathematics rather than Mathematical Literacy. If you want to pursue these careers, you would need to substantially improve your Mathematics foundation before making your final subject choice.',
-  // Said together on screen; the PDF puts each half where it belongs (what stays open / what may be restricted).
-  mathLitOpen: 'Mathematical Literacy is a respected subject that supports many legitimate pathways, including business, tourism, services, the humanities and many diplomas and trades.',
-  mathRequired: 'Mathematics is specifically required for certain programmes and careers, such as engineering, actuarial science and many science degrees.',
-  mathLitOpenShort: 'Mathematical Literacy keeps business, tourism, services, humanities, trades and many diplomas open.',
+  mathNone: 'Add your Grade 9 Mathematics result to get a Mathematics or Mathematical Literacy recommendation.',
+  mathStrong: 'Your Grade 9 Mathematics result ({pct}%) is a solid foundation, and Mathematics keeps the widest range of pathways open.',
+  mathStrongEither: 'Your Grade 9 Mathematics result ({pct}%) is strong enough for either — choose by what you enjoy and the pathways you want to keep open.',
+  mathSuitable: 'Your Grade 9 Mathematics result ({pct}%) makes Mathematics suitable, but consistent effort will still be important.',
+  mathSuitableEither: 'Your Grade 9 Mathematics result ({pct}%) makes Mathematics suitable, but consistent effort will still be important. Mathematical Literacy also fits your pathways.',
+  mathDevelopingWant: 'Your Grade 9 Mathematics result ({pct}%) means readiness is still developing. Mathematics would need extra support and regular practice — discuss it with your teachers and parent/guardian.',
+  mathDevelopingLit: 'Your Grade 9 Mathematics result ({pct}%) is still developing. Keeping Mathematics open would need extra support and regular practice.',
+  mathLow: 'Your Grade 9 Mathematics result is {pct}%. Choosing Mathematics would need significant improvement — discuss it with your Mathematics teacher, Life Orientation teacher and parent/guardian.',
+  mathVeryLow: 'Your Grade 9 Mathematics result is {pct}%. Mathematics is an aspiration only: it would need substantial improvement and a talk with your teachers and parent/guardian.',
+  mathCareerNeed: 'Some careers you want need Mathematics, not Mathematical Literacy. You would need to improve your Mathematics substantially before your final choice.',
+  mathLitOpen: 'Mathematical Literacy keeps business, tourism, services, humanities, trades and many diplomas open.',
   mathAlways: 'Subject requirements differ between careers and institutions. Choosing Mathematical Literacy may limit access to some university programmes that specifically require Mathematics. Always check the requirements of careers and qualifications you are considering before finalising your subjects.',
 };
 

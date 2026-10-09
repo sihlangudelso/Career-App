@@ -516,7 +516,7 @@ function decideMathPathway(results, learner){
     headline: headline, message: message,
     // Careers they want that need Mathematics: said separately from the subject choice.
     careerNote: wants !== 'none' && pick !== 'mathematics' ? SC_COPY.mathCareerNeed : null,
-    litNote: SC_COPY.mathLitOpen + ' ' + SC_COPY.mathRequired,
+    litNote: SC_COPY.mathLitOpen,
     always: SC_COPY.mathAlways, need: need,
     mathematics: math ? { overall: math.fit.overall, interest: math.interest.normalised, academic: math.academic.score, alignment: math.personality.score } : null,
   };
@@ -550,26 +550,24 @@ function scApplyMathFeedback(res, mc){
   const pct = mc.pct;
   const hi = scInterestPhrases(res, 'high', 1);
   const aligned = res.interest.level === 'High' || res.personality.level === 'High';
-  const likes = !aligned ? '' : (hi.length ? 'Your interest in ' + hi[0] + ' lines up well with ' : 'Your interests line up well with ') + SC_SUBJECTS[res.id].label + ', but ';
+  // "You like spotting patterns, but your ..." -- or just "Your ..." when there is nothing they especially like
+  const lead = aligned && hi.length ? 'You like ' + hi[0] + ', but your ' : 'Your ';
   let why = null, consider = null;
   if(mc.pick === 'mathematicalLiteracy'){
     if(isMaths){
-      why = [likes + (likes ? 'your' : 'Your') + ' current Mathematics result (' + pct + '%) indicates that your academic foundation still needs significant development.',
-        mc.wants === 'none' ? 'Mathematical Literacy is currently the stronger academic fit for you.' : 'That makes Mathematics an aspirational choice for now rather than the safest recommendation.'];
-      consider = 'If you want careers that need Mathematics, build your foundation first and talk it through with your Mathematics teacher, Life Orientation teacher and parent/guardian.';
+      why = [lead + 'Mathematics result (' + pct + '%) needs significant development first.'];
+      consider = 'If you want careers that need Mathematics, build your foundation first and talk to your teachers and parent/guardian.';
     } else {
-      why = ['Your current Mathematics result (' + pct + '%) suggests that Mathematical Literacy may provide a stronger academic fit while still supporting many business, humanities and service-related career pathways.'];
-      if(aligned) why.push('It also matches how you like to work' + (hi.length ? ' and your interest in ' + hi[0] : '') + '.');
-      consider = 'Mathematical Literacy is a respected subject — check that the careers you like do not specifically require Mathematics.';
+      why = ['Your Mathematics result (' + pct + '%) fits Mathematical Literacy better for now; it still supports business, humanities and service careers.'];
+      consider = 'Mathematical Literacy is respected — check that your careers do not require Mathematics.';
     }
   } else if(mc.pick === 'mathematics' && mc.support){
     if(isMaths){
-      why = [likes + (likes ? 'your' : 'Your') + ' Grade 9 Mathematics result (' + pct + '%) means your readiness is still developing.',
-        'Mathematics may be considered because you are interested in careers that need it, but it would take extra support and regular practice.'];
-      consider = 'Talk it through with your Mathematics teacher, Life Orientation teacher and parent/guardian before you decide.';
+      why = [lead + 'Grade 9 Mathematics result (' + pct + '%) is still developing — it would need extra support and practice.'];
+      consider = 'Discuss it with your teachers and parent/guardian first.';
     } else {
-      why = ['With your Grade 9 Mathematics result at ' + pct + '%, Mathematical Literacy is the safer route while your Mathematics foundation develops.'];
-      consider = 'Mathematical Literacy is a respected subject — check that the careers you like do not specifically require Mathematics.';
+      why = ['The safer route while your Mathematics (' + pct + '%) develops.'];
+      consider = 'Mathematical Literacy is respected — check that your careers do not require Mathematics.';
     }
   }
   if(!why) return;
@@ -688,11 +686,11 @@ function scVariantCombo(results, mc){
   const open = pathways.length ? scJoin(pathways) : 'more';
   let why;
   if(aspirational){
-    const effort = mc.tier === 'developing' ? 'it would take extra support and regular practice before choosing this option'
-      : (mc.tier === 'low' ? 'significant improvement would be needed before choosing this option' : 'substantial improvement would be needed before choosing this option');
-    why = 'This Mathematics pathway could keep additional ' + open + ' careers open, but your current Mathematics result (' + mc.pct + '%) means ' + effort + '.';
+    const effort = mc.tier === 'developing' ? 'needs extra support and practice first'
+      : (mc.tier === 'low' ? 'needs significant improvement first' : 'needs substantial improvement first');
+    why = 'Could keep ' + open + ' careers open, but your Mathematics (' + mc.pct + '%) ' + effort + '.';
   } else {
-    why = 'A safer route if you would rather build your Mathematics foundation first: it fits your results as they are now' + (pathways.length ? ' and keeps pathways in ' + open + ' open' : '') + '.';
+    why = 'The safer route while your Mathematics builds' + (pathways.length ? ': keeps ' + open + ' open' : '') + '.';
   }
   return { id: c.id, name: c.name, subjects: c.subjects, labels: c.labels, score: c.score, kind: mc.variant, why: why };
 }

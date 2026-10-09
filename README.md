@@ -411,10 +411,15 @@ Things worth knowing:
   Assessment done, an area's score is the learner's interest in the two subjects they
   like best within it (`LR_AREAS` lists them), the very scores behind each subject's
   "interest alignment"; before that it comes from the personality assessment's interest
-  dimensions. The caption under the bars says which.
+  dimensions.
 - **"How you learn best" is inferred, not measured.** There is no learning-style
   test: the sentence is read from the learner's personality and work-style answers
-  (`LR_LEARN`), and the report says so beneath it.
+  (`LR_LEARN`).
+- **The report is deliberately short on words.** The owner asked for the explanations that are not
+  needed to go (legends, "how to read" notes, section subtitles, what each personality dimension means,
+  repeated advice), so each trait, reason and answer is one short line, the Maths decision is a headline
+  plus the one reason and caution, and only the owner's own disclaimer wording stays in full. When
+  adding text, ask what the learner would lose without it.
 - **Every learner gets a report that fits them.** Grade 9 with a finished Subject
   Choice Assessment gets all of it; a Grade 10–12 or exploring learner has no
   "Recommended Subject Combination" (the numbers close up) and sees the subjects their
@@ -442,7 +447,7 @@ fixed 210 × 297 mm box (header, body, footer in a flex column), each answering 
 |---|---|---|---|
 | 1 | Your Learner Profile | Who am I? | details, key traits, interests (%), personality type, how they like to work, how they learn best |
 | 2 | Your Subject Fit | Which subjects currently fit me? | the Maths decision, every subject as a row (Academic / Interest / Personality / Overall, the label and a personalised reason), strongest results, areas to strengthen |
-| 3 | Your Pathway | Where could these subjects take me? | best-fit and aspirational (or safer / alternative) combination, career areas with their labels and warnings, "how to read these pathways" |
+| 3 | Your Pathway | Where could these subjects take me? | best-fit and aspirational (or safer / alternative) combination, career areas with their labels and warnings, one line on what Mathematical Literacy keeps open |
 | 4 | Your Recommendation | What should I do next? | the four answers, summary, academic readiness, next steps, the disclaimers |
 
 A report that is not finished (no personality assessment yet, or a learner who is not choosing Grade 10
